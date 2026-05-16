@@ -56,8 +56,15 @@ Este fichero recoge las decisiones técnicas importantes del proyecto con refere
 ## DEC-009 — Metáfora de usuario final
 
 - **Fecha:** 2026-05-16 → ver `diario.md#2026-05-16`
-- **Decisión:** El alumno (usuario final) ve una abstracción simplificada del árbol: solo ve **mesas** y **ordenadores**. No ve carpetas ni jerarquía
+- **Decisión:** El alumno (usuario final) ve una abstracción simplificada: solo ve **mesas** y **ordenadores**. No ve carpetas ni jerarquía
 - **Vocabulario por capas:**
   - Carpeta de alumno → el alumno la ve como **mesa**
   - Descriptor de VM → el alumno lo ve como **ordenador**
-- **Motivo:** Eliminar complejidad innecesaria para el usuario final. El alumno solo necesita saber que tiene mesas y que cada mesa tiene ordenadores
+- **Motivo:** Eliminar complejidad innecesaria para el usuario final
+
+## DEC-010 — Herencia en cascada en v1
+
+- **Fecha:** 2026-05-16 → ver `diario.md#2026-05-16`
+- **Decisión:** La herencia en cascada de propiedades es **necesaria desde v1**, no es opcional
+- **Funcionamiento:** Raíz define hipervisores y plantillas base → carpeta asignatura referencia y puede derivar plantillas → descriptor individual solo elige plantilla y hereda el resto. El fichero de cada descriptor queda mínimo
+- **Motivo:** Sin herencia, cada descriptor repetiría definiciones completas. Con cientos de VMs, la gestión sería inviable
