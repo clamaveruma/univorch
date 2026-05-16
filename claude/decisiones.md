@@ -101,7 +101,7 @@ Este fichero recoge las decisiones técnicas importantes del proyecto con refere
 
 - **Fecha:** 2026-05-16 → ver `diario.md#2026-05-16`
 - **Decisión:** Los Jobs se persisten en la base de datos desde el principio, no viven solo en memoria
-- **Motivo:** Necesario para HA futura. En activo/pasivo, el pasivo replica el estado en tiempo real — si el activo cae, el pasivo tiene todos los Jobs
+- **Motivo:** Necesario para HA futura. En activo/pasivo, el pasivo replica el estado en tiempo real
 
 ## DEC-016 — Operaciones del conector de hipervisor
 
@@ -112,6 +112,15 @@ Este fichero recoge las decisiones técnicas importantes del proyecto con refere
   - `start` / `stop` / `force_stop`
   - `pause` / `resume`
   - `get_status` / `get_info`
-  - Snapshots: `snapshot_create`, `snapshot_restore`, `snapshot_delete`, `snapshot_list` — **desarrollo futuro**
-- **Principio:** Las VMs desplegadas son siempre clones de una VM base creada por el admin. El manager nunca instala SO ni configura hardware
+  - Snapshots: desarrollo futuro. Pendiente discutir gestión de snapshots de alumnos (almacenamiento, límites, comportamiento en undeploy)
+- **Principio:** Las VMs desplegadas son siempre clones de una VM base creada por el admin
 - **Undeploy:** borrado total — VM y disco virtual eliminados del hipervisor
+
+## DEC-017 — Datastores como recurso con alias
+
+- **Fecha:** 2026-05-16 → ver `diario.md#2026-05-16`
+- **Decisión:** Los datastores se tratan como un recurso más, definido dentro de la configuración del hipervisor con un alias interno. Se heredan en cascada igual que hipervisores y plantillas
+- **Dos indirecciones de naturaleza distinta:**
+  - Primera: alias → datastore real — la resuelve el orquestador
+  - Segunda: datastore → almacenamiento físico — la resuelve el hipervisor, opaca para el orquestador
+- **Motivo:** El descriptor solo referencia el alias; el conector traduce al nombre real del hipervisor
