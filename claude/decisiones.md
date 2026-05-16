@@ -95,11 +95,23 @@ Este fichero recoge las decisiones técnicas importantes del proyecto con refere
 - **Decisión:** Toda operación genera un **Job** con ID único y estado (`pending → running → completed / failed`). Los Jobs batch tienen sub-Jobs hijo, uno por VM
 - **API:** `POST /jobs` para lanzar, `GET /jobs/{id}` para consultar estado
 - **v1:** operaciones síncronas directas, pero el modelo Job se diseña desde el principio
-- **Desarrollo futuro:** cola de tareas asíncrona, notificaciones, procesado en background
+- **Desarrollo futuro:** cola asíncrona, HA activo/pasivo con replicación en tiempo real
 
 ## DEC-015 — Jobs persistidos en base de datos
 
 - **Fecha:** 2026-05-16 → ver `diario.md#2026-05-16`
 - **Decisión:** Los Jobs se persisten en la base de datos desde el principio, no viven solo en memoria
-- **Motivo:** Necesario para HA futura — en un cluster, varias instancias compiten por Jobs en estado `pending`. MongoDB soporta esto con operaciones atómicas. TinyDB no, pero el diseño no cambia al migrar, solo el backend
-- **Consecuencia:** TinyDB tiene una limitación conocida para el futuro en este punto
+- **Motivo:** Necesario para HA futura. En activo/pasivo, el pasivo replica el estado en tiempo real — si el activo cae, el pasivo tiene todos los Jobs
+
+## DEC-016 — Operaciones del conector de hipervisor
+
+- **Fecha:** 2026-05-16 → ver `diario.md#2026-05-16`
+- **Decisión:** Todo conector implementa un interfaz común con estas operaciones mínimas:
+  - `deploy` — clonar VM base y desplegar (linked clone preferido para ahorro de disco)
+  - `undeploy` — eliminar VM y disco virtual completamente; el descriptor queda en estado `provisioned`
+  - `start` / `stop` / `force_stop`
+  - `pause` / `resume`
+  - `get_status` / `get_info`
+  - Snapshots: `snapshot_create`, `snapshot_restore`, `snapshot_delete`, `snapshot_list` — **desarrollo futuro**
+- **Principio:** Las VMs desplegadas son siempre clones de una VM base creada por el admin. El manager nunca instala SO ni configura hardware
+- **Undeploy:** borrado total — VM y disco virtual eliminados del hipervisor
