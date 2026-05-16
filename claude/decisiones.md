@@ -20,4 +20,35 @@ Este fichero recoge las decisiones técnicas importantes del proyecto con refere
 
 - **Fecha:** 2026-05-16 → ver `diario.md#2026-05-16`
 - **Decisión:** `claude/diario.md` es la referencia cronológica principal; otros ficheros son índices
-- **Motivo:** Captura el *porqué* de cada decisión en su contexto temporal; facilita reconstruir la evolución del proyecto
+- **Motivo:** Captura el *porqué* de cada decisión en su contexto temporal
+
+## DEC-004 — Arquitectura en dos capas
+
+- **Fecha:** 2026-05-16 → ver `diario.md#2026-05-16`
+- **Decisión:** Separar el orquestador genérico (capa 1) de la aplicación de docencia (capa 2)
+- **Motivo:** El núcleo es reutilizable para cualquier contexto; la capa 2 interpreta el árbol con semántica de asignaturas/alumnos
+
+## DEC-005 — Terminología: "descriptor"
+
+- **Fecha:** 2026-05-16 → ver `diario.md#2026-05-16`
+- **Decisión:** El objeto que representa una VM en el orquestador se llama **descriptor**
+- **Motivo:** Analogía clara con descriptor de fichero en un SO — representa la VM sin ser la VM. Comprensible para cualquier ingeniero de computadores
+
+## DEC-006 — Arquitectura declarativa
+
+- **Fecha:** 2026-05-16 → ver `diario.md#2026-05-16`
+- **Decisión:** El sistema es declarativo: el usuario describe el estado deseado en ficheros (YAML/JSON); el orquestador se encarga de materializarlo
+- **Motivo:** Filosofía tipo Terraform/Ansible — el usuario no da órdenes imperativas, declara lo que quiere. Encaja con la idea de ficheros de configuración como fuente de verdad
+- **Nota:** El bucle de reconciliación automático se deja como desarrollo futuro. La v1 aplica los cambios bajo demanda
+
+## DEC-007 — Capa de persistencia: patrón Repository
+
+- **Fecha:** 2026-05-16 → ver `diario.md#2026-05-16`
+- **Decisión:** La persistencia se abstrae mediante el patrón Repository. Implementación inicial con TinyDB (sin servidor, filosofía documental). Migración futura a MongoDB para HA
+- **Motivo:** TinyDB y MongoDB comparten filosofía documental — la migración solo afecta a la implementación del Repository, no al resto. El Repository también gestionará copias de seguridad automáticas
+
+## DEC-008 — Uso de patrones de diseño
+
+- **Fecha:** 2026-05-16 → ver `diario.md#2026-05-16`
+- **Decisión:** Se usarán patrones de diseño (referencia: refactoring.guru) cuando simplifiquen el proyecto. No por obligación ni para demostrar conocimiento
+- **Motivo:** El proyecto es académico, open source y lo retomarán otros desarrolladores. Prima que funcione y se entienda sobre la sofisticación técnica
