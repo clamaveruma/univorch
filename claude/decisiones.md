@@ -112,7 +112,7 @@ Este fichero recoge las decisiones técnicas importantes del proyecto con refere
   - `start` / `stop` / `force_stop`
   - `pause` / `resume`
   - `get_status` / `get_info`
-  - Snapshots: desarrollo futuro. Pendiente discutir gestión de snapshots de alumnos (almacenamiento, límites, comportamiento en undeploy)
+  - Snapshots: desarrollo futuro. Pendiente discutir gestión de snapshots de alumnos
 - **Principio:** Las VMs desplegadas son siempre clones de una VM base creada por el admin
 - **Undeploy:** borrado total — VM y disco virtual eliminados del hipervisor
 
@@ -124,3 +124,13 @@ Este fichero recoge las decisiones técnicas importantes del proyecto con refere
   - Primera: alias → datastore real — la resuelve el orquestador
   - Segunda: datastore → almacenamiento físico — la resuelve el hipervisor, opaca para el orquestador
 - **Motivo:** El descriptor solo referencia el alias; el conector traduce al nombre real del hipervisor
+
+## DEC-018 — Interfaces de cliente
+
+- **Fecha:** 2026-05-16 → ver `diario.md#2026-05-16`
+- **v1 obligatorio:**
+  - **CLI** (cmd2): modo doble — comandos bash individuales + shell REPL interactivo. Autenticación con token de sesión (una vez por sesión). Soporte de scripts. Herramienta principal de admin y manager
+  - **Web GUI** (NiceGUI): interfaz para todos los roles, especialmente el alumno (su mesa y ordenadores)
+- **Desarrollo futuro:**
+  - **TUI** (Textual): modo monitor de solo lectura, sin funcionalidad completa. No en v1
+- **Motivo:** CLI cubre admin/manager; Web GUI cubre al alumno. TUI añade poco valor sobre CLI para v1
