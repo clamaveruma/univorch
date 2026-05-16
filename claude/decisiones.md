@@ -45,7 +45,7 @@ Este fichero recoge las decisiones técnicas importantes del proyecto con refere
 
 - **Fecha:** 2026-05-16 → ver `diario.md#2026-05-16`
 - **Decisión:** La persistencia se abstrae mediante el patrón Repository. Implementación inicial con TinyDB. Migración futura a MongoDB para HA
-- **Motivo:** TinyDB y MongoDB comparten filosofía documental — la migración solo afecta a la implementación del Repository. El Repository también gestionará copias de seguridad automáticas
+- **Motivo:** TinyDB y MongoDB comparten filosofía documental — la migración solo afecta a la implementación del Repository
 
 ## DEC-008 — Uso de patrones de diseño
 
@@ -80,7 +80,7 @@ Este fichero recoge las decisiones técnicas importantes del proyecto con refere
 
 - **Fecha:** 2026-05-16 → ver `diario.md#2026-05-16`
 - **Decisión:** Cada carpeta declara explícitamente qué elementos publica hacia abajo mediante una lista `exports` en su definición común. Lo que no está en `exports` no se hereda
-- **Formato:** YAML (o JSON). En memoria: modelos Pydantic u otros — detalle a definir en fase de arquitectura
+- **Formato:** YAML (o JSON). Detalle de implementación en memoria a definir en fase de arquitectura
 - **Motivo:** Control explícito de visibilidad
 
 ## DEC-013 — Gestión de IPs
@@ -92,7 +92,14 @@ Este fichero recoge las decisiones técnicas importantes del proyecto con refere
 ## DEC-014 — Modelo de operaciones: patrón Job
 
 - **Fecha:** 2026-05-16 → ver `diario.md#2026-05-16`
-- **Decisión:** Toda operación genera un **Job** con ID único y estado (`pending → running → completed / failed`). Los Jobs batch tienen sub-Jobs hijo, uno por VM. El cliente consulta el Job padre para ver progreso agregado
+- **Decisión:** Toda operación genera un **Job** con ID único y estado (`pending → running → completed / failed`). Los Jobs batch tienen sub-Jobs hijo, uno por VM
 - **API:** `POST /jobs` para lanzar, `GET /jobs/{id}` para consultar estado
-- **v1:** operaciones síncronas directas, pero el modelo Job se diseña desde el principio para no romper la API al migrar a asíncrono
+- **v1:** operaciones síncronas directas, pero el modelo Job se diseña desde el principio
 - **Desarrollo futuro:** cola de tareas asíncrona, notificaciones, procesado en background
+
+## DEC-015 — Jobs persistidos en base de datos
+
+- **Fecha:** 2026-05-16 → ver `diario.md#2026-05-16`
+- **Decisión:** Los Jobs se persisten en la base de datos desde el principio, no viven solo en memoria
+- **Motivo:** Necesario para HA futura — en un cluster, varias instancias compiten por Jobs en estado `pending`. MongoDB soporta esto con operaciones atómicas. TinyDB no, pero el diseño no cambia al migrar, solo el backend
+- **Consecuencia:** TinyDB tiene una limitación conocida para el futuro en este punto
