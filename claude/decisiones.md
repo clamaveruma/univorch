@@ -66,5 +66,25 @@ Este fichero recoge las decisiones técnicas importantes del proyecto con refere
 
 - **Fecha:** 2026-05-16 → ver `diario.md#2026-05-16`
 - **Decisión:** La herencia en cascada de propiedades es **necesaria desde v1**, no es opcional
-- **Funcionamiento:** Raíz define hipervisores y plantillas base → carpeta asignatura referencia y puede derivar plantillas → descriptor individual solo elige plantilla y hereda el resto. El fichero de cada descriptor queda mínimo
-- **Motivo:** Sin herencia, cada descriptor repetiría definiciones completas. Con cientos de VMs, la gestión sería inviable
+- **Funcionamiento:** Raíz define hipervisores y plantillas base → carpeta asignatura referencia y puede derivar plantillas → descriptor individual solo elige plantilla y hereda el resto
+- **Motivo:** Sin herencia, cada descriptor repetiría definiciones completas. Con cientos de VMs la gestión sería inviable
+
+## DEC-011 — Modelo de permisos: RBAC con herencia jerárquica
+
+- **Fecha:** 2026-05-16 → ver `diario.md#2026-05-16`
+- **Decisión:** 3 roles (superusuario, manager, end_user) con permisos estándar fijos en código. Única excepción configurable en v1: el admin restringe qué plantillas e hipervisores ve cada manager
+- **Principio clave:** visibilidad vs usabilidad — un rol puede *usar* un recurso sin *ver* su definición completa (ej: manager usa hipervisor sin ver credenciales)
+- **Desarrollo futuro:** personalización granular de permisos por carpeta
+
+## DEC-012 — Exportación explícita de definiciones heredables
+
+- **Fecha:** 2026-05-16 → ver `diario.md#2026-05-16`
+- **Decisión:** Cada carpeta declara explícitamente qué elementos publica hacia abajo mediante una lista `exports` en su definición común. Lo que no está en `exports` no se hereda
+- **Formato:** YAML (o JSON). En memoria: modelos Pydantic u otros — detalle a definir en fase de arquitectura
+- **Motivo:** Control explícito de visibilidad. El que crea la carpeta decide qué expone
+
+## DEC-013 — Gestión de IPs
+
+- **Fecha:** 2026-05-16 → ver `diario.md#2026-05-16`
+- **Decisión:** Integración con IPAM queda fuera de v1. Se mantiene como desarrollo futuro
+- **Motivo:** Complejidad no justificada para la prueba de concepto
