@@ -10,15 +10,38 @@
 - Se define la estructura de memoria persistente basada en ficheros Markdown
 - Se establece el uso de `CLAUDE.md` como punto de entrada con imports a ficheros especializados
 
-### Decisiones
+### Decisiones tomadas
 
-- **Formato de memoria:** Markdown (`.md`) para todos los ficheros de contexto, por legibilidad y compatibilidad con Claude Code
-- **Estructura de directorios:** ficheros de contexto en `claude/`, `CLAUDE.md` en raíz solo con imports y reglas
-- **Diario como fuente principal:** el diario cronológico (`claude/diario.md`) es la referencia principal del proyecto; `proyecto.md` y `decisiones.md` son índices de consulta rápida
-- **Commits automáticos:** Claude hace commit al terminar cada bloque de trabajo, informa en el chat, sin interrumpir el flujo
-- **Estructura dinámica:** Claude puede crear nuevos ficheros en `claude/` si un tema lo requiere
+- **Formato de memoria:** Markdown (`.md`) para todos los ficheros de contexto
+- **Estructura de directorios:** ficheros de contexto en `claude/`, documentación en `docs/`, `CLAUDE.md` en raíz
+- **Diario como fuente principal:** `claude/diario.md` es la referencia cronológica; se actualiza cuando hay algo relevante que registrar, no solo en commits
+- **Commits automáticos:** Claude hace commit al terminar cada bloque de trabajo, sin pedir confirmación; informa en el chat
+- **Estilo de trabajo:** colaborativo — proponer, aclarar, confirmar, ejecutar. Sin sorpresas en decisiones de diseño
+- **Sin complacencia:** Claude debe ser crítico y objetivo, ofrecer alternativas
 
-### Estado al cierre de sesión
+### Plan de proyecto acordado
 
-- Estructura inicial creada y subida a GitHub
+Se definen 7 fases con nombres profesionales (ver `docs/plan.md`):
+1. Definición del problema
+2. Análisis de requisitos
+3. Diseño de arquitectura
+4. Selección de tecnologías
+5. Configuración del entorno
+6. Desarrollo iterativo (TDD)
+7. Evaluación y memoria
+
+El alcance de la Fase 6 se decide sprint a sprint según tiempo disponible.
+
+### Contexto del proyecto
+
+- TFG de Ingeniería de Computadores
+- Prueba de concepto de orquestador universal de VMs para entornos docentes y de investigación
+- Desarrollo asistido por IA
+- El autor tiene base técnica sólida pero menos experiencia en desarrollo software → se usarán herramientas modernas pero sin sobresofisticar
+
+### Estado al cierre de bloque
+
+- Estructura de repositorio creada
+- Plan de proyecto documentado en `docs/plan.md`
 - Stack tecnológico y arquitectura pendientes de definir
+- Pendiente: subir ficheros de referencia con ideas del proyecto
