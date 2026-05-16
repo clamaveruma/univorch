@@ -73,7 +73,7 @@ Este fichero recoge las decisiones técnicas importantes del proyecto con refere
 
 - **Fecha:** 2026-05-16 → ver `diario.md#2026-05-16`
 - **Decisión:** 3 roles (superusuario, manager, end_user) con permisos estándar fijos en código. Única excepción configurable en v1: el admin restringe qué plantillas e hipervisores ve cada manager
-- **Principio clave:** visibilidad vs usabilidad — un rol puede *usar* un recurso sin *ver* su definición completa (ej: manager usa hipervisor sin ver credenciales)
+- **Principio clave:** visibilidad vs usabilidad — un rol puede *usar* un recurso sin *ver* su definición completa
 - **Desarrollo futuro:** personalización granular de permisos por carpeta
 
 ## DEC-012 — Exportación explícita de definiciones heredables
@@ -81,10 +81,18 @@ Este fichero recoge las decisiones técnicas importantes del proyecto con refere
 - **Fecha:** 2026-05-16 → ver `diario.md#2026-05-16`
 - **Decisión:** Cada carpeta declara explícitamente qué elementos publica hacia abajo mediante una lista `exports` en su definición común. Lo que no está en `exports` no se hereda
 - **Formato:** YAML (o JSON). En memoria: modelos Pydantic u otros — detalle a definir en fase de arquitectura
-- **Motivo:** Control explícito de visibilidad. El que crea la carpeta decide qué expone
+- **Motivo:** Control explícito de visibilidad
 
 ## DEC-013 — Gestión de IPs
 
 - **Fecha:** 2026-05-16 → ver `diario.md#2026-05-16`
 - **Decisión:** Integración con IPAM queda fuera de v1. Se mantiene como desarrollo futuro
 - **Motivo:** Complejidad no justificada para la prueba de concepto
+
+## DEC-014 — Modelo de operaciones: patrón Job
+
+- **Fecha:** 2026-05-16 → ver `diario.md#2026-05-16`
+- **Decisión:** Toda operación genera un **Job** con ID único y estado (`pending → running → completed / failed`). Los Jobs batch tienen sub-Jobs hijo, uno por VM. El cliente consulta el Job padre para ver progreso agregado
+- **API:** `POST /jobs` para lanzar, `GET /jobs/{id}` para consultar estado
+- **v1:** operaciones síncronas directas, pero el modelo Job se diseña desde el principio para no romper la API al migrar a asíncrono
+- **Desarrollo futuro:** cola de tareas asíncrona, notificaciones, procesado en background
