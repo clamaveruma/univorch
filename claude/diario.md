@@ -74,6 +74,10 @@ Se analizaron todos los documentos de referencia y se tomaron 18 decisiones de d
 - [ ] Desarrollo en diferentes plataformas
 - [ ] Directrices de código
 - [ ] Snapshots de alumnos (almacenamiento, límites, comportamiento en undeploy)
+- [ ] Gestión de IPs, posible integración con IPAM
+- [ ] Gestión de excepciones comunes y estados desconectados
+- [ ] Fuentes de verdad y estados incoherentes
+- [ ] Informes posibles
 - [ ] Futuras aplicaciones: otros modelos de vista de usuario, desacople aplicaciones/motor, módulo de migración de máquinas, módulos de supervisión, integración de Chat IA en web y REPL CLI
 - [ ] Subir PDFs de referencia al repo
 - [ ] Buscar documento con referencia a MongoDB
