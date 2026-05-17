@@ -238,3 +238,12 @@ Se aplican todos los ajustes pendientes al documento de requisitos:
 - **Jobs batch:** "one child Job per item or target" (no solo VMs)
 - **Sección 4.7 nueva:** IP address management. Secciones 4.8–4.11 renumeradas
 - **Constraints y Out of scope:** reescritos para reflejar pools propios en v1 e integración IPAM externa fuera de v1
+
+### Fase 2 cerrada — inicio de Fase 3 (arquitectura)
+
+- Documento de requisitos dado por completo y coherente con todas las decisiones (DEC-001 a DEC-025)
+- Se acuerda enfocar la Fase 3 con un **documento de debate** previo (no entregable directo), con alternativas y pros/contras, para discutir y luego redactar `docs/arquitectura.md`
+- Modelo/esfuerzo para Fase 3: Opus + esfuerzo Alto (cambio manual del usuario)
+- Creado `claude/arquitectura-debate.md`: 9 bloques (estructura de código, árbol de descriptores, modelo declarativo, motor de Jobs, conectores, persistencia, interfaces, estados/errores, ideas out-of-the-box) + checklist de decisiones + 3 preguntas abiertas
+- Recomendaciones principales a debatir: materialized path para el árbol, resolución lazy con función pura, facade `OrchestratorService` único, Command pattern para Jobs, lock por descriptor en BD, conectores in-process con costura para out-of-process, mock como servicio REST con fallos/latencia/drift configurables
+- Pendiente: discutir el documento con el usuario (próxima sesión); confirmar expectativa del tutor sobre reutilización de `esxobjects`/`yamlinfr`

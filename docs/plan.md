@@ -17,7 +17,7 @@ Entender y documentar el problema que resuelve el sistema, el contexto de uso y 
 ---
 
 ### Fase 2 — Análisis de requisitos
-**Estado:** 🔄 En curso
+**Estado:** ✅ Completada
 
 Definir qué hace el sistema desde el punto de vista del usuario. Casos de uso, requisitos funcionales y no funcionales, restricciones.
 
@@ -26,7 +26,7 @@ Definir qué hace el sistema desde el punto de vista del usuario. Casos de uso, 
 ---
 
 ### Fase 3 — Diseño de arquitectura
-**Estado:** ⏳ Pendiente
+**Estado:** 🔄 En curso
 
 Cómo se implementa el sistema: servicios, módulos, protocolos de comunicación, estructuras de datos, persistencia, logs. Sin entrar en código concreto.
 
