@@ -86,12 +86,14 @@ Este fichero recoge las decisiones técnicas importantes del proyecto con refere
 - **Principio clave:** visibilidad vs usabilidad — un rol puede *usar* un recurso sin *ver* su definición completa
 - **Desarrollo futuro:** personalización granular de permisos por carpeta
 
-## DEC-012 — Exportación explícita de definiciones heredables
+## DEC-012 — Importación explícita de definiciones heredables
 
-- **Fecha:** 2026-05-16 → ver `diario.md#2026-05-16`
-- **Decisión:** Cada carpeta declara explícitamente qué elementos publica hacia abajo mediante una lista `exports` en su definición común. Lo que no está en `exports` no se hereda
-- **Formato:** YAML (o JSON). Detalle de implementación en memoria a definir en fase de arquitectura
-- **Motivo:** Control explícito de visibilidad
+- **Fecha:** 2026-05-16 (revisado 2026-05-17) → ver `diario.md#2026-05-17`
+- **Decisión:** El mecanismo es de **importación** (no exportación). Cuando se crea una carpeta hija, su creador declara qué definiciones importa de la carpeta padre. Lo que no se importa no es visible por debajo
+- **Comodín `*`:** está soportado — importa todo lo disponible en la carpeta padre. Útil para casos como "cada carpeta de alumno importa todo lo de la asignatura"
+- **Propiedad implícita:** el concepto de "propietario" de una carpeta no se implementa explícitamente. Emerge de la asignación de roles: los managers de una carpeta son sus propietarios efectivos; el admin es manager de todo; el alumno es end_user de su carpeta final
+- **Formato:** YAML (o JSON). Detalle de implementación a definir en fase de arquitectura
+- **Motivo:** Control explícito de visibilidad con flexibilidad máxima para el caso común
 
 ## DEC-013 — Gestión de IPs
 

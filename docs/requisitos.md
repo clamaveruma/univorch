@@ -68,7 +68,7 @@ The administrator defines a base template: the base VM it clones from, the hyper
 
 **UC-ADM-4 — Create and organize folders**  
 *Actor:* administrator. *Goal:* structure the tree.  
-The administrator creates folders anywhere in the tree and sets their common definition (what they export downward, see DEC-012).
+The administrator creates folders anywhere in the tree and sets their common definition (what is available for child folders to import, see DEC-012).
 
 **UC-ADM-5 — Assign users to roles**  
 *Actor:* administrator. *Goal:* grant access.  
@@ -102,7 +102,7 @@ The administrator views an operational report, such as the state of all VMs grou
 
 **UC-MGR-1 — Create and organize folders in own branches**  
 *Actor:* manager. *Goal:* structure their own area.  
-Within the branches assigned to them, the manager creates folders and sets their common definitions.
+Within the branches assigned to them, the manager creates folders. When creating a folder, the creator chooses which definitions to import from the parent (or imports all with `*`). The manager sets the folder's own common definition, which child folders can in turn import.
 
 **UC-MGR-2 — Create descriptors**  
 *Actor:* manager. *Goal:* define VMs.  
@@ -200,17 +200,18 @@ Grouped by area. Each item is a clear statement of what the system does.
 ### 4.1 Tree and folders
 
 - The system stores descriptors and folders in a hierarchical tree.
-- A folder has a common definition that its children inherit.
-- A folder declares explicitly what it exports downward; what is not exported is not inherited (DEC-012).
+- A folder has a common definition that its children can import and use.
+- A parent folder makes definitions available; child folders choose what to import (DEC-012).
 - Folders can be created, viewed, and organized by users with the right role in that branch.
 
 ### 4.2 Cascade inheritance
 
 - The effective definition of a descriptor is the combination of all definitions from root to that node, with each level able to override properties from the level above (DEC-010).
 - Hypervisors, templates, datastores, and role assignments are all inherited this way.
-- Each folder explicitly declares what it exports downward (DEC-012). A subfolder imports only what its creator has declared; what is not exported is not visible below.
-- A user can see the full resolved definition of the elements imported into their folder (local definition plus everything inherited), but can only modify definitions at their own level. Parent definitions are read-only.
+- When a folder is created, its creator declares which definitions to import from the parent folder. The creator can import a specific list or use `*` to import everything available. What is not imported is not visible below (DEC-012).
+- A user can see the full resolved definition of the elements imported into their folder (local definition plus everything inherited from above), but can only modify definitions at their own level. Parent definitions are read-only.
 - Only hypervisor credentials and address are hidden from managers; all other template and descriptor properties are visible to those who import them (DEC-011).
+- Ownership of a folder is not an explicit system concept. It emerges naturally from role assignment: the users assigned as `manager` of a folder are effectively its owners. The administrator is manager of all; a student is end user of their final folder. No separate ownership mechanism is needed (DEC-021).
 - Inheritance is mandatory in v1; it is not optional.
 
 ### 4.3 Descriptors and states

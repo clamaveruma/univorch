@@ -203,3 +203,13 @@ Se redacta el documento de requisitos en formato ligero (acordado: casos de uso 
 - Sistema como motor de operaciones (síncrono en v1, modelo preparado para asíncrono) + tareas automáticas
 - Plan.md: Fase 1 ✅ completada, Fase 2 🔄 en curso
 - Pendiente: revisión del usuario; afinar casos de uso en sprints futuros si se necesita
+
+### Aclaración del modelo de herencia — DEC-012 revisado
+
+Se cierra la discusión sobre el mecanismo de herencia/importación con tres decisiones finales:
+
+1. **Importaciones, no exportaciones:** la carpeta hija declara qué importa del padre (no el padre qué exporta). Quien crea la carpeta hija — que en ese momento es el propietario efectivo del padre — decide qué trae consigo hacia abajo
+2. **Comodín `*`:** soportado en v1. Importa todo lo disponible en la carpeta padre. Caso de uso típico: carpeta de alumno importa `*` de la carpeta de asignatura
+3. **Propiedad implícita:** el concepto de "propietario" de una carpeta no se implementa. Emerge del RBAC: managers de una carpeta = propietarios efectivos; admin = manager de todo; alumno = end_user de su carpeta final. No hace falta ningún campo ni mecanismo adicional
+
+DEC-012 actualizado en `claude/decisiones.md`. `docs/requisitos.md` secciones 4.1, 4.2 y UC-MGR-1 actualizados para reflejar el modelo de importación.
