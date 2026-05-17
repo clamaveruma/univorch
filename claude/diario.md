@@ -110,6 +110,12 @@ Se retoma el diálogo de decisiones. Se cierran dos temas del backlog:
 - Sincronización: GitHub. No trabajar con dos sesiones de Claude Code en paralelo sobre el mismo repo sin hacer push/pull entre ellas
 - Retomar en Fase 5 para definir el `.devcontainer/` concreto
 
+**Nota para Fase 5 — Directrices de código**
+- Python, versión reciente (definir cuál en Fase 5)
+- Nivel básico e intermedio; si surge necesidad de algo avanzado, discutirlo antes de implementar
+- Logging con el módulo estándar de Python (`logging`), escribiendo al log del sistema (syslog/journald) — es un servicio
+- Claude propondrá convenciones completas cuando lleguemos a esa fase
+
 **DEC-021 — Gestión de usuarios**
 - Fichero YAML, texto plano (PoC), editable por admin vía web
 - UserRepository como interfaz de abstracción para futura integración LDAP/AD
