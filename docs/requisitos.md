@@ -224,8 +224,11 @@ Grouped by area. Each item is a clear statement of what the system does.
 
 ### 4.4 Deployment and hypervisor connectors
 
-- Every connector implements a common interface: `deploy`, `undeploy`, `start`, `stop`, `force_stop`, `pause`, `resume`, `get_status`, `get_info` (DEC-016).
-- `deploy` clones the base VM (linked clone preferred). `undeploy` deletes the VM and its virtual disk completely.
+- `deploy` and `undeploy` are orchestrator-level concepts, not connector operations. The connector only exposes hypervisor primitives. The orchestrator implements `deploy` as `connector.clone()` and `undeploy` as `connector.delete()` (DEC-016).
+- Every connector implements a common interface: `clone`, `delete`, `start`, `stop`, `force_stop`, `pause`, `resume`, `get_status`, `get_info` (DEC-016).
+- `clone` takes a mode parameter (`linked` or `full`), defaulting to `linked`. v1 supports linked clones only; requesting `full` raises a "not supported" error. The parameter is part of the interface contract so full clones can be added later without changing the contract.
+- Each hypervisor has its own conditions for linked clones (a snapshot on the base VM for VMware, cloning from a template on compatible storage for Proxmox). The base VM is assumed to meet them; how to prepare it is documented in the program help. If the conditions are not met, `clone` raises an exception with enough information to diagnose the problem.
+- `delete` removes the VM and its virtual disk completely; the descriptor returns to `provisioned`.
 - The system routes each operation to the correct connector using two pieces of information: the hypervisor definition (resolved from cascade inheritance) and the VM reference stored in the descriptor (the name or ID that the hypervisor uses to identify the VM uniquely).
 - v1 includes connectors for a mock hypervisor, VMware ESXi, and Proxmox.
 - The system does not interfere with normal hypervisor operation (non-invasive principle, DEC-016).

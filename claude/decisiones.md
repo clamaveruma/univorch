@@ -117,17 +117,19 @@ Este fichero recoge las decisiones técnicas importantes del proyecto con refere
 
 ## DEC-016 — Operaciones del conector de hipervisor
 
-- **Fecha:** 2026-05-16 → ver `diario.md#2026-05-16`
+- **Fecha:** 2026-05-16 (revisado 2026-05-17) → ver `diario.md#2026-05-17`
+- **Separación de capas:** `deploy`/`undeploy` son conceptos del **orquestador**, no del conector. El conector solo expone primitivas del hipervisor. El orquestador implementa `deploy` → `connector.clone()` y `undeploy` → `connector.delete()`
 - **Decisión:** Todo conector implementa un interfaz común con estas operaciones mínimas:
-  - `deploy` — clonar VM base y desplegar (linked clone preferido para ahorro de disco)
-  - `undeploy` — eliminar VM y disco virtual completamente; el descriptor queda en estado `provisioned`
+  - `clone(mode="linked"|"full")` — crear una VM a partir de la VM base. `mode="linked"` por defecto. `mode="full"` queda en el contrato pero **no soportado en v1** (lanza excepción "no soportado")
+  - `delete` — eliminar la VM y su disco virtual completamente
   - `start` / `stop` / `force_stop`
   - `pause` / `resume`
   - `get_status` / `get_info`
   - Snapshots: desarrollo futuro. Pendiente discutir gestión de snapshots de alumnos
+- **Linked clone en v1:** cada hipervisor tiene sus condiciones para linked clone (VMware: snapshot en la VM base; Proxmox: clonar desde plantilla y storage compatible). Se asume que la VM base las cumple; cómo prepararla figurará en la ayuda del programa. Si no se cumplen, `clone` lanza una excepción con la información necesaria para diagnosticar
 - **Principio:** Las VMs desplegadas son siempre clones de una VM base creada por el admin
 - **Principio de no invasión:** los hipervisores siguen funcionando con normalidad; UnivOrch es una capa adicional que no interfiere
-- **Undeploy:** borrado total — VM y disco virtual eliminados del hipervisor
+- **Undeploy:** borrado total — VM y disco virtual eliminados del hipervisor; el descriptor queda en estado `provisioned`
 
 ## DEC-017 — Datastores como recurso con alias
 

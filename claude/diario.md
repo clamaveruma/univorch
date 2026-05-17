@@ -213,3 +213,14 @@ Se cierra la discusión sobre el mecanismo de herencia/importación con tres dec
 3. **Propiedad implícita:** el concepto de "propietario" de una carpeta no se implementa. Emerge del RBAC: managers de una carpeta = propietarios efectivos; admin = manager de todo; alumno = end_user de su carpeta final. No hace falta ningún campo ni mecanismo adicional
 
 DEC-012 actualizado en `claude/decisiones.md`. `docs/requisitos.md` secciones 4.1, 4.2 y UC-MGR-1 actualizados para reflejar el modelo de importación.
+
+### Separación de capas en el interfaz del conector — DEC-016 revisado
+
+Discusión sobre el interfaz común de hipervisores. Conclusiones:
+
+1. **`deploy`/`undeploy` no son del conector:** son conceptos del orquestador. El conector solo expone primitivas del hipervisor. El orquestador implementa `deploy` → `connector.clone()` y `undeploy` → `connector.delete()`
+2. **Operación `clone(mode)`:** parámetro `mode="linked"|"full"`, `linked` por defecto. `full` queda en el contrato del interfaz desde ya, pero **no soportado en v1** (lanza excepción "no soportado"). Así el contrato es estable y full clone se añade en el futuro sin cambiarlo
+3. **Linked clone y condiciones del hipervisor:** cada hipervisor tiene sus condiciones (VMware: snapshot en VM base; Proxmox: clonar desde plantilla + storage compatible). Se asume que la VM base las cumple; cómo prepararla irá en la ayuda del programa. Si no se cumplen, `clone` lanza excepción con la info necesaria para diagnosticar
+4. **`delete`** sustituye al antiguo nombre interno `undeploy` a nivel conector: elimina VM y disco; el descriptor vuelve a `provisioned`
+
+DEC-016 actualizado en `claude/decisiones.md`. `docs/requisitos.md` sección 4.4 reescrita para separar primitivas del conector de la orquestación.
