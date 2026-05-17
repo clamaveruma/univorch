@@ -192,3 +192,11 @@ Este fichero recoge las decisiones técnicas importantes del proyecto con refere
   - **Logs de operaciones:** historial de Jobs persistido en BD. Necesario para HA y para mostrar al usuario el motivo de estados `broken` o fallidos
 - **Retención de Jobs:** configurable por el admin (valor por defecto: 90 días). Propiedad global, no heredable en cascada
 - **Futuro:** ajustar política de retención (por tiempo, por cantidad, o combinada) según necesidades reales
+
+## DEC-024 — Backup de la base de datos
+
+- **Fecha:** 2026-05-17 → ver `diario.md#2026-05-17`
+- **Decisión:** Backup automático periódico con política de retención GFS (Grandfather-Father-Son): últimas N copias diarias, M semanales, K mensuales
+- **v1:** TinyDB es un fichero JSON — backup por copia simple. Restauración manual por el admin
+- **MongoDB (futuro):** `mongodump`/`mongorestore`, misma política GFS. Compatible sin cambios de concepto
+- **Futuro:** interfaz en web GUI para ver backups disponibles y restaurar con un clic
