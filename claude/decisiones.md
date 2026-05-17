@@ -129,8 +129,14 @@ Este fichero recoge las decisiones técnicas importantes del proyecto con refere
 
 - **Fecha:** 2026-05-16 → ver `diario.md#2026-05-16`
 - **v1 obligatorio:**
-  - **CLI** (cmd2): modo doble — comandos bash individuales + shell REPL interactivo. Autenticación con token de sesión (una vez por sesión). Soporte de scripts. Herramienta principal de admin y manager
-  - **Web GUI** (NiceGUI): interfaz para todos los roles, especialmente el alumno (su mesa y ordenadores)
+  - **CLI** (cmd2): modo doble — comandos bash individuales + shell REPL interactivo. Autenticación con token de sesión. Soporte de scripts
+  - **Web GUI** (NiceGUI): interfaz para todos los roles, especialmente el alumno
 - **Desarrollo futuro:**
-  - **TUI** (Textual): modo monitor de solo lectura, sin funcionalidad completa. No en v1
-- **Motivo:** CLI cubre admin/manager; Web GUI cubre al alumno. TUI añade poco valor sobre CLI para v1
+  - **TUI** (Textual): modo monitor de solo lectura
+
+## DEC-019 — Nombre del proyecto
+
+- **Fecha:** 2026-05-17 → ver `diario.md#2026-05-17`
+- **Decisión:** El proyecto se llama **UniVorch** — Universal Virtual Orchestrator
+- **Motivo:** Nombre libre en PyPI, GitHub y DockerHub. Contiene "orch" (orquestador), evoca universalidad, pronunciable. Verificado: no existe ningún proyecto relevante con ese nombre
+- **Alternativas descartadas:** Maestro (muy ocupado, orquestador de Netflix), Orchid (ocupado), Orchis/Orchon (demasiado cortos/inventados)
