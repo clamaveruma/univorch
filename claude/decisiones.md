@@ -170,4 +170,5 @@ Este fichero recoge las decisiones técnicas importantes del proyecto con refere
   - Raíz: asigna superusuarios
   - Carpeta asignatura: asigna managers (profesores) y puede asignar end_users
   - Carpeta alumno (mesa): asigna end_users (alumnos)
+- **Comportamiento de rol por rama:** un mismo usuario puede tener roles distintos en ramas diferentes del árbol. El rol se aplica desde la carpeta donde se asigna hacia abajo. Se puede sobreescribir en cualquier subcarpeta (mismo mecanismo de herencia en cascada con sobreescritura local). La aplicación docente no necesita este comportamiento en v1, pero el motor genérico lo soporta de forma natural
 - **Futuro:** integración con LDAP/AD (solo cambia la implementación del UserRepository); profesores con capacidad de añadir sus propios alumnos; SSO
