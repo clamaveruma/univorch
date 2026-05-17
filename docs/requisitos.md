@@ -56,11 +56,11 @@ The system shows the resources visible to the user according to their role and f
 
 **UC-ADM-1 — Manage users**  
 *Actor:* administrator. *Goal:* keep the user list up to date.  
-The administrator creates, edits, or deletes users through the web interface. Each user has a username, password, role, display name, and email. Only the administrator can do this.
+The administrator creates, edits, or deletes users through the web interface. Each user has a username, password, display name, and email. Role assignment is not part of the user record — it is defined in each folder of the tree (see DEC-021). Only the administrator can manage users.
 
-**UC-ADM-2 — Define a hypervisor**  
-*Actor:* administrator. *Goal:* register a hypervisor so the system can use it.  
-The administrator defines a hypervisor with an internal alias, type, address, credentials, and its datastores (each with its own alias). The definition is placed in a folder and inherited in cascade.
+**UC-ADM-2 — Define hypervisors and datastores**  
+*Actor:* administrator. *Goal:* register hypervisors and their storage so the system can use them.  
+The administrator defines a hypervisor with an internal alias, type, address, and credentials. Within the hypervisor definition, datastores are also defined, each with its own alias. These definitions are placed in a folder and inherited in cascade. Both hypervisor details and datastore aliases can be referenced by templates and descriptors without exposing the underlying credentials (DEC-017).
 
 **UC-ADM-3 — Define a base template**  
 *Actor:* administrator. *Goal:* provide reusable VM definitions.  
@@ -110,15 +110,16 @@ The manager creates descriptors based on the templates allowed to them. The desc
 
 **UC-MGR-3 — Derive templates**  
 *Actor:* manager. *Goal:* adapt templates for a subject.  
-The manager derives new templates from the base templates allowed to them, without needing to know the full base definition.
+The manager derives new templates from the base templates allowed to them. The manager can see the full template definition — hardware parameters, base VM name, target datastore — but not the hypervisor's address or credentials, which are hidden as sensitive information (DEC-011). Templates are referenced by their alias.
 
 **UC-MGR-4 — Assign users to roles in own folders**  
 *Actor:* manager. *Goal:* grant access to students or other managers.  
 In their own folders, the manager assigns end users (students) and may assign other managers.
 
-**UC-MGR-5 — Deploy or undeploy VMs in batch**  
-*Actor:* manager. *Goal:* operate many VMs at once.  
-The manager triggers deploy or undeploy on a set of descriptors. The system creates a parent Job with one child Job per VM. The manager can follow progress and see which ones failed.
+**UC-MGR-5 — Batch operations on descriptors**  
+*Actor:* manager. *Goal:* operate on many VMs or descriptors at once.  
+The manager can trigger the following operations on a set of descriptors at once: deploy, undeploy, start, stop, pause, resume. The system creates a parent Job with one child Job per VM. The manager can follow progress and see which ones failed.  
+The manager can also create multiple descriptors at once by uploading a YAML file with several descriptor definitions. *(Note: the exact mechanism for passing structured data to the orchestrator — CLI file argument, web upload, or other — is a design decision deferred to Phase 3.)*
 
 **UC-MGR-6 — View Job history for own scope**  
 *Actor:* manager. *Goal:* check what happened in their area.  
@@ -207,11 +208,14 @@ Grouped by area. Each item is a clear statement of what the system does.
 
 - The effective definition of a descriptor is the combination of all definitions from root to that node, with each level able to override properties from the level above (DEC-010).
 - Hypervisors, templates, datastores, and role assignments are all inherited this way.
+- Each folder explicitly declares what it exports downward (DEC-012). A subfolder imports only what its creator has declared; what is not exported is not visible below.
+- A user can see the full resolved definition of the elements imported into their folder (local definition plus everything inherited), but can only modify definitions at their own level. Parent definitions are read-only.
+- Only hypervisor credentials and address are hidden from managers; all other template and descriptor properties are visible to those who import them (DEC-011).
 - Inheritance is mandatory in v1; it is not optional.
 
 ### 4.3 Descriptors and states
 
-- A descriptor holds the VM definition and a reference to the real VM, and tracks its own state.
+- A descriptor holds the VM definition and a reference to the real VM (the VM's name or ID as used by the hypervisor), and tracks its own state.
 - The descriptor states are: `provisioned`, `deployed` (with an optional `drifted` flag), `broken`, and `unreachable` (DEC-022).
 - Runtime states (running, stopped, paused) are not stored; they are queried from the hypervisor on demand.
 - A descriptor in `broken` exposes its Job history so the reason can be seen, and can only leave that state through force-undeploy.
@@ -221,13 +225,14 @@ Grouped by area. Each item is a clear statement of what the system does.
 
 - Every connector implements a common interface: `deploy`, `undeploy`, `start`, `stop`, `force_stop`, `pause`, `resume`, `get_status`, `get_info` (DEC-016).
 - `deploy` clones the base VM (linked clone preferred). `undeploy` deletes the VM and its virtual disk completely.
-- The system routes each operation to the correct connector based on the descriptor's hypervisor.
+- The system routes each operation to the correct connector using two pieces of information: the hypervisor definition (resolved from cascade inheritance) and the VM reference stored in the descriptor (the name or ID that the hypervisor uses to identify the VM uniquely).
 - v1 includes connectors for a mock hypervisor, VMware ESXi, and Proxmox.
 - The system does not interfere with normal hypervisor operation (non-invasive principle, DEC-016).
 
 ### 4.5 Jobs and the operation engine
 
 - Every operation creates a Job with a unique ID and a lifecycle: `pending → running → completed / failed` (DEC-014).
+- Jobs cover all types of operations: VM operations (deploy, start, stop...), tree operations (create folder, move...), permission changes, and any other system action.
 - Batch operations create a parent Job with one child Job per VM.
 - Jobs are persisted in the database (DEC-015).
 - In v1 operations are synchronous; the model supports an asynchronous queue in the future.
