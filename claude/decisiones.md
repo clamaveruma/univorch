@@ -34,6 +34,16 @@ Este fichero recoge las decisiones técnicas importantes del proyecto con refere
 - **Decisión:** El objeto que representa una VM en el orquestador se llama **descriptor**
 - **Motivo:** Analogía clara con descriptor de fichero en un SO — representa la VM sin ser la VM. Comprensible para cualquier ingeniero de computadores
 
+## DEC-005b — Tipos de descriptor
+
+- **Fecha:** 2026-05-17 → ver `diario.md#2026-05-17`
+- **Decisión:** Existen dos tipos de descriptor:
+  - **Descriptor normal:** tiene definición + referencia a VM. Soporta todas las operaciones
+  - **Descriptor de referencia:** solo tiene referencia a VM existente (sin definición). Operaciones limitadas: arrancar, parar, consultar estado. Sin deploy/undeploy ni herencia de plantillas
+- **Referencia inversa:** campo de metadatos libre en la VM del hipervisor puede guardar la carpeta del orquestador — permite reconstruir el árbol y detectar VMs movidas directamente en el hipervisor
+- **v1:** descriptores de referencia y descubrimiento de VMs existentes quedan fuera de v1
+- **Futuro:** descubrimiento manual + autodescubrimiento en periodos de baja actividad
+
 ## DEC-006 — Arquitectura declarativa
 
 - **Fecha:** 2026-05-16 → ver `diario.md#2026-05-16`
@@ -114,6 +124,7 @@ Este fichero recoge las decisiones técnicas importantes del proyecto con refere
   - `get_status` / `get_info`
   - Snapshots: desarrollo futuro. Pendiente discutir gestión de snapshots de alumnos
 - **Principio:** Las VMs desplegadas son siempre clones de una VM base creada por el admin
+- **Principio de no invasión:** los hipervisores siguen funcionando con normalidad; UniVorch es una capa adicional que no interfiere
 - **Undeploy:** borrado total — VM y disco virtual eliminados del hipervisor
 
 ## DEC-017 — Datastores como recurso con alias
@@ -123,7 +134,6 @@ Este fichero recoge las decisiones técnicas importantes del proyecto con refere
 - **Dos indirecciones de naturaleza distinta:**
   - Primera: alias → datastore real — la resuelve el orquestador
   - Segunda: datastore → almacenamiento físico — la resuelve el hipervisor, opaca para el orquestador
-- **Motivo:** El descriptor solo referencia el alias; el conector traduce al nombre real del hipervisor
 
 ## DEC-018 — Interfaces de cliente
 
@@ -138,5 +148,12 @@ Este fichero recoge las decisiones técnicas importantes del proyecto con refere
 
 - **Fecha:** 2026-05-17 → ver `diario.md#2026-05-17`
 - **Decisión:** El proyecto se llama **UniVorch** — Universal Virtual Orchestrator
-- **Motivo:** Nombre libre en PyPI, GitHub y DockerHub. Contiene "orch" (orquestador), evoca universalidad, pronunciable. Verificado: no existe ningún proyecto relevante con ese nombre
-- **Alternativas descartadas:** Maestro (muy ocupado, orquestador de Netflix), Orchid (ocupado), Orchis/Orchon (demasiado cortos/inventados)
+- **Motivo:** Nombre libre en PyPI, GitHub y DockerHub. Contiene "orch", evoca universalidad, pronunciable
+- **Alternativas descartadas:** Maestro (orquestador de Netflix), Orchid (ocupado), Orchis/Orchon (demasiado cortos)
+
+## DEC-020 — Acceso a VMs existentes
+
+- **Fecha:** 2026-05-17 → ver `diario.md#2026-05-17`
+- **Decisión:** UniVorch puede trabajar en paralelo con los hipervisores sin interferir. Las VMs existentes (no creadas por UniVorch) se gestionan mediante **descriptores de referencia** (sin definición, solo enlace a VM real)
+- **v1:** fuera de alcance. Se implementará en versiones posteriores
+- **Futuro:** descubrimiento manual primero, luego autodescubrimiento en periodos de baja actividad
