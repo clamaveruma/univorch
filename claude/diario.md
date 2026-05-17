@@ -110,6 +110,13 @@ Se retoma el diálogo de decisiones. Se cierran dos temas del backlog:
 - Sincronización: GitHub. No trabajar con dos sesiones de Claude Code en paralelo sobre el mismo repo sin hacer push/pull entre ellas
 - Retomar en Fase 5 para definir el `.devcontainer/` concreto
 
+**Nota para memoria TFG — Snapshots de alumnos**
+- Fuera de v1, pero se esboza en la memoria
+- El alumno gestiona snapshots exclusivamente a través de UniVorch, nunca del hipervisor
+- Comportamiento en undeploy: política configurable por carpeta (herencia en cascada), por defecto "avisar y confirmar" antes de destruir snapshots
+- Límites de snapshots (cantidad, espacio) también configurables en cascada desde la raíz
+- Ampliar en la fase de redacción de la memoria
+
 **Nota para Fase 5 — Directrices de código**
 - Python, versión reciente (definir cuál en Fase 5)
 - Nivel básico e intermedio; si surge necesidad de algo avanzado, discutirlo antes de implementar
