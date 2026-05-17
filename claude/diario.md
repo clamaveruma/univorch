@@ -143,12 +143,17 @@ Se identifican 8 categorías de problemas a tratar (la mayoría para diseño y m
 7. **Capa de datos:** BD corrompida o inaccesible; reconciliación BD↔hipervisor en arranque en frío
 8. **Usuarios y permisos:** referencias colgadas al borrar usuario; conflictos de rol entre padre e hijo en árbol
 
-Pendiente: decidir estados del descriptor (máquina de estados) y comportamiento de Jobs interrumpidos al arrancar
+Pendiente: decidir estados del descriptor (máquina de estados) y comportamiento de Jobs interrumpidos al arrancar — resuelto en DEC-022 y nota de futuro
 
 **DEC-022 — Máquina de estados del descriptor**
 - 4 estados: `provisioned`, `deployed` (con flag `drifted`), `broken`, `unreachable`
 - Estados runtime (running/stopped/paused) son del hipervisor, consultados con `get_status`
 - `broken` muestra historial de Jobs al usuario; salida con `force-undeploy`
+
+**Nota futuro — Jobs interrumpidos al arrancar**
+- Si el orquestador cae con Jobs en estado `running`, al arrancar los detecta en BD y notifica al admin
+- No se relanzan automáticamente — el admin decide
+- Fuera del TFG; se esboza en la memoria como desarrollo futuro de HA
 
 **DEC-023 — Logs y retención**
 - Logs del sistema → syslog/journald (módulo `logging`)
