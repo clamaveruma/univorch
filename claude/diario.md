@@ -145,6 +145,10 @@ Se identifican 8 categorías de problemas a tratar (la mayoría para diseño y m
 
 Pendiente: decidir estados del descriptor (máquina de estados) y comportamiento de Jobs interrumpidos al arrancar — resuelto en DEC-022 y nota de futuro
 
+### Fase 1 completada — docs/vision.md redactado
+
+Se redacta el documento de visión del producto en inglés (nivel C1). Cubre: problema, contexto, solución propuesta, conceptos clave (descriptor, árbol, herencia en cascada, Jobs, estados), usuarios y roles, arquitectura general, alcance de v1, aplicaciones futuras y no-objetivos. Plan.md actualizado con Fase 1 como completada.
+
 **DEC-022 — Máquina de estados del descriptor**
 - 4 estados: `provisioned`, `deployed` (con flag `drifted`), `broken`, `unreachable`
 - Estados runtime (running/stopped/paused) son del hipervisor, consultados con `get_status`

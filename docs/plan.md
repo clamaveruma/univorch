@@ -8,7 +8,7 @@
 ## Fases
 
 ### Fase 1 — Definición del problema
-**Estado:** 🔄 En curso
+**Estado:** ✅ Completada
 
 Entender y documentar el problema que resuelve el sistema, el contexto de uso y los usuarios implicados.
 
