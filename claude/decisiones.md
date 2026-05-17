@@ -124,7 +124,7 @@ Este fichero recoge las decisiones técnicas importantes del proyecto con refere
   - `get_status` / `get_info`
   - Snapshots: desarrollo futuro. Pendiente discutir gestión de snapshots de alumnos
 - **Principio:** Las VMs desplegadas son siempre clones de una VM base creada por el admin
-- **Principio de no invasión:** los hipervisores siguen funcionando con normalidad; UniVorch es una capa adicional que no interfiere
+- **Principio de no invasión:** los hipervisores siguen funcionando con normalidad; UnivOrch es una capa adicional que no interfiere
 - **Undeploy:** borrado total — VM y disco virtual eliminados del hipervisor
 
 ## DEC-017 — Datastores como recurso con alias
@@ -147,14 +147,14 @@ Este fichero recoge las decisiones técnicas importantes del proyecto con refere
 ## DEC-019 — Nombre del proyecto
 
 - **Fecha:** 2026-05-17 → ver `diario.md#2026-05-17`
-- **Decisión:** El proyecto se llama **UniVorch** — Universal Virtual Orchestrator
+- **Decisión:** El proyecto se llama **UnivOrch** — Universal Virtual Orchestrator
 - **Motivo:** Nombre libre en PyPI, GitHub y DockerHub. Contiene "orch", evoca universalidad, pronunciable
 - **Alternativas descartadas:** Maestro (orquestador de Netflix), Orchid (ocupado), Orchis/Orchon (demasiado cortos)
 
 ## DEC-020 — Acceso a VMs existentes
 
 - **Fecha:** 2026-05-17 → ver `diario.md#2026-05-17`
-- **Decisión:** UniVorch puede trabajar en paralelo con los hipervisores sin interferir. Las VMs existentes (no creadas por UniVorch) se gestionan mediante **descriptores de referencia** (sin definición, solo enlace a VM real)
+- **Decisión:** UnivOrch puede trabajar en paralelo con los hipervisores sin interferir. Las VMs existentes (no creadas por UnivOrch) se gestionan mediante **descriptores de referencia** (sin definición, solo enlace a VM real)
 - **v1:** fuera de alcance. Se implementará en versiones posteriores
 - **Futuro:** descubrimiento manual primero, luego autodescubrimiento en periodos de baja actividad
 

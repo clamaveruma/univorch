@@ -96,7 +96,7 @@ Se retoma el diálogo de decisiones. Se cierran dos temas del backlog:
 - v1: descriptores de referencia fuera de alcance
 
 **DEC-019 — Nombre del proyecto**
-- Nombre elegido: **UniVorch** (Universal Virtual Orchestrator)
+- Nombre elegido: **UnivOrch** (Universal Virtual Orchestrator)
 - Libre en PyPI, GitHub y DockerHub
 
 **DEC-020 — Acceso a VMs existentes**
@@ -112,7 +112,7 @@ Se retoma el diálogo de decisiones. Se cierran dos temas del backlog:
 
 **Nota para memoria TFG — Snapshots de alumnos**
 - Fuera de v1, pero se esboza en la memoria
-- El alumno gestiona snapshots exclusivamente a través de UniVorch, nunca del hipervisor
+- El alumno gestiona snapshots exclusivamente a través de UnivOrch, nunca del hipervisor
 - Comportamiento en undeploy: política configurable por carpeta (herencia en cascada), por defecto "avisar y confirmar" antes de destruir snapshots
 - Límites de snapshots (cantidad, espacio) también configurables en cascada desde la raíz
 - Ampliar en la fase de redacción de la memoria
@@ -165,7 +165,7 @@ Se redacta el documento de visión del producto en inglés (nivel C1). Cubre: pr
   - Demo environments: despliegue para cliente, destrucción posterior
   - Laboratorios de investigación: réplica de entornos de experimentos, snapshots en puntos clave
   - Formación corporativa: igual que docencia pero para IT empresarial
-  - MSP: cada cliente es una rama, una instancia de UniVorch gestiona múltiples clientes
+  - MSP: cada cliente es una rama, una instancia de UnivOrch gestiona múltiples clientes
   - Pruebas de disaster recovery: despliegue periódico automático de réplica de producción
 - En todos los casos el motor genérico es el mismo; cambia solo la aplicación de capa 2
 - Operacionales: estado de VMs por carpeta, VMs en estado anómalo, Jobs activos, uso de recursos por hipervisor y datastore
