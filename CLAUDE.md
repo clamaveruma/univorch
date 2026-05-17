@@ -40,7 +40,8 @@ El cambio de modelo lo hace el usuario manualmente. Claude avisa cuando conviene
 ## Reglas de memoria y diario
 
 - El diario (`claude/diario.md`) es la fuente principal de verdad cronológica del proyecto
-- Actualiza el diario cuando haya algo relevante que registrar, no solo en commits
+- Actualiza el diario frecuentemente: tras cada decisión, tema cerrado o bloque de conversación relevante — no esperes al commit
+- Cada vez que actualices el diario, indica en el chat un mensaje muy corto: "📓 diario actualizado"
 - Si una decisión es técnicamente significativa, añádela también a `claude/decisiones.md` con referencia al diario
 - Si un tema crece demasiado, crea un fichero nuevo en `claude/` con nombre descriptivo y refiérelo desde el diario
 - Nunca borres entradas antiguas del diario; si algo cambia, anótalo como nueva entrada
