@@ -48,10 +48,6 @@ Use cases are split into three groups: **core** (generic orchestrator), **teachi
 *Actor:* any user. *Goal:* obtain access to the system.  
 The user provides credentials. The system validates them and returns a session token (CLI) or establishes a session (web). Invalid credentials are rejected with a clear message. The token is required for all further operations.
 
-**UC-AUTH-2 — View own resources**  
-*Actor:* any user. *Goal:* see the current state of the resources they can access.  
-The system shows the resources visible to the user according to their role and folder assignments, with the current state of each.
-
 ### 3.2 Core — Administrator
 
 **UC-ADM-1 — Manage users**  
@@ -68,15 +64,15 @@ The administrator defines a base template: the base VM it clones from, the hyper
 
 **UC-ADM-4 — Create and organize folders**  
 *Actor:* administrator. *Goal:* structure the tree.  
-The administrator creates folders anywhere in the tree and sets their common definition (what is available for child folders to import, see DEC-012).
+The administrator creates folders anywhere in the tree and sets their common definition (what is available for child folders to import, see DEC-012). The folder definition may include an IP pool — a configurable address range that descriptors below it draw from at deploy time.
 
 **UC-ADM-5 — Assign users to roles**  
 *Actor:* administrator. *Goal:* grant access.  
 The administrator assigns users to roles in any folder. Assignments cascade down and can be overridden in subfolders.
 
-**UC-ADM-6 — Restrict what a manager sees**  
+**UC-ADM-6 — Control what managers can access**  
 *Actor:* administrator. *Goal:* limit a manager's visibility.  
-The administrator restricts which templates and hypervisors a given manager can see. This is the only configurable permission in v1 (see DEC-011). A manager can use a resource without seeing its full definition.
+The administrator controls what managers can see and use by deciding what is imported into each folder of the tree. A manager only has access to what has been imported into their branch. Hypervisor credentials and address are always hidden from managers regardless of what is imported (DEC-011).
 
 **UC-ADM-7 — Configure global properties**  
 *Actor:* administrator. *Goal:* tune system-wide settings.  
@@ -102,7 +98,7 @@ The administrator views an operational report, such as the state of all VMs grou
 
 **UC-MGR-1 — Create and organize folders in own branches**  
 *Actor:* manager. *Goal:* structure their own area.  
-Within the branches assigned to them, the manager creates folders. When creating a folder, the creator chooses which definitions to import from the parent (or imports all with `*`). The manager sets the folder's own common definition, which child folders can in turn import.
+Within the branches assigned to them, the manager creates folders. When creating a folder, the creator chooses which definitions to import from the parent (or imports all with `*`). The manager sets the folder's own common definition, which may include a local IP pool or override the inherited one. Child folders can import this definition in turn.
 
 **UC-MGR-2 — Create descriptors**  
 *Actor:* manager. *Goal:* define VMs.  
@@ -135,7 +131,7 @@ These use cases run on top of the core. They translate a teaching workflow into 
 
 **UC-TEACH-1 — Deploy a subject**  
 *Actor:* manager. *Goal:* set up a full subject from a model.  
-The manager defines a model desk (the set of VMs every student gets) and provides a student list. The application creates one desk per student, creates the descriptors in `provisioned` state, assigns each student as end user of their desk, applies the IP policy, sends a notification email to each student, and produces a deployment report for the manager.
+The manager defines a model desk (the set of VMs every student gets) and provides a student list. The application creates one desk per student, creates the descriptors in `provisioned` state, assigns each student as end user of their desk, assigns an IP to each descriptor from the applicable pool, sends a notification email to each student with their connection details, and produces a deployment report for the manager.
 
 **UC-TEACH-2 — Update the student list**  
 *Actor:* manager. *Goal:* keep the subject in sync with enrolment.  
@@ -159,7 +155,7 @@ The student deploys a VM from `provisioned`. The system clones it from the assig
 
 **UC-USR-3 — Undeploy own VM**  
 *Actor:* end user. *Goal:* remove a VM.  
-The student undeploys one of their VMs. The system deletes the VM and its virtual disk completely; the descriptor returns to `provisioned`.
+The student requests to undeploy one of their VMs. The system presents a double confirmation warning, since the action is irreversible and all data on the VM will be lost. After confirmation, the system deletes the VM and its virtual disk completely, releases the assigned IP back to the pool, and returns the descriptor to `provisioned`.
 
 **UC-USR-4 — Start, stop, pause, or resume own VM**  
 *Actor:* end user. *Goal:* control a deployed VM.  
@@ -189,7 +185,7 @@ The system removes Jobs older than the configured retention period (DEC-023).
 
 **UC-SYS-4 — Detect an unreachable hypervisor**  
 *Actor:* system. *Goal:* reflect reality.  
-When communication with a hypervisor fails, the system marks the affected descriptors as `unreachable`.
+When an operation on a descriptor fails due to a communication error with the hypervisor, the system records the failure in the Job and marks the affected descriptor as `unreachable`.
 
 ---
 
@@ -210,7 +206,7 @@ Grouped by area. Each item is a clear statement of what the system does.
 - Hypervisors, templates, datastores, and role assignments are all inherited this way.
 - When a folder is created, its creator declares which definitions to import from the parent folder. The creator can import a specific list or use `*` to import everything available. What is not imported is not visible below (DEC-012).
 - A user can see the full resolved definition of the elements imported into their folder (local definition plus everything inherited from above), but can only modify definitions at their own level. Parent definitions are read-only.
-- Only hypervisor credentials and address are hidden from managers; all other template and descriptor properties are visible to those who import them (DEC-011).
+- Everything imported into a folder is visible to users of that folder, except hypervisor credentials and address, which are always hidden (DEC-011). The import mechanism is the visibility control — there is no separate permission layer for this.
 - Ownership of a folder is not an explicit system concept. It emerges naturally from role assignment: the users assigned as `manager` of a folder are effectively its owners. The administrator is manager of all; a student is end user of their final folder. No separate ownership mechanism is needed (DEC-021).
 - Inheritance is mandatory in v1; it is not optional.
 
@@ -219,6 +215,7 @@ Grouped by area. Each item is a clear statement of what the system does.
 - A descriptor holds the VM definition and a reference to the real VM (the VM's name or ID as used by the hypervisor), and tracks its own state.
 - The descriptor states are: `provisioned`, `deployed` (with an optional `drifted` flag), `broken`, and `unreachable` (DEC-022).
 - Runtime states (running, stopped, paused) are not stored; they are queried from the hypervisor on demand.
+- In v1, drift is detected on demand: when `get_status` or `get_info` is called, the system compares the hypervisor state with the descriptor definition and sets the `drifted` flag if they differ. No automatic drift detection runs in v1.
 - A descriptor in `broken` exposes its Job history so the reason can be seen, and can only leave that state through force-undeploy.
 - v1 supports only normal descriptors. Reference-only descriptors are out of scope (DEC-005b).
 
@@ -237,7 +234,7 @@ Grouped by area. Each item is a clear statement of what the system does.
 
 - Every operation creates a Job with a unique ID and a lifecycle: `pending → running → completed / failed` (DEC-014).
 - Jobs cover all types of operations: VM operations (deploy, start, stop...), tree operations (create folder, move...), permission changes, and any other system action.
-- Batch operations create a parent Job with one child Job per VM.
+- Batch operations create a parent Job with one child Job per item or target (a VM, a descriptor, a tree operation, etc.).
 - Jobs are persisted in the database (DEC-015).
 - In v1 operations are synchronous; the model supports an asynchronous queue in the future.
 - The Job history is available to users for their scope and is the source for diagnosing failures.
@@ -250,7 +247,16 @@ Grouped by area. Each item is a clear statement of what the system does.
 - Role assignment is defined per folder and inherited in cascade; it can be overridden in subfolders.
 - The user store is accessed through an abstraction layer so it can be replaced later (for example, by LDAP) without affecting the rest of the system.
 
-### 4.7 Teaching application
+### 4.7 IP address management
+
+- Each folder may define an IP pool: a contiguous address range, subnet mask, and gateway. IP pools are a standard folder parameter and follow the same cascade inheritance as other properties; a subfolder can override the pool defined above it (DEC-025).
+- When an IP pool is defined or modified, the system validates that its range does not overlap with any other existing pool. The operation is rejected if it does.
+- At deploy time, the system picks the next free IP from the applicable pool, assigns it to the descriptor, and records the assignment.
+- At undeploy time, the assigned IP is released back to the pool.
+- The orchestrator tracks IP assignments. How the VM receives that IP on the network (DHCP, cloud-init, or other means) is outside the scope of UnivOrch.
+- External IPAM integration is not included in v1 (DEC-013).
+
+### 4.8 Teaching application
 
 - The teaching application is a layer on top of the core; the core has no knowledge of subjects or students (DEC-004).
 - It deploys a subject from a model desk and a student list, creating one desk per student.
@@ -258,19 +264,19 @@ Grouped by area. Each item is a clear statement of what the system does.
 - It produces a deployment report for the manager.
 - It supports updating the student list and changing a model VM.
 
-### 4.8 Reports
+### 4.9 Reports
 
 - The system provides at least one operational report (VM state grouped by folder) and one teaching report (subject status for a manager).
 - The catalogue of possible reports is recorded for the future; v1 implements these two as examples.
 
-### 4.9 Interfaces
+### 4.10 Interfaces
 
 - The system exposes a REST API used by external clients.
 - It provides a command-line client that works both as single commands and as an interactive shell, with session-token authentication and script support (DEC-018).
 - It provides a web interface for all roles, designed especially for the student.
 - The web interface is part of the service and uses the core directly; the CLI uses the REST API.
 
-### 4.10 Persistence, logging, and backup
+### 4.11 Persistence, logging, and backup
 
 - The tree, descriptors, Jobs, and users are persisted; the system stays consistent across restarts.
 - Persistence is accessed through an abstraction (Repository pattern) so the storage engine can change later (DEC-007).
@@ -330,7 +336,7 @@ Grouped by area. Each item is a clear statement of what the system does.
 - The hypervisors already exist and are not part of UnivOrch. Base VMs are created directly on the hypervisor by the administrator.
 - v1 operations are synchronous.
 - v1 stores passwords in plain text (proof of concept only).
-- IP assignment is not managed by UnivOrch in v1; the existing approach (such as encoding the IP in the MAC) stays in place.
+- v1 manages IP assignment through simple per-folder pools; external IPAM integration is not included (DEC-013, DEC-025).
 
 ---
 
@@ -340,7 +346,7 @@ Traceable to `vision.md` and the design decisions:
 
 - Automatic reconciliation loop (changes are applied on demand) — DEC-006.
 - High availability and clustering.
-- IPAM integration — DEC-013.
+- External IPAM integration — DEC-013.
 - Snapshot management through the orchestrator.
 - Reference-only descriptors and discovery of pre-existing VMs — DEC-005b, DEC-020.
 - LDAP / Active Directory integration — DEC-021.

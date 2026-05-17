@@ -204,3 +204,13 @@ Este fichero recoge las decisiones técnicas importantes del proyecto con refere
 - **v1:** TinyDB es un fichero JSON — backup por copia simple. Restauración manual por el admin
 - **MongoDB (futuro):** `mongodump`/`mongorestore`, misma política GFS. Compatible sin cambios de concepto
 - **Futuro:** interfaz en web GUI para ver backups disponibles y restaurar con un clic
+
+## DEC-025 — Gestión de IPs: pools por carpeta
+
+- **Fecha:** 2026-05-17 → ver `diario.md#2026-05-17`
+- **Decisión:** v1 gestiona IPs mediante pools propios por carpeta. El IP-pool es un parámetro más de carpeta, sigue el mismo modelo de herencia en cascada que el resto de propiedades. Una subcarpeta puede sobreescribir el pool heredado
+- **Validación al definir:** cuando se crea o edita un pool, el sistema comprueba que su rango no solape con ningún otro pool existente. Si solapa, rechaza la operación. La comprobación es en escritura, no en despliegue
+- **En deploy:** el orquestador elige la primera IP libre del pool aplicable, la asigna al descriptor y la registra en BD
+- **En undeploy:** la IP se libera y vuelve al pool
+- **Fuera de alcance del orquestador:** cómo la VM recibe efectivamente esa IP en la red (DHCP, cloud-init u otro mecanismo) no es responsabilidad de UnivOrch
+- **Futuro:** integración con IPAM externo (phpIPAM, NetBox) — solo cambia la implementación del IPPoolRepository

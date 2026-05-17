@@ -224,3 +224,17 @@ Discusión sobre el interfaz común de hipervisores. Conclusiones:
 4. **`delete`** sustituye al antiguo nombre interno `undeploy` a nivel conector: elimina VM y disco; el descriptor vuelve a `provisioned`
 
 DEC-016 actualizado en `claude/decisiones.md`. `docs/requisitos.md` sección 4.4 reescrita para separar primitivas del conector de la orquestación.
+
+### Revisión final de requisitos — cierre de Fase 2
+
+Se aplican todos los ajustes pendientes al documento de requisitos:
+
+- **DEC-025 — IP pools por carpeta:** pools como parámetro heredable en cascada; validación de solapamiento al definir (no al desplegar); reserva/liberación de IP en deploy/undeploy. El orquestador asigna y registra; cómo la VM recibe la IP en la red es problema externo. Futuro: IPPoolRepository → IPAM externo
+- **Detección de `drifted` en v1:** solo bajo demanda al llamar a `get_status`/`get_info`. Sin verificación al arranque en v1
+- **`unreachable`:** reactivo — se marca cuando una operación falla por error de comunicación, no de forma proactiva
+- **Undeploy del alumno:** permitido, con doble confirmación de aviso antes de proceder
+- **Modelo de visibilidad simplificado:** el mecanismo de importación ES el control de visibilidad; las credenciales del hipervisor siempre ocultas. UC-ADM-6 reescrito en consecuencia
+- **UC-AUTH-2 eliminado:** redundante; la visualización de recursos de cada rol ya está cubierta en sus UCs específicos
+- **Jobs batch:** "one child Job per item or target" (no solo VMs)
+- **Sección 4.7 nueva:** IP address management. Secciones 4.8–4.11 renumeradas
+- **Constraints y Out of scope:** reescritos para reflejar pools propios en v1 e integración IPAM externa fuera de v1
