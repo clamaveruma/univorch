@@ -182,3 +182,24 @@ Se redacta el documento de visión del producto en inglés (nivel C1). Cubre: pr
 **DEC-023 — Logs y retención**
 - Logs del sistema → syslog/journald (módulo `logging`)
 - Logs de operaciones → Jobs en BD (retención configurable, por defecto 90 días, propiedad global)
+
+**DEC-024 — Backup de la base de datos**
+- Política GFS (Grandfather-Father-Son), restauración manual en v1
+
+### Fase 1 cerrada, vision.md iterado
+
+- `docs/vision.md` redactado y refinado: eliminados detalles de arquitectura/herramientas (van a Fase 3/4), inglés nivel B2 más natural, equilibrio prosa/estructura
+- Renombrado **UniVorch → UnivOrch** en todo el repo
+- Backlog completado: snapshots, excepciones (8 categorías), informes, futuras aplicaciones — todo registrado como notas de futuro o decisiones
+- Limpieza: eliminados `ideas-raw.md` duplicados (pertenecían a otro proyecto)
+- Repo migrado a rama `main` como rama de trabajo única
+
+### Fase 2 iniciada — docs/requisitos.md redactado
+
+Se redacta el documento de requisitos en formato ligero (acordado: casos de uso narrativos, no IEEE-830 pesado). Estructura: propósito, actores, casos de uso (core / aplicación docente / sistema), requisitos funcionales por área, no funcionales, restricciones, fuera de alcance. Trazabilidad a decisiones DEC-xxx.
+
+- Distinción explícita entre casos de uso del **core** y de la **aplicación docente** (capa 2) para el manager
+- Alumno ve "mesas" (DEC-009), nunca el árbol
+- Sistema como motor de operaciones (síncrono en v1, modelo preparado para asíncrono) + tareas automáticas
+- Plan.md: Fase 1 ✅ completada, Fase 2 🔄 en curso
+- Pendiente: revisión del usuario; afinar casos de uso en sprints futuros si se necesita

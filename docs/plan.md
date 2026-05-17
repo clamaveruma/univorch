@@ -17,7 +17,7 @@ Entender y documentar el problema que resuelve el sistema, el contexto de uso y 
 ---
 
 ### Fase 2 — Análisis de requisitos
-**Estado:** ⏳ Pendiente
+**Estado:** 🔄 En curso
 
 Definir qué hace el sistema desde el punto de vista del usuario. Casos de uso, requisitos funcionales y no funcionales, restricciones.
 
