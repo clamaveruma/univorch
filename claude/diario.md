@@ -150,7 +150,20 @@ Pendiente: decidir estados del descriptor (máquina de estados) y comportamiento
 - Estados runtime (running/stopped/paused) son del hipervisor, consultados con `get_status`
 - `broken` muestra historial de Jobs al usuario; salida con `force-undeploy`
 
-**Nota para memoria TFG — Informes posibles**
+**Nota para memoria TFG — Futuras aplicaciones**
+- **Aplicación docente (TFG v1):** despliegue de asignatura — mesa modelo + lista de alumnos → crea mesas individuales, asigna permisos e IPs por política, envía correos a alumnos, informe al profesor. Utilidades: actualizar lista de alumnos, cambiar VM modelo
+- **Otras aplicaciones posibles sobre el mismo motor:**
+  - CTF y competiciones de ciberseguridad: entornos aislados por equipo, tiempo limitado
+  - Talleres en conferencias: VM por asistente, ciclo de vida muy corto
+  - Exámenes prácticos: VM aislada, snapshot al inicio y al final para corrección
+  - Entornos de desarrollo bajo demanda: self-service por desarrollador desde plantilla
+  - Testing/QA: VMs idénticas con distintas versiones de SO o software
+  - Demo environments: despliegue para cliente, destrucción posterior
+  - Laboratorios de investigación: réplica de entornos de experimentos, snapshots en puntos clave
+  - Formación corporativa: igual que docencia pero para IT empresarial
+  - MSP: cada cliente es una rama, una instancia de UniVorch gestiona múltiples clientes
+  - Pruebas de disaster recovery: despliegue periódico automático de réplica de producción
+- En todos los casos el motor genérico es el mismo; cambia solo la aplicación de capa 2
 - Operacionales: estado de VMs por carpeta, VMs en estado anómalo, Jobs activos, uso de recursos por hipervisor y datastore
 - Históricos/auditoría: historial de operaciones por VM/usuario, Jobs fallidos, tiempos medios de deploy, actividad por usuario
 - Docentes: alumnos sin VM desplegada, alumnos con VM anómala, dashboard por profesor, comparativa entre grupos
