@@ -144,3 +144,12 @@ Se identifican 8 categorías de problemas a tratar (la mayoría para diseño y m
 8. **Usuarios y permisos:** referencias colgadas al borrar usuario; conflictos de rol entre padre e hijo en árbol
 
 Pendiente: decidir estados del descriptor (máquina de estados) y comportamiento de Jobs interrumpidos al arrancar
+
+**DEC-022 — Máquina de estados del descriptor**
+- 4 estados: `provisioned`, `deployed` (con flag `drifted`), `broken`, `unreachable`
+- Estados runtime (running/stopped/paused) son del hipervisor, consultados con `get_status`
+- `broken` muestra historial de Jobs al usuario; salida con `force-undeploy`
+
+**DEC-023 — Logs y retención**
+- Logs del sistema → syslog/journald (módulo `logging`)
+- Logs de operaciones → Jobs en BD (retención configurable, por defecto 90 días, propiedad global)

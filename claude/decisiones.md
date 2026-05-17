@@ -172,3 +172,23 @@ Este fichero recoge las decisiones técnicas importantes del proyecto con refere
   - Carpeta alumno (mesa): asigna end_users (alumnos)
 - **Comportamiento de rol por rama:** un mismo usuario puede tener roles distintos en ramas diferentes del árbol. El rol se aplica desde la carpeta donde se asigna hacia abajo. Se puede sobreescribir en cualquier subcarpeta (mismo mecanismo de herencia en cascada con sobreescritura local). La aplicación docente no necesita este comportamiento en v1, pero el motor genérico lo soporta de forma natural
 - **Futuro:** integración con LDAP/AD (solo cambia la implementación del UserRepository); profesores con capacidad de añadir sus propios alumnos; SSO
+
+## DEC-022 — Máquina de estados del descriptor
+
+- **Fecha:** 2026-05-17 → ver `diario.md#2026-05-17`
+- **Decisión:** El descriptor tiene 4 estados propios del orquestador (no del hipervisor):
+  - `provisioned` — descriptor definido, sin VM en el hipervisor
+  - `deployed` — VM existe y está correctamente desplegada
+    - flag `drifted` — condición dentro de `deployed`: la VM existe pero su config difiere del descriptor; el re-deploy la corrige
+  - `broken` — operación fallida que dejó estado inconsistente; el usuario consulta el historial de Jobs para ver el motivo; salida mediante `force-undeploy`
+  - `unreachable` — no hay comunicación con el hipervisor
+- **Nota:** los estados runtime de la VM (running, stopped, paused) son del hipervisor y se consultan con `get_status`; el orquestador no los almacena como estado propio
+
+## DEC-023 — Logs y retención de operaciones
+
+- **Fecha:** 2026-05-17 → ver `diario.md#2026-05-17`
+- **Decisión:** Dos canales de logging diferenciados:
+  - **Logs del sistema:** módulo estándar `logging` de Python → syslog/journald. Trazas del programa, errores, arranque/parada. Rotación gestionada por el SO
+  - **Logs de operaciones:** historial de Jobs persistido en BD. Necesario para HA y para mostrar al usuario el motivo de estados `broken` o fallidos
+- **Retención de Jobs:** configurable por el admin (valor por defecto: 90 días). Propiedad global, no heredable en cascada
+- **Futuro:** ajustar política de retención (por tiempo, por cantidad, o combinada) según necesidades reales
