@@ -104,6 +104,12 @@ Se retoma el diálogo de decisiones. Se cierran dos temas del backlog:
 - Descriptores de referencia para VMs preexistentes
 - v1: fuera de alcance; futuro: descubrimiento manual primero, luego autodescubrimiento
 
+**Nota para Fase 5 — Entorno de desarrollo multi-plataforma**
+- Desarrollo desde varios PCs: VSCode + Dev Containers como base. Mismo `.devcontainer/` funciona en local, Codespaces y VSCode Remote SSH
+- Claude Code (web, CLI, VSCode) comparte contexto a través de los ficheros `claude/` en git — no hay memoria de sesión entre instancias, pero el repo es la fuente de verdad
+- Sincronización: GitHub. No trabajar con dos sesiones de Claude Code en paralelo sobre el mismo repo sin hacer push/pull entre ellas
+- Retomar en Fase 5 para definir el `.devcontainer/` concreto
+
 **DEC-021 — Gestión de usuarios**
 - Fichero YAML, texto plano (PoC), editable por admin vía web
 - UserRepository como interfaz de abstracción para futura integración LDAP/AD
