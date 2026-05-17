@@ -150,6 +150,13 @@ Pendiente: decidir estados del descriptor (máquina de estados) y comportamiento
 - Estados runtime (running/stopped/paused) son del hipervisor, consultados con `get_status`
 - `broken` muestra historial de Jobs al usuario; salida con `force-undeploy`
 
+**Nota para memoria TFG — Informes posibles**
+- Operacionales: estado de VMs por carpeta, VMs en estado anómalo, Jobs activos, uso de recursos por hipervisor y datastore
+- Históricos/auditoría: historial de operaciones por VM/usuario, Jobs fallidos, tiempos medios de deploy, actividad por usuario
+- Docentes: alumnos sin VM desplegada, alumnos con VM anómala, dashboard por profesor, comparativa entre grupos
+- Capacidad: previsión de recursos si se despliegan todas las VMs de una asignatura, VMs sin actividad reciente
+- **TFG v1:** implementar uno operacional (estado por carpeta) y uno docente (estado de asignatura) como ejemplos
+
 **Nota futuro — Jobs interrumpidos al arrancar**
 - Si el orquestador cae con Jobs en estado `running`, al arrancar los detecta en BD y notifica al admin
 - No se relanzan automáticamente — el admin decide
