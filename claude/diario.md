@@ -128,3 +128,19 @@ Se retoma el diálogo de decisiones. Se cierran dos temas del backlog:
 - UserRepository como interfaz de abstracción para futura integración LDAP/AD
 - Asignación usuario↔rol en la carpeta (no en el registro de usuario), herencia en cascada
 - Raíz asigna superusuarios; carpeta asignatura asigna managers; carpeta alumno asigna end_users
+- Un mismo usuario puede tener roles distintos en ramas diferentes del árbol; sobreescritura local en cualquier subcarpeta
+
+### Gestión de excepciones y estados — análisis inicial
+
+Se identifican 8 categorías de problemas a tratar (la mayoría para diseño y memoria, algunas con decisión necesaria en v1):
+
+1. **Conectividad con hipervisor:** estado `unreachable` en descriptor; credenciales caducadas
+2. **Deriva de configuración:** VM modificada directamente en el hipervisor → descriptor marcado como `drifted`; re-deploy restaura la definición del descriptor como verdad
+3. **Recursos del hipervisor:** datastore lleno, plantilla base eliminada, linked clone roto
+4. **Recursos huérfanos:** VM sin descriptor (VM fantasma) y descriptor sin VM (descriptor huérfano)
+5. **Operaciones sobre el árbol:** renombrar/mover/copiar carpetas — cada una con implicaciones distintas en referencias e herencia
+6. **Ciclo de vida de operaciones:** deploy parcial → estado `broken`; Jobs `interrupted` al arrancar tras apagado; concurrencia bloqueada por Job activo; timeout
+7. **Capa de datos:** BD corrompida o inaccesible; reconciliación BD↔hipervisor en arranque en frío
+8. **Usuarios y permisos:** referencias colgadas al borrar usuario; conflictos de rol entre padre e hijo en árbol
+
+Pendiente: decidir estados del descriptor (máquina de estados) y comportamiento de Jobs interrumpidos al arrancar
