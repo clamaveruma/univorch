@@ -157,3 +157,17 @@ Este fichero recoge las decisiones técnicas importantes del proyecto con refere
 - **Decisión:** UniVorch puede trabajar en paralelo con los hipervisores sin interferir. Las VMs existentes (no creadas por UniVorch) se gestionan mediante **descriptores de referencia** (sin definición, solo enlace a VM real)
 - **v1:** fuera de alcance. Se implementará en versiones posteriores
 - **Futuro:** descubrimiento manual primero, luego autodescubrimiento en periodos de baja actividad
+
+## DEC-021 — Gestión de usuarios
+
+- **Fecha:** 2026-05-17 → ver `diario.md#2026-05-17`
+- **Decisión:** Los usuarios se almacenan en un fichero YAML gestionado por el admin vía web GUI. Interfaz `UserRepository` abstrae el almacenamiento para facilitar la migración futura a LDAP/AD u otros directorios externos
+- **v1:**
+  - Fichero YAML con lista de usuarios (username, password en texto plano, role, display_name, email)
+  - Contraseñas en texto plano aceptadas para la prueba de concepto. **Nota:** migrar a hashing (bcrypt) antes de cualquier despliegue real
+  - Solo el superusuario puede crear/editar/borrar usuarios vía web GUI
+- **Asignación de usuarios a roles:** se define en la carpeta, no en el registro de usuario. Cada carpeta declara qué usuarios tienen acceso y con qué rol local. La asignación se hereda en cascada hacia abajo en el árbol
+  - Raíz: asigna superusuarios
+  - Carpeta asignatura: asigna managers (profesores) y puede asignar end_users
+  - Carpeta alumno (mesa): asigna end_users (alumnos)
+- **Futuro:** integración con LDAP/AD (solo cambia la implementación del UserRepository); profesores con capacidad de añadir sus propios alumnos; SSO

@@ -68,8 +68,8 @@ Se analizaron todos los documentos de referencia y se tomaron 18 decisiones de d
 
 ### Pendientes para próximas sesiones
 
-- [ ] Acceso a VMs existentes (VMs no creadas por el orquestador)
-- [ ] Listado y gestión de usuarios
+- [x] Acceso a VMs existentes → DEC-020
+- [x] Listado y gestión de usuarios → DEC-021
 - [ ] Checklist de fases de desarrollo
 - [ ] Desarrollo en diferentes plataformas
 - [ ] Directrices de código
@@ -81,3 +81,31 @@ Se analizaron todos los documentos de referencia y se tomaron 18 decisiones de d
 - [ ] Futuras aplicaciones: otros modelos de vista de usuario, desacople aplicaciones/motor, módulo de migración de máquinas, módulos de supervisión, integración de Chat IA en web y REPL CLI
 - [ ] Subir PDFs de referencia al repo
 - [ ] Buscar documento con referencia a MongoDB
+
+---
+
+## 2026-05-17
+
+### Continuación de decisiones de diseño
+
+Se retoma el diálogo de decisiones. Se cierran dos temas del backlog:
+
+**DEC-005b — Tipos de descriptor (retomado)**
+- Descriptor normal: definición + referencia a VM
+- Descriptor de referencia: solo enlace a VM existente, sin definición, operaciones limitadas
+- v1: descriptores de referencia fuera de alcance
+
+**DEC-019 — Nombre del proyecto**
+- Nombre elegido: **UniVorch** (Universal Virtual Orchestrator)
+- Libre en PyPI, GitHub y DockerHub
+
+**DEC-020 — Acceso a VMs existentes**
+- Principio de no invasión confirmado
+- Descriptores de referencia para VMs preexistentes
+- v1: fuera de alcance; futuro: descubrimiento manual primero, luego autodescubrimiento
+
+**DEC-021 — Gestión de usuarios**
+- Fichero YAML, texto plano (PoC), editable por admin vía web
+- UserRepository como interfaz de abstracción para futura integración LDAP/AD
+- Asignación usuario↔rol en la carpeta (no en el registro de usuario), herencia en cascada
+- Raíz asigna superusuarios; carpeta asignatura asigna managers; carpeta alumno asigna end_users
