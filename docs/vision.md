@@ -7,35 +7,44 @@
 
 ## 1. Problem
 
-In the computer science school, virtual machines (VMs) are used for practical lab work across many courses. Each subject requires a set of VMs per student, all derived from base templates defined by the professor. The process sounds straightforward, but in practice it places a disproportionate burden on the system administrator.
+In the computer science school, virtual machines (VMs) are used for practical lab work in many courses. Each subject needs a set of VMs per student, all based on templates defined by the professor. Managing all this falls entirely on the system administrator.
 
-When a professor wants to deploy a subject, they define the required VMs and request the administrator to create one set per student. The administrator runs custom scripts — written for a specific hypervisor platform — to clone base VMs, assign IP addresses, and make everything available. This works, but only as long as nothing changes. If a student stops a VM and cannot restart it, or corrupts the system and needs a fresh copy, the administrator must intervene again. If a new student joins after deployment, part of the process must be repeated by hand. If the hypervisor platform changes in the future, the scripts become useless and must be rewritten from scratch.
+When a professor wants to deploy a subject, they define the VMs and ask the administrator to create one set per student. The administrator runs custom scripts — written for a specific hypervisor — to clone the base VMs and assign IP addresses. If a student stops a VM or corrupts it, the administrator has to step in again. If a new student joins after deployment, part of the process has to be repeated by hand. If the hypervisor platform changes in the future, the scripts stop working and have to be rewritten.
 
-The core problems are:
+The main problems are:
 
-- The administrator is the single point of contact for all VM operations, including trivial ones that students or professors could handle themselves.
-- Students have no autonomy: they cannot start, stop, or restore their own VMs.
-- Scripts are tightly coupled to a specific hypervisor; any platform change means rewriting everything.
-- There is no unified interface for non-technical users — professors and students must go through the administrator for everything.
-- The workload scales linearly: more subjects and students mean proportionally more administrative effort, with no mechanism to delegate.
+- The administrator handles all VM operations, including simple ones that students or professors could do themselves.
+- Students cannot manage their own VMs: start, stop, or restore from template.
+- Scripts are tied to one hypervisor; any platform change means rewriting everything.
+- There is no interface for non-technical users — professors and students go through the administrator for everything.
+- The workload grows with the number of subjects and students, with no way to delegate.
 
 ---
 
 ## 2. Context
 
-The system is designed for an academic environment, but the problem it addresses is not unique to universities. The same pattern appears in research labs, corporate training centres, and any other setting where groups of users need isolated, reproducible VM environments managed by a small team.
+The system is designed for an academic environment, but the problem is not unique to universities. The same situation appears in research labs, corporate training, and any setting where groups of users need isolated, reproducible VM environments managed by a small team.
 
-In the immediate context, the key characteristics are: multiple subjects running in parallel, each with its own set of VMs per student; a small number of administrators responsible for all hypervisors; professors who know their subject but are not hypervisor experts; and students who need to interact with their assigned machines, nothing more.
+The main characteristics of the target environment are:
+
+- Multiple subjects running at the same time, each with its own set of VMs per student.
+- A small number of administrators managing all hypervisors.
+- Professors who know their subject but are not hypervisor experts.
+- Students who only need to use their assigned VMs, nothing more.
+- A need to scale without adding administrative work proportionally.
 
 ---
 
 ## 3. Proposed Solution
 
-UnivOrch is a service that provides a unified abstraction layer over one or more hypervisors. Rather than interacting directly with VMware, Proxmox, or any other platform, users work through UnivOrch — which handles all communication with the underlying infrastructure.
+UnivOrch is a service that sits between users and hypervisors. Instead of interacting directly with VMware, Proxmox, or any other platform, users work through UnivOrch, which handles all communication with the underlying infrastructure.
 
-The system is deliberately designed in two independent layers. The first is a generic orchestrator core that manages a tree of descriptors and folders, handles cascade inheritance of properties, and communicates with hypervisors through pluggable connectors. It has no knowledge of subjects, students, or academic concepts. The second layer is a teaching application built on top of the core, which interprets specific branches of the tree as subjects and student workspaces, and provides tools adapted to the teaching workflow.
+The system is built on two layers:
 
-This separation is important: the core is reusable for any environment — university, research lab, corporate training, or others — while the teaching logic stays contained in its own layer, without polluting the general-purpose engine.
+- **Layer 1 — Generic orchestrator (core):** manages a tree of descriptors and folders, handles cascade inheritance of properties, and communicates with hypervisors through pluggable connectors. It has no knowledge of subjects, students, or academic concepts. It can be used in any environment.
+- **Layer 2 — Teaching application:** built on top of the core. It provides tools for the teaching workflow — subject deployment, student management, reports — without modifying the core.
+
+This separation keeps the core reusable while the teaching-specific logic stays in its own layer.
 
 ---
 
@@ -43,41 +52,57 @@ This separation is important: the core is reusable for any environment — unive
 
 ### Descriptor
 
-The descriptor is the central object of the system. It represents a VM inside the orchestrator, in the same way that a file descriptor in an operating system points to a file without being the file itself. The descriptor holds the VM definition — hardware parameters, base template, hypervisor reference — and tracks its current state. From the user's perspective, the descriptor simply is the VM; the indirection is transparent.
+The descriptor is the main object of the system. It represents a VM inside the orchestrator, similar to how a file descriptor in an operating system points to a file without being the file itself. It holds the VM definition — hardware parameters, base template, hypervisor reference — and tracks its current state.
 
-One of the most useful properties of a descriptor is that it can exist in a *provisioned* state: the definition is stored in the orchestrator, but no VM has been created in the hypervisor yet. This allows a professor to define an entire subject's infrastructure before students need it, and students can deploy their own VMs on demand.
+One important feature is that a descriptor can exist in a *provisioned* state: the definition is stored in the orchestrator, but no VM has been created in the hypervisor yet. This allows a professor to define the full infrastructure of a subject before students need it, and students can deploy their own VMs when they are ready.
 
 ### Descriptor tree
 
-Descriptors are organized in a hierarchical tree of folders. Each folder can hold a common definition that is inherited by all its children, recursively. This means that shared properties — hypervisor reference, base template, access permissions — can be defined once at a high level and inherited automatically by all descriptors below. Any property can be overridden at any level of the tree, which allows both consistency across large groups and flexibility for individual cases.
+Descriptors are organized in a tree of folders. Each folder can hold a common definition that all its children inherit, recursively. This means shared properties — hypervisor reference, base template, access permissions — can be defined once at a high level and reused by all descriptors below. Any property can be overridden at any level of the tree.
 
 ### Declarative model
 
-The system follows a declarative approach: users describe the desired state, and the orchestrator is responsible for materializing it. This is the same philosophy used by tools like Terraform or Ansible. Instead of issuing step-by-step commands, a professor defines what the subject environment should look like, and the system takes care of the rest.
+The system is declarative: users describe the desired state, and the orchestrator is responsible for making it happen. Instead of issuing step-by-step commands, a professor defines what the subject environment should look like, and the system does the rest.
 
 ### Job
 
-Every operation in the system generates a Job with a unique identifier and a lifecycle: pending → running → completed / failed. Batch operations — such as deploying all VMs for a subject at once — produce a parent Job with one child Job per VM. All Jobs are persisted and provide a full audit trail of everything that has happened in the system.
+Every operation generates a Job with a unique ID and a lifecycle:
+
+```
+pending → running → completed / failed
+```
+
+Batch operations — such as deploying all VMs for a subject at once — create a parent Job with one child Job per VM. All Jobs are stored and provide a full history of operations.
 
 ### Descriptor states
 
-The orchestrator tracks its own set of states, independent of the hypervisor's runtime states. A descriptor can be *provisioned* (defined but not yet deployed), *deployed* (VM exists and matches the definition), *deployed with a drifted flag* (VM exists but its configuration was changed directly in the hypervisor, outside of UnivOrch), *broken* (an operation failed midway and left the state inconsistent), or *unreachable* (the hypervisor cannot be contacted). Runtime states such as running, stopped, or paused belong to the hypervisor and are queried on demand.
+The orchestrator tracks its own states, separate from the hypervisor's runtime states:
+
+| State | Meaning |
+|---|---|
+| `provisioned` | Descriptor defined; no VM exists in the hypervisor yet |
+| `deployed` | VM exists and matches the descriptor definition |
+| `deployed` + `drifted` | VM exists but was changed directly in the hypervisor, outside UnivOrch |
+| `broken` | An operation failed midway; state is inconsistent |
+| `unreachable` | The hypervisor cannot be contacted |
+
+Runtime states (running, stopped, paused) belong to the hypervisor and are queried on demand.
 
 ---
 
 ## 5. Users and Roles
 
-The system defines three roles with fixed permissions:
+The system defines three roles:
 
 | Role | Typical user | Scope |
 |---|---|---|
 | `superuser` | System administrator | Full tree; manages hypervisors, base templates, and global configuration |
 | `manager` | Professor | Assigned branches of the tree; creates subjects and student folders; deploys and manages VMs |
-| `end_user` | Student | Their own assigned folder only; can start, stop, and redeploy their own VMs |
+| `end_user` | Student | Their own folder only; can start, stop, and redeploy their own VMs |
 
-Role assignment is defined per folder, not per user record. Each folder declares which users have access and with what role, and those assignments cascade downward through the tree. The same user can hold different roles in different branches, which makes the model flexible enough for contexts beyond the simple professor-student relationship.
+Role assignment is defined per folder, not per user. Each folder declares which users have access and with what role. Assignments cascade down the tree and can be overridden at any level.
 
-From the student's perspective, none of this complexity is visible. They see only their own workspace — the set of VMs assigned by the professor — and can operate their machines without any administrator involvement.
+From the student's perspective, none of this is visible. They see only their own workspace and can operate their VMs without any administrator involvement.
 
 ---
 
@@ -85,11 +110,17 @@ From the student's perspective, none of this complexity is visible. They see onl
 
 ### Version 1 — Proof of concept
 
-The goal of v1 is to demonstrate that the concept works end to end. It includes the generic orchestrator core with descriptor tree, cascade inheritance, Jobs, and RBAC; connectors for a mock hypervisor (for development and testing), VMware ESXi, and Proxmox; a REST API and a web interface accessible to all roles; a command-line client; and a teaching application covering subject deployment and basic operational reports.
+The goal of v1 is to show that the concept works end to end. It includes:
+
+- Generic orchestrator core: descriptor tree, cascade inheritance, Jobs, RBAC.
+- Hypervisor connectors: mock (for development and testing), VMware ESXi, Proxmox.
+- REST API and web interface, accessible to all roles.
+- Command-line client.
+- Teaching application: subject deployment tool and basic operational reports.
 
 ### Out of scope for v1
 
-- Automatic reconciliation loop (state changes are applied on demand, not automatically).
+- Automatic reconciliation loop (changes are applied on demand, not automatically).
 - High availability and clustering.
 - IP address management (IPAM).
 - VM snapshot management through the orchestrator.
@@ -99,12 +130,25 @@ The goal of v1 is to demonstrate that the concept works end to end. It includes 
 
 ## 7. Future Applications
 
-The generic core of UnivOrch is not limited to teaching. Because the engine has no embedded domain logic, other applications can be built on top of it for different contexts: CTF and cybersecurity competitions with isolated environments per team; conference workshops where each attendee receives a VM for the duration of the event; practical exams with state captured at start and end for grading; on-demand development environments provisioned from a template; QA testing with identical VMs across different OS or software versions; research labs that need to replicate experiment environments exactly; and corporate IT training following the same model as academic teaching.
+The generic core is not limited to teaching. Other applications can be built on the same engine:
 
-In all these cases, the orchestrator core remains unchanged. Only the application layer varies.
+- CTF and cybersecurity competitions: isolated environments per team, time-limited.
+- Conference workshops: one VM per attendee, short lifecycle.
+- Practical exams: isolated VM per student, state captured at start and end for grading.
+- On-demand development environments: self-service from a template.
+- QA and testing: identical VMs with different OS or software versions.
+- Research labs: replicate experiment environments, snapshot at key points.
+- Corporate IT training: same model as academic teaching.
+
+In all cases, the core stays the same. Only the application layer changes.
 
 ---
 
 ## 8. Non-Goals
 
-UnivOrch is not a hypervisor management tool and does not replace platforms like vSphere or the Proxmox UI. It is not a monitoring or alerting system — it reports VM states on request but does not continuously watch for anomalies. It does not manage IP address assignment, which is out of scope for v1. And it is not a backup solution for VM data; it manages only its own operational data.
+UnivOrch is not:
+
+- A hypervisor management tool. It does not replace platforms like vSphere or the Proxmox UI.
+- A monitoring or alerting system. It reports VM states on request but does not watch for anomalies continuously.
+- A network management system. IP assignment is out of scope for v1.
+- A backup solution for VM data. It only manages its own operational data.
