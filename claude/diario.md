@@ -301,3 +301,14 @@ Pendiente: Bloque D (motor de Jobs: Command pattern, atomicidad, lock por descri
 - DEC-028 registrado en `decisiones.md`
 
 Pendiente: Bloque E (conectores: ABC, entry points, in-process v1, librerías del tutor)
+
+### Bloque E cerrado — conectores (DEC-029)
+
+- **Reimplementación desde cero:** conectores VMware, Proxmox y mock escritos desde cero sin depender de `esxobjects`/`yamlinfr`. Al terminar se comparan con las librerías del tutor y se documentan las diferencias como **conclusión evaluativa en la memoria del TFG**. Cierra la pregunta abierta E3
+- **ABC (Abstract Base Class), no Protocol:** el contrato del conector se define como ABC de Python. Razones: falla pronto y ruidosamente si un conector está incompleto (mejor que Protocol, que solo falla al llamar al método ausente); autodocumentado (la herencia es visible en el código); permite métodos compartidos con implementación por defecto
+- **Métodos del contrato:** `clone(mode)`, `delete`, `start`, `stop`, `force_stop`, `pause`, `resume`, `get_status`, `get_info` (DEC-016)
+- **Ejecución in-process:** el código del conector corre en el mismo proceso Python que el orquestador. Más simple; la interfaz del ABC es la costura para sacar el conector a un proceso/servicio separado en el futuro
+- **Registro en v1:** diccionario interno `{"vmware": VMwareConnector, "proxmox": ..., "mock": ...}`. Los entry points (mecanismo de descubrimiento automático de paquetes instalados) son la extensión futura para conectores de terceros, no la implementación v1
+- **Mock:** registrado igual que los reales, mismo ABC; permite TDD sin hipervisor real
+
+Pendiente: Bloque F (persistencia)

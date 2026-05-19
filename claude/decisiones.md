@@ -255,3 +255,13 @@ Este fichero recoge las decisiones técnicas importantes del proyecto con refere
 - **Batch — política todo-o-se-rechaza:** el Job padre adquiere los locks de todos los descriptores afectados antes de empezar (durante la fase de validación del Bloque C). Si alguno está ocupado, el apply entero se rechaza limpiamente antes de tocar nada. Si todos están libres, los bloquea, ejecuta los child Jobs en orden, y libera todos al terminar
 - **Jobs interrumpidos al arrancar:** si el servicio cae con Jobs en `running`, al reiniciar se detectan en BD y se marcan `interrupted`; se notifica al admin. No se relanzan automáticamente en v1. Recuperación automática es desarrollo futuro (HA)
 - **Trazabilidad:** detalla DEC-014 (patrón Job), DEC-015 (Jobs persistidos), DEC-027 (validate en el flujo apply)
+
+## DEC-029 — Conectores de hipervisor
+
+- **Fecha:** 2026-05-19 → ver `diario.md#2026-05-19`
+- **Implementación desde cero:** conectores VMware, Proxmox y mock se reimplementan limpiamente sin reutilizar `esxobjects` ni `yamlinfr` como dependencias. Al completarlos se compara el diseño con las librerías del tutor; las diferencias se documentan como evaluación comparativa en la memoria del TFG
+- **Contrato:** ABC `HypervisorConnector` con los métodos de DEC-016. ABC elegido sobre Protocol por: comprobación en tiempo de instanciación (fail fast), autodocumentación por herencia explícita, posibilidad de métodos con implementación por defecto compartida
+- **Registro en v1:** diccionario interno mapeando nombre de tipo a clase de conector. Abstracción preparada para que en el futuro se pueda alimentar también por entry points (plugins de terceros instalables via pip) sin cambiar el núcleo
+- **Ejecución:** in-process en v1. El ABC es la costura para externalizar el conector a un servicio separado en el futuro sin cambiar el orquestador
+- **Mock:** conector `mock` implementado con el mismo ABC; configurable para simular fallos, latencia y deriva de configuración. Permite TDD sin hipervisor real
+- **Trazabilidad:** concreta DEC-016 (operaciones del conector), DEC-004 (arquitectura en dos capas), A1 (entry points como punto de extensión)
