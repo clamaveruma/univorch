@@ -1,0 +1,25 @@
+services:
+  univorch:
+    image: ghcr.io/clamaveruma/univorch:latest
+    container_name: univorch
+    ports:
+      # Web GUI port — configurable via UNIVORCH_PORT env var.
+      # Default: 8080. Override: UNIVORCH_PORT=9090 ./univorch.sh start
+      - "${UNIVORCH_PORT:-8080}:8080"
+    volumes:
+      # --- CRITICAL ---
+      # This volume holds the TinyDB database (a single JSON file).
+      # Without this mount, all data is lost every time the container
+      # is recreated. Never remove this volume while the service is in use.
+      - univorch_data:/data
+    environment:
+      UNIVORCH_PORT:    "${UNIVORCH_PORT:-8080}"
+      UNIVORCH_DB_PATH: /data/univorch.json
+    restart: unless-stopped
+
+# Named volume managed by Docker — survives container recreation.
+# To inspect: docker volume inspect orch_pru_univorch_data
+# To back up: copy the JSON file from the volume to a safe location.
+volumes:
+  univorch_data:
+    driver: local

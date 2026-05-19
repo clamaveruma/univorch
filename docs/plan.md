@@ -44,11 +44,11 @@ Elección del stack definitivo: lenguaje (Python), frameworks, librerías, herra
 ---
 
 ### Fase 5 — Configuración del entorno de desarrollo
-**Estado:** ⏳ Pendiente
+**Estado:** ✅ Completada
 
 IDE, contenedores, estructura de repositorio, CI/CD básico, convenciones de código. Entorno reproducible por cualquier persona.
 
-**Entregable:** entorno funcionando + `docs/entorno.md`
+**Entregable:** entorno funcionando + `docs/environment.md`
 
 ---
 

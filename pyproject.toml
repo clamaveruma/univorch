@@ -1,0 +1,70 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# ---------------------------------------------------------------------------
+# Project metadata
+# ---------------------------------------------------------------------------
+[project]
+name = "univorch"
+version = "0.1.0"
+description = "Universal Virtual Machine Orchestrator — proof of concept"
+requires-python = ">=3.12"
+
+dependencies = [
+    "tinydb>=4.8",      # document DB, JSON file, no server required (v1)
+    "nicegui>=1.4",     # web GUI — Sprint 2
+    "cmd2>=2.4",        # CLI with dual bash + REPL mode
+    "ruamel.yaml>=0.18", # round-trip YAML parser (preserves comments)
+]
+
+[project.scripts]
+# 'univorch' command available inside the container and the dev environment
+univorch = "univorch.interfaces.cli.app:main"
+
+# ---------------------------------------------------------------------------
+# Optional dependency groups
+# ---------------------------------------------------------------------------
+[project.optional-dependencies]
+
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "hypothesis>=6.100",  # property-based testing for the Resolver
+    "ruff>=0.4",
+    "mypy>=1.10",
+]
+
+vmware  = ["pyvmomi>=8.0"]      # VMware vSphere SOAP SDK — optional connector
+proxmox = ["proxmoxer>=2.0"]    # Proxmox REST API wrapper — optional connector
+
+# ---------------------------------------------------------------------------
+# Tool configuration — all tools read pyproject.toml
+# ---------------------------------------------------------------------------
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/univorch"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+
+[tool.ruff.lint]
+# E/F: pycodestyle + pyflakes  I: isort  UP: pyupgrade  B: bugbear
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true                   # validates ABC contracts and Resolver signatures
+files = ["src/univorch"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts   = "--cov=univorch --cov-branch --cov-report=term-missing"
+
+[tool.coverage.run]
+source = ["univorch"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true

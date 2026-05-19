@@ -1,0 +1,47 @@
+name: CI
+
+# Run on every push to main and on every pull request targeting main.
+# This ensures that no untested or unformatted code reaches the main branch.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  quality:
+    name: Lint, type-check, and test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          # Pin to a specific version for reproducible CI runs.
+          # Update periodically to pick up uv improvements.
+          version: "0.4.18"
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install dev dependencies
+        run: uv sync --extra dev
+
+      # Ruff checks style rules (pycodestyle, pyflakes, isort, bugbear…).
+      - name: Lint — Ruff
+        run: uv run ruff check src/ tests/
+
+      # Ruff format --check exits non-zero if any file would be reformatted.
+      # Developers should run 'ruff format' locally before pushing.
+      - name: Format — Ruff
+        run: uv run ruff format --check src/ tests/
+
+      # mypy validates type annotations and ABC contracts.
+      - name: Type check — mypy
+        run: uv run mypy src/univorch/
+
+      # pytest runs all tests and reports branch coverage.
+      - name: Tests — pytest
+        run: uv run pytest

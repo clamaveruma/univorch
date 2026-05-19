@@ -416,6 +416,24 @@ en el nuevo fichero `claude/desarrollo.md` (importado desde `CLAUDE.md`). Resume
 - **Sprint 1:** CLI primero (cmd2), sin Resolver completo, sin web GUI, sin capa docente.
   Objetivo: demo funcional para el profesor con mock connector y YAMLs de ejemplo
 - **Sprint 2:** Resolver completo (herencia en cascada), web GUI (NiceGUI), RBAC
+
+### Fase 5 completada — entorno de desarrollo configurado
+
+Se crean todos los ficheros de infraestructura y se establece la estructura del repositorio:
+
+- `pyproject.toml` — config unificada (deps, Ruff, mypy, pytest, hatchling)
+- `Dockerfile` — multi-stage: builder con uv + runtime slim; volumen `/data` para TinyDB
+- `docker-compose.yml` — volumen `univorch_data` explícito (crítico para persistencia), puerto 8080
+- `univorch.sh` — wrapper: start/stop/restart/status/logs/cli
+- `.devcontainer/devcontainer.json` — Python 3.12, extensiones VSCode, `uv sync --extra dev`
+- `.github/workflows/ci.yml` — pipeline: Ruff lint + format + mypy + pytest en cada push
+- `src/univorch/` — esqueleto completo de paquetes con docstrings de módulo
+- `tests/` — estructura unit/ + integration/ + conftest.py
+- `demo/` — directorio placeholder para Sprint 1
+- `docs/environment.md` — entregable de Fase 5 (inglés)
+- `.gitignore` — Python + uv + coverage + IDEs
+
+Plan.md: Fase 5 ✅ completada. Fase 6 Sprint 1 ⏳ pendiente (código).
 - **Transición Claude Code Web → VSCode:** el historial de chat no se transfiere, pero todo el
   contexto relevante está en `claude/`. El nuevo `claude/desarrollo.md` captura el contexto
   operativo que faltaba (estructura de código, alcance de sprints, convenciones TDD)
