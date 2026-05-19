@@ -196,8 +196,42 @@ Los YAMLs de la `demo/` son el material didáctico: muestran la estructura decla
 - `@override` en todos los métodos de conectores y repositorios que implementen un ABC
 - Ruff para linting y formateo (configurado en `pyproject.toml`)
 - mypy en modo estricto para el núcleo (`src/univorch/core/`, conectores, repositorios)
-- Sin comentarios que expliquen *qué* hace el código — solo *por qué* cuando no es obvio
-- Sin docstrings largos; una línea si hace falta
+- Funciones y métodos cortos: deben caber en una pantalla (~30 líneas máximo). Si crece más,
+  extraer función privada con nombre descriptivo — el nombre actúa como comentario
+- Comentarios inline solo para el *por qué*, nunca para el *qué*. El código bien nombrado
+  ya explica el qué
+
+### Docstrings — formato Google style
+
+Todos los módulos, clases y métodos públicos llevan docstring. Formato Google style:
+
+```python
+def clone(self, source_id: str, mode: str = "linked") -> str:
+    """Create a VM by cloning a base template.
+
+    Args:
+        source_id: ID of the base template to clone from.
+        mode: Clone mode. Only 'linked' is supported in v1;
+              'full' raises NotImplementedError.
+
+    Returns:
+        The ID of the newly created VM.
+
+    Raises:
+        ValueError: If source_id does not exist in the template pool.
+        ConnectionError: If the hypervisor is configured as unreachable.
+        NotImplementedError: If mode is not 'linked'.
+    """
+```
+
+**Por qué no usamos @param (estilo Doxygen/Javadoc):**
+Los type hints ya documentan los tipos directamente en la firma y mypy los valida. Repetirlos
+en el docstring sería redundante y quedarían desincronizados si alguien cambia la firma. La
+sección `Raises:` sí aporta información que los type hints no pueden expresar.
+
+**Clases:** docstring explicando qué representa Y por qué existe separada (razón arquitectónica).
+**Métodos privados (`_método`):** docstring si la lógica no es evidente; opcional si el nombre
+ya lo dice todo.
 
 ### TDD
 - Tests antes o junto al código, nunca después
@@ -211,6 +245,26 @@ Los YAMLs de la `demo/` son el material didáctico: muestran la estructura decla
 - Mensaje descriptivo en español
 - Actualizar `claude/diario.md` en el mismo commit si hay contexto nuevo
 - Siempre push tras el commit
+
+### Excepciones vs comprobaciones al estilo C
+
+Python favorece el estilo **EAFP** (*Easier to Ask Forgiveness than Permission*): intentar la
+operación y capturar el error, en lugar de comprobar antes si es posible. El código del camino
+feliz queda limpio; el manejo de errores va en bloques `except` separados.
+
+**Regla para este proyecto:**
+
+| Situación | Mecanismo |
+|---|---|
+| Input inválido, bug, entorno roto | Excepción (`ValueError`, `RuntimeError`…) |
+| Violación de permisos | Excepción (`PermissionError`) |
+| Hipervisor inalcanzable, operación imposible | Excepción (`ConnectionError`) |
+| Validación donde queremos *todos* los errores | `list[str]` de retorno |
+
+La excepción a las excepciones: **`validate()` devuelve `list[str]`** en lugar de lanzar.
+Motivo: queremos recoger *todos* los problemas del apply antes de rechazarlo. Si lanzásemos
+al primer error, el usuario no sabría cuántos otros problemas hay. Misma razón por la que un
+compilador muestra todos los errores a la vez.
 
 ### Patrones clave a respetar
 - El `OrchestratorService` es la única puerta de entrada — CLI y web no tocan repositorios ni

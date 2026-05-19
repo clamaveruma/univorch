@@ -419,3 +419,15 @@ en el nuevo fichero `claude/desarrollo.md` (importado desde `CLAUDE.md`). Resume
 - **Transición Claude Code Web → VSCode:** el historial de chat no se transfiere, pero todo el
   contexto relevante está en `claude/`. El nuevo `claude/desarrollo.md` captura el contexto
   operativo que faltaba (estructura de código, alcance de sprints, convenciones TDD)
+
+### Convenciones de código cerradas — docstrings y excepciones
+
+- **Docstrings:** formato Google style (secciones `Args:`, `Returns:`, `Raises:`). Los type hints
+  ya documentan los tipos en la firma (mypy los valida); el docstring añade lo que el type hint
+  no puede expresar: significado de parámetros, valores válidos, y sobre todo las excepciones.
+  No se usa estilo @param/Doxygen porque sería redundante con los type hints y quedaría
+  desincronizado al cambiar la firma
+- **Excepciones:** estilo EAFP (Python). Excepciones para errores reales; `list[str]` de retorno
+  solo en `validate()` donde se quieren acumular todos los errores antes de rechazar. Regla
+  documentada en tabla en `claude/desarrollo.md`
+- **Funciones:** máximo ~30 líneas. Si crece, extraer función privada con nombre descriptivo
