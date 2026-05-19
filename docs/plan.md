@@ -35,11 +35,11 @@ Cómo se implementa el sistema: servicios, módulos, protocolos de comunicación
 ---
 
 ### Fase 4 — Selección de tecnologías
-**Estado:** ⏳ Pendiente
+**Estado:** ✅ Completada
 
 Elección del stack definitivo: lenguaje (Python), frameworks, librerías, herramientas. Justificación de cada decisión.
 
-**Entregable:** `docs/tecnologias.md` + entradas en `claude/decisiones.md`
+**Entregable:** `docs/technologies.md` + entradas en `claude/decisiones.md`
 
 ---
 

@@ -385,3 +385,17 @@ Sesión Sonnet/Medio. Diálogo pedagógico, 5 puntos. Cerrados los 4 primeros:
 - **Punto 4 — Calidad de código: Ruff + mypy.** Ruff = linter + formateador en una sola herramienta Rust (sustituye flake8, isort, black; misma empresa que `uv`, Astral). mypy = comprobador de tipos aparte (valida los contratos ABC de conectores y las firmas del `Resolver`). Ambos se integran en VSCode con extensiones oficiales (subrayado en vivo + format-on-save). **Solo en entorno de desarrollo, no en el contenedor de producción:** van en `[project.optional-dependencies] dev = [...]` de `pyproject.toml`; el devcontainer instala con `uv sync --extra dev`, producción sin `--extra dev`. Además se ejecutan en CI/CD (GitHub Actions) como puerta de calidad automática
 
 Pendiente: Punto 5 (librerías cliente oficiales de los hipervisores) → luego redactar `docs/technologies.md`
+
+### Punto 5 cerrado — librerías de hipervisor y diseño del mock
+
+- **VMware → `pyvmomi`:** SDK oficial de VMware (vSphere SOAP API). Maduro, cubre todas las operaciones necesarias. Es lo que usa `esxobjects` del tutor → facilita la comparación evaluativa final (DEC-029). Alternativa REST (vSphere Automation SDK) descartada: incompleta para gestión de VMs y menos madura
+- **Proxmox → `proxmoxer`:** no existe SDK oficial; `proxmoxer` es el wrapper de facto de la comunidad sobre la API REST, recomendado por la documentación de Proxmox. Más simple que pyvmomi
+- **Librerías como extras opcionales:** dependencias del conector concreto, no del núcleo. En `pyproject.toml` como `vmware = ["pyvmomi"]`, `proxmox = ["proxmoxer"]`. Quien solo usa Proxmox no instala la de VMware; el mock no necesita ninguna
+- **Mock — aportación del usuario:** estado **en memoria** (lo más sencillo). Función de inicialización interna que crea una estructura de VMs de ejemplo de golpe: variantes `empty()`, `with_defaults()`, `with_templates([...])`. Dos cajones: VMs base/templates (precargadas, necesarias como fuente de linked clone) y VMs desplegadas (vacías al inicio, se llenan con `clone()`, se vacían con `delete()`). Métodos de inspección/inyección fuera del ABC, solo para tests (`deployed_vms()`, `inject_drift()`, `make_unreachable()`)
+- **Variante mock-como-servicio-REST:** se barajó en el debate de arquitectura; probaría la frontera out-of-process (serialización, red, latencia). Descartada para v1 (conectores in-process) — anotada como futuro
+
+### Fase 4 completada — docs/technologies.md redactado
+
+Se redacta el entregable de Fase 4 en inglés (`docs/technologies.md`, coherente con la convención de `docs/`). Cubre los 6 puntos: Python 3.12, pytest+pytest-cov+Hypothesis, uv+pyproject.toml, docker-compose+script fino, Ruff+mypy, librerías de hipervisor (pyvmomi/proxmoxer como extras + mock sin dependencias). Tabla resumen final. DEC-033 registrado en `decisiones.md`. Añadido también DEC-032 (estados/máquina de estados, Bloque H) que se había referenciado en el diario pero faltaba en `decisiones.md`.
+
+Plan.md: Fase 4 ✅ completada. Próxima: Fase 5 (configuración del entorno de desarrollo — `.devcontainer/`, CI/CD, convenciones; parte ya adelantada en puntos 3 y 4).
