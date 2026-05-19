@@ -346,3 +346,17 @@ Pendiente: Bloque H (estados y errores)
 - **Mock:** configurable para simular fallos, latencia y drift — permite TDD de toda la lógica de errores sin hipervisor real
 
 Pendiente: Bloque I (ideas out-of-the-box para memoria TFG)
+
+### Bloque I cerrado — ideas out-of-the-box para memoria TFG
+
+Se identifican 5 ideas con potencial para la memoria (ninguna entra en v1):
+
+1. **GitOps:** el árbol de descriptores vive en git; `git push` dispara `apply` automáticamente. Evolución directa de lo construido; valor pedagógico alto (infraestructura como código con git)
+2. **Bucle de reconciliación (Kubernetes-style):** proceso de fondo que compara estado deseado vs real y corrige drift automáticamente. Puente conceptual entre orquestador reactivo (v1) y declarativo puro
+3. **Event sourcing:** guardar eventos en lugar de estado; reconstruir el estado en cualquier punto temporal. El historial de Jobs es su precursor. Profundidad académica (CQRS)
+4. **IA integrada en CLI/web:** lenguaje natural → llamadas al facade. Coherente con el contexto del TFG (desarrollo asistido por IA); la IA es otra interfaz fina sobre `OrchestratorService`
+5. **Analogía tabla de descriptores del SO:** ángulo conceptual para la introducción de la memoria; da identidad intelectual al trabajo conectando con arquitectura de sistemas
+
+### Debate de arquitectura completado — inicio de redacción docs/arquitectura.md
+
+Los 9 bloques (A-I) del debate cerrados. Todos los bloques acordados sin decisiones pendientes. Se comienza la redacción del entregable de Fase 3: `docs/arquitectura.md` en inglés.
