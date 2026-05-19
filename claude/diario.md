@@ -372,3 +372,5 @@ Plan.md: Fase 3 ✅ completada. Fase 4 ⏳ pendiente (selección de tecnologías
 - Diagramas ASCII sustituidos por Mermaid (arquitectura dos capas, flujo apply/plan, máquina de estados)
 - Eliminadas del documento las referencias a `claude/decisiones.md` y al desarrollo asistido por IA (a petición del usuario)
 - Fichero renombrado `docs/arquitectura.md` → `docs/architecture.md` con `git mv` (coherencia con la convención: `docs/` en inglés). Referencia actualizada en `plan.md`. Las entradas históricas del diario se conservan con el nombre antiguo (regla de no reescribir el diario)
+- Mismo criterio aplicado a `docs/requisitos.md` → `docs/requirements.md` (`git mv`); referencias vivas actualizadas en `plan.md` y `architecture.md`. Toda la carpeta `docs/` queda con nombres en inglés, coherente con su contenido
+- Confirmado el flujo de trabajo en `main`; la rama `claude/explore-new-repo-R3Nxb` no tiene commits propios (todo integrado), pendiente de borrado a petición del usuario

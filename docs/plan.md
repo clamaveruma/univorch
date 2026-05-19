@@ -21,7 +21,7 @@ Entender y documentar el problema que resuelve el sistema, el contexto de uso y 
 
 Definir qué hace el sistema desde el punto de vista del usuario. Casos de uso, requisitos funcionales y no funcionales, restricciones.
 
-**Entregable:** `docs/requisitos.md`
+**Entregable:** `docs/requirements.md`
 
 ---
 

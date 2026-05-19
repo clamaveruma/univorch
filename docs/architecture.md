@@ -9,7 +9,7 @@
 
 UnivOrch is a Linux service written in Python that provides a unified abstraction layer for managing virtual machines across different hypervisors. This document describes the internal architecture of the system: how it is structured, how its components communicate, and the reasoning behind the key design decisions.
 
-The requirements that this architecture satisfies are defined in `docs/requisitos.md`. Traceability to specific design decisions is provided via DEC-xxx references throughout the document.
+The requirements that this architecture satisfies are defined in `docs/requirements.md`. Traceability to specific design decisions is provided via DEC-xxx references throughout the document.
 
 ---
 
