@@ -245,3 +245,13 @@ Este fichero recoge las decisiones técnicas importantes del proyecto con refere
 - **Resolver con dos modos:** normal (valores) y **anotado** (valor + origen por propiedad). El anotado alimenta el editor web (heredadas coloreadas + origen). A diseñar en el `Resolver` desde el inicio
 - **Editor web:** panel YAML editable + árbol resuelto en tiempo real; heredadas en otro color con origen; botón "Comprobar" = `plan`; aviso al sobreescribir una heredada
 - **Trazabilidad:** apoya DEC-006 (declarativo), DEC-014/DEC-015 (Jobs), DEC-026 (Resolver). Resuelve el pendiente de Fase 2 sobre carga masiva de YAML
+
+## DEC-028 — Motor de Jobs: Command pattern, síncrono v1, locking
+
+- **Fecha:** 2026-05-19 → ver `diario.md#2026-05-19`
+- **Patrón Command:** cada operación (deploy, undeploy, start, stop, crear carpeta, editar descriptor) se encapsula como un objeto con dos métodos: `validate()` e `execute()`. El `plan`/dry-run llama a `validate()` de cada Command sin ejecutar ninguno. El motor trata todos los Commands igual, independientemente de su tipo
+- **Ejecución v1 — síncrono con modelo asíncrono:** el Job se persiste en BD al crearse (estado `pending`), se actualiza a `running` al empezar y a `completed`/`failed` al terminar. El usuario espera el resultado síncronamente. La interfaz ya habla en Jobs desde v1 — el día que se añada una cola asíncrona, no cambia nada de cara afuera (costura limpia)
+- **Lock por descriptor en BD:** campo en el registro del descriptor con el ID del Job que lo ocupa. Se adquiere antes de ejecutar, se libera al terminar (bien o mal). Reside en BD (no en memoria) para sobrevivir a reinicios y para HA activo/pasivo futura
+- **Batch — política todo-o-se-rechaza:** el Job padre adquiere los locks de todos los descriptores afectados antes de empezar (durante la fase de validación del Bloque C). Si alguno está ocupado, el apply entero se rechaza limpiamente antes de tocar nada. Si todos están libres, los bloquea, ejecuta los child Jobs en orden, y libera todos al terminar
+- **Jobs interrumpidos al arrancar:** si el servicio cae con Jobs en `running`, al reiniciar se detectan en BD y se marcan `interrupted`; se notifica al admin. No se relanzan automáticamente en v1. Recuperación automática es desarrollo futuro (HA)
+- **Trazabilidad:** detalla DEC-014 (patrón Job), DEC-015 (Jobs persistidos), DEC-027 (validate en el flujo apply)

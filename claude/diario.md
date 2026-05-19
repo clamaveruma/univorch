@@ -290,3 +290,14 @@ Diálogo pedagógico extenso. El usuario aportó la fase de validación, la dist
 - DEC-027 registrado en `decisiones.md`
 
 Pendiente: Bloque D (motor de Jobs: Command pattern, atomicidad, lock por descriptor, síncrono v1)
+
+### Bloque D cerrado — motor de Jobs (DEC-028)
+
+- **Command pattern:** cada operación = objeto con `validate()` + `execute()`. Permite guardar, encolar, inspeccionar y reintentar operaciones. El `plan`/dry-run del Bloque C llama al `validate()` de cada Command sin ejecutar
+- **Síncrono en v1, modelo asíncrono:** el Job se crea en BD antes de ejecutar y se actualiza al terminar. El usuario espera, pero la interfaz ya habla en Jobs — migrar a asíncrono real no cambia nada de cara afuera
+- **Lock por descriptor en BD:** adquirido antes de ejecutar, liberado al terminar (bien o mal). Sobrevive a reinicios; preparado para HA activo/pasivo futura
+- **Batch:** Job padre + child Jobs; adquiere todos los locks antes de empezar. Política v1: todo-o-se-rechaza (si algún descriptor está ocupado, el apply entero se rechaza antes de tocar nada)
+- **Jobs interrumpidos:** al arrancar, los Jobs en `running` se detectan en BD y se marcan `interrupted`; se notifica al admin sin relanzar automáticamente. Lógica mínima en v1; recuperación automática es desarrollo futuro
+- DEC-028 registrado en `decisiones.md`
+
+Pendiente: Bloque E (conectores: ABC, entry points, in-process v1, librerías del tutor)
