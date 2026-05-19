@@ -276,6 +276,30 @@ compilador muestra todos los errores a la vez.
 
 ---
 
+## Forma de trabajo — acuerdo con el usuario
+
+Este acuerdo se estableció al inicio de la Fase 6 y debe respetarse en todas las sesiones:
+
+- **El usuario decide** qué se hace en cada momento
+- **Claude pregunta** antes de actuar — nunca asume ni ejecuta sin confirmación explícita
+- **El usuario ejecuta** siempre que sea posible: comandos, configuración, edición de ficheros,
+  creación de ficheros, commits, push
+- **El código Python** lo escribe el usuario, por partes, entendiendo cada pieza antes de escribirla.
+  Claude explica el diseño y el porqué, propone la estructura, revisa lo escrito
+- **Claude explica, propone y revisa** — no ejecuta sin permiso
+- **Tareas mecánicas** (commits, diario, renombrar ficheros): el usuario decide si las hace él o
+  las delega a Claude. Preguntarle en cada caso si no está claro
+- El objetivo es que el usuario entienda y pueda defender todo el código en la memoria del TFG
+- **Código Python:** lo escribe Claude, pero despacio — primero explica qué va a hacer y por qué,
+  espera a que el usuario lo entienda, lo escribe, el usuario lo revisa, y no se avanza hasta que
+  no queden dudas. Ritmo: pocos métodos cada vez
+- **Herramientas de desarrollo:** Claude dice qué hacer, el usuario ejecuta los comandos en su
+  terminal y edita los ficheros. Claude puede leer cualquier fichero del repo y ver la salida de
+  los comandos si el usuario la pega en el chat
+- **Visibilidad:** Claude lee ficheros guardados y salidas de terminal pegadas — no ve en tiempo
+  real lo que se escribe. Flujo: editar → guardar → "ya está" o pegar el error → Claude revisa
+- **Commits y push:** tarea mecánica — Claude los hace salvo que el usuario quiera hacerlos él
+
 ## Contexto de transición: de Claude Code Web a Claude Code en VSCode
 
 La conversación de diseño (Fases 1-5) ocurrió en Claude Code Web. El historial de chat no se

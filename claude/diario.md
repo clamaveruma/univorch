@@ -434,6 +434,15 @@ Se crean todos los ficheros de infraestructura y se establece la estructura del 
 - `.gitignore` — Python + uv + coverage + IDEs
 
 Plan.md: Fase 5 ✅ completada. Fase 6 Sprint 1 ⏳ pendiente (código).
+
+### Acuerdo de trabajo para Fase 6
+
+El usuario establece explícitamente cómo quiere trabajar el código:
+- Él ejecuta, él escribe — Claude pregunta y propone antes de actuar
+- El código Python lo escribe el usuario, por partes, entendiendo cada cosa antes
+- Claude explica el diseño y el porqué, propone estructura, revisa lo escrito
+- Tareas mecánicas (commits, diario): preguntar al usuario si las hace él o las delega
+- Registrado en `claude/desarrollo.md` sección "Forma de trabajo"
 - **Transición Claude Code Web → VSCode:** el historial de chat no se transfiere, pero todo el
   contexto relevante está en `claude/`. El nuevo `claude/desarrollo.md` captura el contexto
   operativo que faltaba (estructura de código, alcance de sprints, convenciones TDD)
