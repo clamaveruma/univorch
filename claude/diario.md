@@ -247,3 +247,26 @@ Se aplican todos los ajustes pendientes al documento de requisitos:
 - Creado `claude/arquitectura-debate.md`: 9 bloques (estructura de código, árbol de descriptores, modelo declarativo, motor de Jobs, conectores, persistencia, interfaces, estados/errores, ideas out-of-the-box) + checklist de decisiones + 3 preguntas abiertas
 - Recomendaciones principales a debatir: materialized path para el árbol, resolución lazy con función pura, facade `OrchestratorService` único, Command pattern para Jobs, lock por descriptor en BD, conectores in-process con costura para out-of-process, mock como servicio REST con fallos/latencia/drift configurables
 - Pendiente: discutir el documento con el usuario (próxima sesión); confirmar expectativa del tutor sobre reutilización de `esxobjects`/`yamlinfr`
+
+---
+
+## 2026-05-19
+
+### Debate de arquitectura — primeros bloques cerrados (formato pedagógico)
+
+Sesión Opus/Alto. El usuario pide diálogo tema a tema, con explicación accesible de cada concepto (no es ingeniero de software). Se cierran:
+
+- **A1 — Estructura del código:** un paquete + entry points para conectores y aplicaciones. Simple, con barrera real solo en los dos puntos de extensión
+- **A2 — Frontera del core:** facade `OrchestratorService` limpio, pero sin formalizar como API pública de plugins en v1 (opción 2). Crecimiento futuro a la memoria
+- **B1 — Árbol:** materialized path (analogía ruta de fichero; ancestros gratis desde la clave)
+- **B2 — Resolución de herencia:** lazy + función pura + `Resolver` único para definiciones y permisos
+
+**DEC-026 — Modelo de herencia por tipo de dato.** Diálogo rico, varias aportaciones del usuario que mejoraron la propuesta inicial:
+- Idea del usuario: que el tipo del dato decida la regla (escalar=reemplaza, lista=acumula, mapa=fusión recursiva). Adoptado como defecto — más elegante que "configurar campo a campo"
+- Permisos como dos listas (`managers`, `end_users`) que acumulan; un usuario puede tener varios roles (inofensivo, manager engloba end_user)
+- Excepción declarable para el caso `ip_pool` (reemplazar bloque entero; ejemplo Caso A vm_defaults vs Caso B ip_pool para explicar por qué)
+- Limitación v1: solo se acumula, no se elimina hacia abajo; revocación en origen
+- Ideas de futuro del usuario: directiva `@REMOVE`, propiedades inmutables. Anotadas, fuera de v1
+- DEC-026 registrado; `arquitectura-debate.md` con sección de decisiones acordadas
+
+Pendiente: continuar con Bloque C (modelo declarativo) y D (motor de Jobs)

@@ -214,3 +214,17 @@ Este fichero recoge las decisiones técnicas importantes del proyecto con refere
 - **En undeploy:** la IP se libera y vuelve al pool
 - **Fuera de alcance del orquestador:** cómo la VM recibe efectivamente esa IP en la red (DHCP, cloud-init u otro mecanismo) no es responsabilidad de UnivOrch
 - **Futuro:** integración con IPAM externo (phpIPAM, NetBox) — solo cambia la implementación del IPPoolRepository
+
+## DEC-026 — Modelo de herencia: combinación por tipo de dato
+
+- **Fecha:** 2026-05-19 → ver `diario.md#2026-05-19`
+- **Decisión:** la regla de combinación en la herencia en cascada la determina el **tipo del dato**:
+  - **Escalar** (`var: valor`) → reemplaza (el hijo pisa al padre)
+  - **Lista** (`var: [a, b]`) → acumula (se añaden elementos)
+  - **Mapa** (`var: {campo: val}`) → fusión recursiva (mismas reglas en los sub-campos)
+- **Excepción declarable:** campos concretos donde el defecto no encaja se marcan para usar otra regla. Caso conocido v1: `ip_pool` → **reemplazar el bloque completo** (no fusión recursiva), porque rango/máscara/gateway solo tienen sentido como unidad coherente y DEC-025 permite que una subcarpeta sobreescriba el pool heredado
+- **Permisos como parámetro de la definición:** dos listas separadas, `managers` y `end_users`, que **acumulan** al bajar. Un usuario puede estar en ambas (manager engloba end_user; redundante pero inofensivo en el modelo de 3 roles). El superusuario es caso aparte (asignado en raíz, DEC-021)
+- **Limitación v1:** no se puede eliminar hacia abajo lo heredado (las listas solo crecen). La revocación se hace en el nivel donde se asignó
+- **Resolución:** lazy (al vuelo), modelada como función pura `(ancestros, imports) → definición efectiva`; el mismo `Resolver` resuelve definiciones y permisos (son el mismo problema)
+- **Futuro anotado:** (a) directiva tipo `@REMOVE` para eliminar elementos heredados de listas/mapas — debería respetar la regla de autoridad de permisos; (b) propiedades inmutables que no se puedan redefinir hacia abajo. Ambas fuera de v1
+- **Trazabilidad:** refina DEC-010 (herencia obligatoria), DEC-012 (imports + comodín `*`), DEC-021 (roles en carpeta, cascada con sobreescritura)

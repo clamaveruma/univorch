@@ -5,7 +5,24 @@
 > Estructura: por cada área, el dilema → opciones con pros/contras → recomendación → preguntas abiertas.
 > Al final, un checklist de decisiones para agilizar la conversación.
 
-Estado: pendiente de debatir con el usuario. Nada de esto es decisión cerrada todavía.
+Estado: en debate con el usuario (tema a tema, formato pedagógico). Las decisiones cerradas se recogen abajo.
+
+---
+
+## Decisiones ya acordadas en diálogo (2026-05-19)
+
+> Estas ya están cerradas con el usuario. El resto del documento es el análisis original.
+
+- **A1 — Estructura repo:** un solo paquete + entry points para los dos puntos de extensión (conectores y aplicaciones). Simple donde se puede, barrera real solo donde importa.
+- **A2 — Frontera del core:** facade `OrchestratorService` limpio desde el inicio, pero **sin** formalizar como API pública de plugins en v1 (opción 2). Crecimiento futuro mencionado en la memoria.
+- **B1 — Árbol:** materialized path (ruta tipo fichero; los ancestros salen gratis de la clave).
+- **B2 — Resolución de herencia:** lazy (al vuelo), modelada como **función pura**; un **único `Resolver`** para definiciones y permisos (son el mismo problema).
+- **Modelo de herencia (DEC-026):** combinación por tipo de dato:
+  - Escalar → reemplaza · Lista → acumula · Mapa → fusión recursiva
+  - **Excepción declarable** para campos donde el defecto rompe (caso v1: `ip_pool` → reemplazar bloque entero, porque rango/máscara/gateway son una unidad y DEC-025 permite override)
+  - **Permisos** = dos listas en la definición: `managers` y `end_users`, que **acumulan** al bajar. Un usuario puede estar en ambas (inofensivo: manager engloba end_user). Superusuario, caso aparte (raíz)
+  - Limitación v1: no se puede eliminar hacia abajo lo heredado (listas solo crecen); revocación en el nivel de origen
+  - Futuro anotado: directiva `@REMOVE` para listas/mapas (debe respetar la autoridad de permisos) y propiedades inmutables. Fuera de v1
 
 ---
 
