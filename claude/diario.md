@@ -323,3 +323,15 @@ Pendiente: Bloque F (persistencia)
 - DEC-030 registrado en `decisiones.md`
 
 Pendiente: Bloque G (interfaces)
+
+### Bloque G cerrado — interfaces y capa de servicio (DEC-031)
+
+- **Facade único `OrchestratorService`:** todas las interfaces (CLI, web, futura TUI) pasan por él. No hablan con el motor de Jobs, repositories ni conectores directamente. Analogía: recepción de hotel
+- **RBAC en el facade, una sola vez:** el control de permisos vive en la capa de servicio, no en cada interfaz (si no, una interfaz se saltaría las comprobaciones de otra). Usa el mismo `Resolver` que las definiciones (permisos y definiciones = mismo problema, DEC-026)
+- **Interfaces finas:** solo traducen la entrada del usuario a llamadas al facade y muestran el resultado; sin lógica de negocio
+- **Sesiones respaldadas en BD desde v1:** token de sesión persistido (no en memoria) — sobrevive a reinicios y preparado para HA. Gestionado por `SessionRepository` (DEC-030)
+- **Interfaces v1:** CLI cmd2 (modo dual bash + REPL) + Web NiceGUI; TUI Textual futuro (DEC-018)
+- **Capa 2 (aplicación docente) = cliente del facade:** no es parte del núcleo. Traduce semántica docente (asignatura/alumno/mesa) a operaciones genéricas (carpeta/descriptor/apply). Las futuras aplicaciones (CTF, talleres, exámenes) son otras capas 2 sobre el mismo facade
+- DEC-031 registrado en `decisiones.md`
+
+Pendiente: Bloque H (estados y errores)

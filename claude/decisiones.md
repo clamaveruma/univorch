@@ -275,3 +275,14 @@ Este fichero recoge las decisiones técnicas importantes del proyecto con refere
 - **Repositories por agregado:** `FolderRepository`, `DescriptorRepository`, `JobRepository`, `IPPoolRepository`, `SessionRepository`. `UserRepository` ya definido en fichero YAML (DEC-021). Cada uno expone métodos simples (`save`, `get_by_id`, `find_by_path`, `update`, `delete`) y oculta completamente el motor de BD
 - **Consistencia v1 — limitación aceptada:** TinyDB no soporta transacciones multi-documento. Una operación que escribe en varios repositorios (ej. deploy: descriptor + job + ip_pool) puede quedar incoherente si el proceso cae a medias. No se emula transaccionalidad en v1; se diseña el orden de escrituras para minimizar el daño y la validación al arranque detecta incoherencias. MongoDB (futuro) aporta transacciones reales. Limitación conocida y documentada de la PoC; consistente con el best-effort de DEC-027
 - **Trazabilidad:** concreta DEC-007 (patrón Repository), DEC-024 (backup), DEC-015 (Jobs persistidos); coherente con DEC-027 (atomicidad best-effort) y DEC-028 (lock en BD)
+
+## DEC-031 — Interfaces y capa de servicio: facade único, RBAC centralizado
+
+- **Fecha:** 2026-05-19 → ver `diario.md#2026-05-19`
+- **Facade único `OrchestratorService`:** punto de entrada limpio y único. Todas las interfaces (CLI, web GUI, futura TUI) y la capa 2 (aplicación docente) lo usan. Ninguna habla directamente con el motor de Jobs, los Repositories ni los conectores
+- **RBAC centralizado en el facade:** el control de permisos se aplica en la capa de servicio, una sola vez, no en cada interfaz. Garantiza reglas consistentes independientemente de la puerta de entrada. Usa el mismo `Resolver` de definiciones (permisos y definiciones son el mismo problema de herencia — DEC-026)
+- **Interfaces finas:** cada interfaz solo traduce la entrada del usuario a llamadas al facade y renderiza el resultado. Cero lógica de negocio en la UI. Añadir una interfaz nueva no toca el núcleo
+- **Sesiones en BD desde v1:** autenticación con token de sesión persistido en BD (no en memoria). Sobrevive a reinicios; preparado para HA activo/pasivo. Gestionado por `SessionRepository` (DEC-030)
+- **Interfaces v1:** CLI con cmd2 (modo dual: comandos sueltos tipo bash para scripts + shell REPL interactivo) + Web GUI con NiceGUI (todos los roles, incluye el editor YAML del Bloque C/DEC-027). TUI con Textual queda para el futuro (consistente con DEC-018)
+- **Capa 2 como cliente del facade:** la aplicación docente no es parte del núcleo; es un cliente que traduce semántica docente (asignatura, alumno, mesa) a operaciones genéricas. Mantiene el núcleo reutilizable: CTF, talleres, exámenes serían otras capas 2 sobre el mismo facade (coherente con DEC-004)
+- **Trazabilidad:** concreta A2 (facade sin API pública formal en v1), DEC-018 (interfaces de cliente), DEC-004 (dos capas), DEC-021/DEC-026 (RBAC con Resolver), DEC-030 (SessionRepository)
