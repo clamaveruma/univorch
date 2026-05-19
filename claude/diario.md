@@ -366,3 +366,9 @@ Los 9 bloques (A-I) del debate cerrados. Todos los bloques acordados sin decisio
 Se redacta el documento de arquitectura en inglés. Cubre: arquitectura en dos capas, estructura del código y extensibilidad, árbol de descriptores (materialized path, herencia en cascada, resolución lazy, modo anotado), modelo declarativo (apply/plan, validación fail-fast, atomicidad best-effort, exportación, preservación de comentarios), motor de Jobs (Command pattern, ciclo de vida del Job, locking, batch), conectores (ABC, registro, mock, comparación con librerías del tutor), persistencia (TinyDB→MongoDB, Repositories), capa de servicio y facade, máquina de estados, y direcciones futuras (GitOps, reconciliación, event sourcing, IA integrada, HA).
 
 Plan.md: Fase 3 ✅ completada. Fase 4 ⏳ pendiente (selección de tecnologías).
+
+### Revisión del documento de arquitectura
+
+- Diagramas ASCII sustituidos por Mermaid (arquitectura dos capas, flujo apply/plan, máquina de estados)
+- Eliminadas del documento las referencias a `claude/decisiones.md` y al desarrollo asistido por IA (a petición del usuario)
+- Fichero renombrado `docs/arquitectura.md` → `docs/architecture.md` con `git mv` (coherencia con la convención: `docs/` en inglés). Referencia actualizada en `plan.md`. Las entradas históricas del diario se conservan con el nombre antiguo (regla de no reescribir el diario)

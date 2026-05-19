@@ -30,7 +30,7 @@ Definir qué hace el sistema desde el punto de vista del usuario. Casos de uso, 
 
 Cómo se implementa el sistema: servicios, módulos, protocolos de comunicación, estructuras de datos, persistencia, logs. Sin entrar en código concreto.
 
-**Entregable:** `docs/arquitectura.md`
+**Entregable:** `docs/architecture.md`
 
 ---
 
