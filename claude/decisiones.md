@@ -228,3 +228,20 @@ Este fichero recoge las decisiones técnicas importantes del proyecto con refere
 - **Resolución:** lazy (al vuelo), modelada como función pura `(ancestros, imports) → definición efectiva`; el mismo `Resolver` resuelve definiciones y permisos (son el mismo problema)
 - **Futuro anotado:** (a) directiva tipo `@REMOVE` para eliminar elementos heredados de listas/mapas — debería respetar la regla de autoridad de permisos; (b) propiedades inmutables que no se puedan redefinir hacia abajo. Ambas fuera de v1
 - **Trazabilidad:** refina DEC-010 (herencia obligatoria), DEC-012 (imports + comodín `*`), DEC-021 (roles en carpeta, cascada con sobreescritura)
+
+## DEC-027 — Modelo declarativo: apply / plan / validación
+
+- **Fecha:** 2026-05-19 → ver `diario.md#2026-05-19`
+- **Decisión:** core imperativo + capa declarativa fina. Operación única `apply(document)`; `plan` es el mismo flujo sin la ejecución (dry-run)
+- **Flujo:** parseo → diff → validación → plan → ejecución. La **validación** (fail fast) comprueba RBAC, recursos (IPs libres, hipervisor alcanzable), consistencia (impacto sobre VMs desplegadas) y locks. Si falla, no se modifica nada
+- **Atomicidad v1:** best-effort con informe (no rollback total). Lo aplicado queda aplicado; lo fallido queda visible en estado `broken`/`provisioned`. Modelo equivalente a Ansible/Terraform
+- **Exclusión mutua:** lock por descriptor en BD (detalle de mecanismo → DEC del Bloque D)
+- **Dos categorías de operación:** sobre máquinas (deploy/start/stop; lentas; conector→hipervisor) vs sobre definiciones (carpeta/descriptor; escritura en BD). Misma arquitectura, contenido de validación distinto
+- **`apply(document)`:** documento con carpeta, varios descriptores, o ambos. Mecanismo único de carga masiva (resuelve pendiente de Fase 2)
+- **Tres vías de edición:** CLI `set`, editor web YAML en vivo, upload/download de YAML. Todas usan el mismo motor `apply`
+- **Export/round-trip:** solo la **definición local escrita** es exportable y reimportable con fidelidad. La **definición efectiva resuelta** es solo lectura (su valor depende del punto del árbol; no reimportable). UI con dos acciones diferenciadas
+- **Export portable:** selección de qué exportar (máquinas/ramas) y modo **absoluto** (ruta fija, copia exacta) o **relativo/portable** (plantilla; al importar se exige punto destino)
+- **Comentarios (Opción C):** estructura parseada = verdad operativa; blob YAML persistido con `ruamel.yaml` en modo round-trip conserva comentarios y formato. `set` modifica solo el campo afectado preservando el resto
+- **Resolver con dos modos:** normal (valores) y **anotado** (valor + origen por propiedad). El anotado alimenta el editor web (heredadas coloreadas + origen). A diseñar en el `Resolver` desde el inicio
+- **Editor web:** panel YAML editable + árbol resuelto en tiempo real; heredadas en otro color con origen; botón "Comprobar" = `plan`; aviso al sobreescribir una heredada
+- **Trazabilidad:** apoya DEC-006 (declarativo), DEC-014/DEC-015 (Jobs), DEC-026 (Resolver). Resuelve el pendiente de Fase 2 sobre carga masiva de YAML

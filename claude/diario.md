@@ -270,3 +270,23 @@ Sesión Opus/Alto. El usuario pide diálogo tema a tema, con explicación accesi
 - DEC-026 registrado; `arquitectura-debate.md` con sección de decisiones acordadas
 
 Pendiente: continuar con Bloque C (modelo declarativo) y D (motor de Jobs)
+
+### Bloque C cerrado — modelo declarativo (DEC-027)
+
+Diálogo pedagógico extenso. El usuario aportó la fase de validación, la distinción ops máquina/definición y el editor web anotado. Decisiones:
+
+- **Flujo `apply`:** parseo → diff → validación → plan (dry-run) → ejecución. `plan` = todo menos la ejecución
+- **Validación antes de ejecutar (fail fast):** RBAC, recursos (IPs, hipervisor alcanzable), consistencia (impacto sobre VMs desplegadas), locks. Si falla, no se toca nada
+- **Atomicidad v1:** best-effort con informe (no rollback total) — como Ansible/Terraform. Lo que se hizo, hecho; lo que falló queda visible en estado `broken`/`provisioned`
+- **Exclusión mutua:** lock por descriptor en BD (se desarrolla en Bloque D)
+- **Dos categorías de operación:** sobre máquinas (deploy/start/stop, lentas, hablan con hipervisor) vs sobre definiciones (crear/editar carpeta o descriptor, escrituras en BD). Misma arquitectura, validación distinta
+- **`apply(document)`:** un documento puede contener una carpeta, varios descriptores, o ambos. Es el mecanismo único de carga masiva (resuelve el pendiente de Fase 2)
+- **3 formas de editar:** CLI `set`, editor web YAML en vivo, upload/download YAML. Mismo motor (`apply`) por debajo
+- **Export:** solo la **definición local escrita** es exportable/reimportable (round-trip fiable). La **definición efectiva resuelta** es solo lectura en tiempo real, NO reimportable (su herencia depende del punto del árbol). Dos botones distintos en UI
+- **Export con selección:** elegir qué (máquinas/ramas) y modo **absoluto** (copia exacta a ruta fija) o **portable/relativo** (plantilla; al importar se pide punto destino). Regla mental: "copia exacta aquí" vs "plantilla pegable donde quiera"
+- **Comentarios YAML (Opción C):** estructura parseada = verdad operativa; blob YAML con `ruamel.yaml` (round-trip) conserva comentarios y formato. CLI `set` modifica solo el campo via `ruamel`, comentarios sobreviven
+- **Resolver con dos modos:** normal (solo valores) y **anotado** (valor + origen por propiedad). El modo anotado alimenta el editor web. Diseñar desde el principio en el `Resolver`
+- **Editor web:** YAML editable a la izquierda + árbol parseado en tiempo real a la derecha; heredadas en otro color con su origen (tooltip/inline/enlace al origen); botón "Comprobar" = `plan`/dry-run; aviso visual si se pisa una propiedad heredada
+- DEC-027 registrado en `decisiones.md`
+
+Pendiente: Bloque D (motor de Jobs: Command pattern, atomicidad, lock por descriptor, síncrono v1)
