@@ -435,14 +435,37 @@ Se crean todos los ficheros de infraestructura y se establece la estructura del 
 
 Plan.md: Fase 5 ✅ completada. Fase 6 Sprint 1 ⏳ pendiente (código).
 
-### Acuerdo de trabajo para Fase 6
+### Acuerdo de trabajo para Fase 6 (versión definitiva)
 
-El usuario establece explícitamente cómo quiere trabajar el código:
-- Él ejecuta, él escribe — Claude pregunta y propone antes de actuar
-- El código Python lo escribe el usuario, por partes, entendiendo cada cosa antes
-- Claude explica el diseño y el porqué, propone estructura, revisa lo escrito
-- Tareas mecánicas (commits, diario): preguntar al usuario si las hace él o las delega
-- Registrado en `claude/desarrollo.md` sección "Forma de trabajo"
+Acordado explícitamente antes de arrancar código. Registrado en `claude/desarrollo.md`:
+
+- **Código Python:** lo escribe Claude, pero despacio — primero explica qué va a hacer y por qué,
+  espera a que el usuario lo entienda, lo escribe, el usuario lo revisa, y no se avanza hasta que
+  no queden dudas. Pocos métodos cada vez; el ritmo lo marca el usuario
+- **Herramientas de desarrollo** (terminal, configuración, ficheros de entorno): Claude dice qué
+  hacer y el usuario lo ejecuta en su terminal. Claude puede leer ficheros y ver outputs pegados
+- **Git** (commits, push, diario): automático de Claude, sin confirmación — igual que hasta ahora
+- **En VSCode/Codespaces:** Claude Code tiene acceso al terminal y a los ficheros — puede ejecutar
+  comandos directamente y ver el workspace en tiempo real
+- **Objetivo:** que el usuario entienda y pueda defender todo el código en la memoria del TFG
+
+### Confirmaciones pendientes cerradas
+
+- **`src/univorch/`** (src-layout) — confirmado al continuar con Fase 5
+- **Puerto 8080** configurable por `UNIVORCH_PORT` — confirmado al continuar con Fase 5
+- Ambos ya están implementados en `Dockerfile`, `docker-compose.yml` y `docs/environment.md`
+
+### Cierre de sesión — preparación para transición a Codespaces
+
+Estado al cerrar esta sesión de Claude Code Web:
+- Fases 1–5 completadas y commiteadas en `main`
+- Toda la documentación de diseño en `docs/` (vision, requirements, architecture, technologies,
+  environment, plan)
+- Contexto de desarrollo completo en `claude/` (diario, decisiones DEC-001 a DEC-033,
+  desarrollo.md con acuerdo de trabajo, sprint 1 scope, estructura de código)
+- Esqueleto del proyecto Python en `src/univorch/` listo para Sprint 1
+- CI/CD configurado (GitHub Actions), test mínimo pasando
+- Próximo paso: el usuario abre Codespaces, autentica Claude Code, y continúa con Sprint 1
 - **Transición Claude Code Web → VSCode:** el historial de chat no se transfiere, pero todo el
   contexto relevante está en `claude/`. El nuevo `claude/desarrollo.md` captura el contexto
   operativo que faltaba (estructura de código, alcance de sprints, convenciones TDD)
