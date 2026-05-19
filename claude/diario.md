@@ -335,3 +335,14 @@ Pendiente: Bloque G (interfaces)
 - DEC-031 registrado en `decisiones.md`
 
 Pendiente: Bloque H (estados y errores)
+
+### Bloque H cerrado — estados, errores y máquina de estados (DEC-032)
+
+- **4 estados del descriptor:** `provisioned`, `deployed` (+flag `drifted`), `broken`, `unreachable` (confirma DEC-022 en el diseño)
+- **Estados runtime separados:** encendida/apagada/en pausa son del hipervisor, consultados con `get_status`. El orquestador no los almacena
+- **Regla de oro:** los estados del descriptor solo cambian por resultado de un Job — predecible, auditable, sin cambios fantasma
+- **Detección reactiva en v1:** `drifted` = bajo demanda (al llamar `get_status`/`get_info`); `unreachable` = reactivo a fallo de comunicación. Sin bucle proactivo en v1
+- **8 categorías de problemas cubiertas por mecanismos ya diseñados:** conectividad → `unreachable`; deriva → `drifted`; recursos → Job falla → `broken`; huérfanos → bajo demanda; árbol → validación previa; ciclo de vida → `broken`+lock; BD → limitación aceptada; permisos → RBAC en facade
+- **Mock:** configurable para simular fallos, latencia y drift — permite TDD de toda la lógica de errores sin hipervisor real
+
+Pendiente: Bloque I (ideas out-of-the-box para memoria TFG)
