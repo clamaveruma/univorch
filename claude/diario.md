@@ -312,3 +312,14 @@ Pendiente: Bloque E (conectores: ABC, entry points, in-process v1, librerías de
 - **Mock:** registrado igual que los reales, mismo ABC; permite TDD sin hipervisor real
 
 Pendiente: Bloque F (persistencia)
+
+### Bloque F cerrado — persistencia (DEC-030)
+
+- **BD documental, no relacional:** el descriptor tiene un campo de definición de estructura libre que no encaja en tablas fijas. Documental (JSON-like) encaja de forma natural
+- **v1 TinyDB:** fichero JSON único, cero infraestructura, sin servidor. Backup = copiar el fichero (coherente con DEC-024)
+- **Futuro MongoDB:** misma filosofía documental; la migración solo cambia la implementación de los Repositories (DEC-007). Aporta servidor, replicación, transacciones, índices, HA
+- **Repositories por agregado:** `FolderRepository`, `DescriptorRepository`, `JobRepository`, `IPPoolRepository`, `SessionRepository`; `UserRepository` ya en fichero YAML (DEC-021). Métodos simples (`save`, `get_by_id`, `find_by_path`, `update`, `delete`) que esconden la BD
+- **Limitación de consistencia v1 aceptada:** TinyDB no tiene transacciones multi-documento. Una operación que toca varios repositorios puede quedar a medias si el proceso cae. No se emula transaccionalidad; se diseña el orden de escrituras para minimizar daño y la validación al arrancar detecta incoherencias. MongoDB futuro sí tiene transacciones. Documentado como limitación conocida de la PoC
+- DEC-030 registrado en `decisiones.md`
+
+Pendiente: Bloque G (interfaces)

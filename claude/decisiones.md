@@ -265,3 +265,13 @@ Este fichero recoge las decisiones técnicas importantes del proyecto con refere
 - **Ejecución:** in-process en v1. El ABC es la costura para externalizar el conector a un servicio separado en el futuro sin cambiar el orquestador
 - **Mock:** conector `mock` implementado con el mismo ABC; configurable para simular fallos, latencia y deriva de configuración. Permite TDD sin hipervisor real
 - **Trazabilidad:** concreta DEC-016 (operaciones del conector), DEC-004 (arquitectura en dos capas), A1 (entry points como punto de extensión)
+
+## DEC-030 — Persistencia: BD documental, TinyDB→MongoDB, Repositories por agregado
+
+- **Fecha:** 2026-05-19 → ver `diario.md#2026-05-19`
+- **BD documental (no relacional):** el descriptor tiene un campo de definición de estructura libre/variable que no encaja en tablas de columnas fijas. Un modelo documental (JSON-like) lo representa de forma natural
+- **v1 TinyDB:** base de datos documental en un único fichero JSON. Sin servidor, sin red, sin configuración. Backup = copia del fichero (coherente con DEC-024)
+- **Futuro MongoDB:** misma filosofía documental; producción, replicación, transacciones multi-documento, índices, HA activo/pasivo. La migración solo afecta a la implementación de los Repositories (DEC-007)
+- **Repositories por agregado:** `FolderRepository`, `DescriptorRepository`, `JobRepository`, `IPPoolRepository`, `SessionRepository`. `UserRepository` ya definido en fichero YAML (DEC-021). Cada uno expone métodos simples (`save`, `get_by_id`, `find_by_path`, `update`, `delete`) y oculta completamente el motor de BD
+- **Consistencia v1 — limitación aceptada:** TinyDB no soporta transacciones multi-documento. Una operación que escribe en varios repositorios (ej. deploy: descriptor + job + ip_pool) puede quedar incoherente si el proceso cae a medias. No se emula transaccionalidad en v1; se diseña el orden de escrituras para minimizar el daño y la validación al arranque detecta incoherencias. MongoDB (futuro) aporta transacciones reales. Limitación conocida y documentada de la PoC; consistente con el best-effort de DEC-027
+- **Trazabilidad:** concreta DEC-007 (patrón Repository), DEC-024 (backup), DEC-015 (Jobs persistidos); coherente con DEC-027 (atomicidad best-effort) y DEC-028 (lock en BD)
