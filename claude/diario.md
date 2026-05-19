@@ -399,3 +399,23 @@ Pendiente: Punto 5 (librerías cliente oficiales de los hipervisores) → luego 
 Se redacta el entregable de Fase 4 en inglés (`docs/technologies.md`, coherente con la convención de `docs/`). Cubre los 6 puntos: Python 3.12, pytest+pytest-cov+Hypothesis, uv+pyproject.toml, docker-compose+script fino, Ruff+mypy, librerías de hipervisor (pyvmomi/proxmoxer como extras + mock sin dependencias). Tabla resumen final. DEC-033 registrado en `decisiones.md`. Añadido también DEC-032 (estados/máquina de estados, Bloque H) que se había referenciado en el diario pero faltaba en `decisiones.md`.
 
 Plan.md: Fase 4 ✅ completada. Próxima: Fase 5 (configuración del entorno de desarrollo — `.devcontainer/`, CI/CD, convenciones; parte ya adelantada en puntos 3 y 4).
+
+### Planificación de Fase 5 y Sprint 1 — contexto operativo
+
+Se debate el entorno de desarrollo y el alcance del primer sprint. Decisiones y contexto capturados
+en el nuevo fichero `claude/desarrollo.md` (importado desde `CLAUDE.md`). Resumen:
+
+- **Entorno preferido para Fase 6:** VSCode + SSH al servidor Linux propio + Dev Container en el
+  servidor. Sin límites de horas, acceso directo a hipervisores en la misma red. Codespaces válido
+  para sesiones cortas (≈ 2 h/día en plan gratuito)
+- **Devcontainer:** el mismo `devcontainer.json` funciona en local, servidor remoto y Codespaces
+- **Mecanismo de mount:** el contenedor de desarrollo monta la carpeta del servidor vía volumen
+  (no copia); git corre en el servidor pero es transparente desde el terminal del contenedor
+- **Estructura del código:** `src/univorch/` (src-layout) — pendiente confirmación usuario
+- **Puerto web:** 8080, configurable por `UNIVORCH_PORT` — pendiente confirmación usuario
+- **Sprint 1:** CLI primero (cmd2), sin Resolver completo, sin web GUI, sin capa docente.
+  Objetivo: demo funcional para el profesor con mock connector y YAMLs de ejemplo
+- **Sprint 2:** Resolver completo (herencia en cascada), web GUI (NiceGUI), RBAC
+- **Transición Claude Code Web → VSCode:** el historial de chat no se transfiere, pero todo el
+  contexto relevante está en `claude/`. El nuevo `claude/desarrollo.md` captura el contexto
+  operativo que faltaba (estructura de código, alcance de sprints, convenciones TDD)

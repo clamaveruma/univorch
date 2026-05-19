@@ -3,6 +3,7 @@
 @claude/proyecto.md
 @claude/diario.md
 @claude/decisiones.md
+@claude/desarrollo.md
 
 ---
 
