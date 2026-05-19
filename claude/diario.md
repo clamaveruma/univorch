@@ -360,3 +360,9 @@ Se identifican 5 ideas con potencial para la memoria (ninguna entra en v1):
 ### Debate de arquitectura completado — inicio de redacción docs/arquitectura.md
 
 Los 9 bloques (A-I) del debate cerrados. Todos los bloques acordados sin decisiones pendientes. Se comienza la redacción del entregable de Fase 3: `docs/arquitectura.md` en inglés.
+
+### Fase 3 completada — docs/arquitectura.md redactado
+
+Se redacta el documento de arquitectura en inglés. Cubre: arquitectura en dos capas, estructura del código y extensibilidad, árbol de descriptores (materialized path, herencia en cascada, resolución lazy, modo anotado), modelo declarativo (apply/plan, validación fail-fast, atomicidad best-effort, exportación, preservación de comentarios), motor de Jobs (Command pattern, ciclo de vida del Job, locking, batch), conectores (ABC, registro, mock, comparación con librerías del tutor), persistencia (TinyDB→MongoDB, Repositories), capa de servicio y facade, máquina de estados, y direcciones futuras (GitOps, reconciliación, event sourcing, IA integrada, HA).
+
+Plan.md: Fase 3 ✅ completada. Fase 4 ⏳ pendiente (selección de tecnologías).

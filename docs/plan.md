@@ -26,7 +26,7 @@ Definir qué hace el sistema desde el punto de vista del usuario. Casos de uso, 
 ---
 
 ### Fase 3 — Diseño de arquitectura
-**Estado:** 🔄 En curso
+**Estado:** ✅ Completada
 
 Cómo se implementa el sistema: servicios, módulos, protocolos de comunicación, estructuras de datos, persistencia, logs. Sin entrar en código concreto.
 
