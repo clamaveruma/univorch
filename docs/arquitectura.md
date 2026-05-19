@@ -9,7 +9,7 @@
 
 UnivOrch is a Linux service written in Python that provides a unified abstraction layer for managing virtual machines across different hypervisors. This document describes the internal architecture of the system: how it is structured, how its components communicate, and the reasoning behind the key design decisions.
 
-The requirements that this architecture satisfies are defined in `docs/requisitos.md`. Traceability to specific decisions is provided via DEC-xxx references, which correspond to entries in `claude/decisiones.md`.
+The requirements that this architecture satisfies are defined in `docs/requisitos.md`. Traceability to specific design decisions is provided via DEC-xxx references throughout the document.
 
 ---
 
@@ -23,26 +23,29 @@ The system is divided into two independent layers (DEC-004):
 
 This separation ensures the core is reusable for other use cases (CTF competitions, research labs, corporate training) without modification. Each such application is a distinct layer-2 client built on the same core.
 
-```
-┌─────────────────────────────────────────┐
-│           Teaching Application          │  Layer 2
-│  (subject / student / workstation view) │
-└────────────────────┬────────────────────┘
-                     │ calls
-┌────────────────────▼────────────────────┐
-│         OrchestratorService             │
-│              (facade)                   │
-│  ┌──────────┐  ┌──────────┐            │
-│  │ Job      │  │ Resolver │            │  Layer 1
-│  │ Engine   │  │          │            │
-│  └────┬─────┘  └──────────┘            │
-│       │                                 │
-│  ┌────▼──────────────────────┐          │
-│  │ Repositories   Connectors │          │
-│  └───────────────────────────┘          │
-└─────────────────────────────────────────┘
-        │                    │
-   TinyDB / MongoDB    VMware / Proxmox / Mock
+```mermaid
+graph TB
+    subgraph L2["Layer 2"]
+        TA["Teaching Application\nsubject · student · workstation"]
+    end
+
+    subgraph L1["Layer 1 — Core"]
+        SVC["OrchestratorService\nfacade"]
+        JE["Job Engine"]
+        RES["Resolver"]
+        REP["Repositories"]
+        CON["Connectors"]
+        SVC --> JE
+        SVC --> RES
+        JE --> REP
+        JE --> CON
+    end
+
+    CLI["CLI (cmd2)"] --> SVC
+    WEB["Web GUI (NiceGUI)"] --> SVC
+    TA --> SVC
+    REP --> DB[("TinyDB / MongoDB")]
+    CON --> HYP["VMware · Proxmox · Mock"]
 ```
 
 ---
@@ -117,8 +120,12 @@ All state changes enter the system through a single operation: `apply(document, 
 
 The execution flow is:
 
-```
-parse → diff → validate → plan → execute
+```mermaid
+flowchart LR
+    A[parse] --> B[diff] --> C{validate}
+    C -->|pass| D[plan\ndry-run]
+    D --> E[execute]
+    C -->|fail| F[reject\nno changes made]
 ```
 
 1. **Parse:** the document is parsed and its structure validated for syntax correctness.
@@ -325,20 +332,25 @@ The teaching application (layer 2) is a client of `OrchestratorService`, not par
 
 The state of a descriptor reflects the orchestrator's view of the relationship between the descriptor and the corresponding VM in the hypervisor (DEC-022).
 
-```
-                  deploy OK
-  ┌─────────────┐ ──────────────→ ┌──────────────────────┐
-  │ provisioned │                  │       deployed        │
-  │             │ ←────────────── │  (flag: drifted)      │
-  └─────────────┘  undeploy OK    └──────────────────────┘
-        ↑                                    │
-        │  force-undeploy                    │ operation fails
-        │                                    ↓
-        │                          ┌──────────────────────┐
-        └──────────────────────── │        broken         │
-                                   └──────────────────────┘
+```mermaid
+stateDiagram-v2
+    [*] --> provisioned
 
-  unreachable: overlay state — communication with hypervisor lost
+    provisioned --> deployed : deploy OK
+    deployed --> provisioned : undeploy OK
+    deployed --> broken : operation fails
+    broken --> provisioned : force-undeploy
+
+    deployed --> unreachable : comms failure
+    provisioned --> unreachable : comms failure
+    unreachable --> deployed : comms restored
+    unreachable --> provisioned : comms restored
+
+    state deployed {
+        [*] --> normal
+        normal --> drifted : drift detected on get_status
+        drifted --> normal : re-deploy
+    }
 ```
 
 | State | Meaning |
@@ -379,7 +391,7 @@ Rather than storing the current state of each descriptor, the system could store
 
 ### 11.4 Natural language interface
 
-The `OrchestratorService` facade can be called by any client, including an AI assistant integrated into the CLI or web GUI. The assistant would translate natural-language instructions into facade calls, present the plan for confirmation, and execute on approval. Given that the TFG itself is developed with AI assistance, integrating an AI interface into the product closes the conceptual loop.
+The `OrchestratorService` facade can be called by any client, including an AI assistant integrated into the CLI or web GUI. The assistant would translate natural-language instructions into facade calls, present the plan for confirmation, and execute on approval. A natural-language interface is architecturally straightforward: the AI assistant is simply another thin client of `OrchestratorService`, following the same pattern as the CLI and the web GUI.
 
 ### 11.5 Active/passive high availability
 
