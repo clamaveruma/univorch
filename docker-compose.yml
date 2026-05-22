@@ -19,7 +19,7 @@ services:
     restart: unless-stopped
 
 # Named volume managed by Docker — survives container recreation.
-# To inspect: docker volume inspect orch_pru_univorch_data
+# To inspect: docker volume inspect univorch_univorch_data
 # To back up: copy the JSON file from the volume to a safe location.
 volumes:
   univorch_data:

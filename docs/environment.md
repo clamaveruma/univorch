@@ -24,8 +24,8 @@
 ## Quick start — production
 
 ```bash
-git clone https://github.com/clamaveruma/orch_pru.git
-cd orch_pru
+git clone https://github.com/clamaveruma/univorch.git
+cd univorch
 chmod +x univorch.sh
 ./univorch.sh start
 ```
@@ -62,7 +62,7 @@ the service holds data. To back up:
 
 ```bash
 # Find the volume path on the host
-docker volume inspect orch_pru_univorch_data
+docker volume inspect univorch_univorch_data
 
 # Copy the JSON file to a safe location
 cp <volume-mountpoint>/univorch.json ~/univorch-backup-$(date +%F).json
@@ -156,7 +156,7 @@ These same checks run automatically in CI (GitHub Actions) on every push to `mai
 ## Project structure
 
 ```
-orch_pru/
+univorch/
 ├── src/univorch/          # application source code (src-layout)
 │   ├── connectors/        # HypervisorConnector ABC + implementations
 │   ├── jobs/              # Job engine, Command pattern

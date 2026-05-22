@@ -625,6 +625,14 @@ código del Sprint 1~~ → **cerrado en la misma sesión (tarde)**:
   con prompt, historial, Tab). Un solo método `do_<cmd>` sirve para ambos. Current folder
   (`cd`/`pwd`) con prompt que refleja CWD. Colores de estados con Rich.
 
+### Rename del repositorio
+
+- Repositorio renombrado de `clamaveruma/orch_pru` a `clamaveruma/univorch` en GitHub.
+- Las menciones históricas al nombre antiguo en el diario se conservan (política de no
+  reescribir entradas pasadas).
+- Ficheros actualizados: `docs/environment.md`, `docker-compose.yml`, `claude/proyecto.md`.
+- Remote del Codespace actualizado: `git remote set-url origin https://github.com/clamaveruma/univorch`.
+
 ### Cierre de sesión 2026-05-22
 
 - Toda la documentación al día: `technologies.md`, DEC-033, `desarrollo.md`, `demo/`.

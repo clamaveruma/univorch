@@ -10,7 +10,7 @@ El objetivo es proporcionar una capa de abstracción que permita gestionar VMs d
 
 - Fase: Inicio / Prueba de concepto
 - Stack tecnológico: por definir
-- Repositorio: clamaveruma/orch_pru
+- Repositorio: clamaveruma/univorch
 
 ## Objetivos principales
 
