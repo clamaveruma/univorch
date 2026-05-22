@@ -1,0 +1,44 @@
+# UnivOrch demo — Sprint 1
+# Minimal lab setup for the professor demo.
+#
+# Apply this file with:
+#   univorch apply demo/setup.yml
+#
+# Sprint 1 note: all definitions are self-contained. Each descriptor carries
+# its full configuration inline. Cascade inheritance from parent folders
+# (hypervisor, template, IP pool) is added in Sprint 2.
+
+kind: apply
+version: "1"
+
+folders:
+  - path: /lab
+    description: "Computer Science Lab"
+
+  - path: /lab/networks
+    description: "Computer Networks — Fall 2026"
+
+descriptors:
+  - path: /lab/networks/student01
+    description: "Student 01 workstation"
+    connector: mock        # which connector to use (mock / vmware / proxmox)
+    template: linux-base   # VM template to clone from (must exist in the connector)
+    cpu: 2
+    memory_mb: 2048
+    disk_gb: 20
+
+  - path: /lab/networks/student02
+    description: "Student 02 workstation"
+    connector: mock
+    template: linux-base
+    cpu: 2
+    memory_mb: 2048
+    disk_gb: 20
+
+  - path: /lab/networks/student03
+    description: "Student 03 workstation"
+    connector: mock
+    template: linux-base
+    cpu: 2
+    memory_mb: 2048
+    disk_gb: 20

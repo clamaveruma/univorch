@@ -19,6 +19,7 @@ dependencies = [
     "nicegui>=1.4",      # web GUI — Sprint 2
     "cmd2>=2.4",         # CLI with dual bash + REPL mode
     "ruamel.yaml>=0.18", # round-trip YAML parser (preserves comments)
+    "rich>=13.7",        # terminal output: colours, tables, status (CLI)
 ]
 
 [project.scripts]
