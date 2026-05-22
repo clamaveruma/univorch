@@ -147,39 +147,91 @@ demo usando la CLI, y puede ver los conceptos clave en acción sin necesidad de 
 
 ### Demo para el profesor — flujo previsto
 
-El profesor ejecuta `./univorch.sh start`, abre un terminal y:
+El profesor ejecuta `./univorch.sh start` y abre el REPL con `./univorch.sh cli`:
 
-```bash
-# 1. Ver la ayuda
-univorch --help
+```
+univorch> apply demo/setup.yml
+# Crea /lab, /lab/networks y 3 descriptores en estado 'provisioned'
 
-# 2. Aplicar la definición de ejemplo (crea árbol de carpetas + descriptores)
-univorch apply demo/setup.yml
+univorch> list /
+# Muestra el árbol completo con estados
 
-# 3. Ver el árbol creado
-univorch list /
+univorch> cd /lab/networks
+univorch /lab/networks>
 
-# 4. Desplegar una VM (mock clona desde template)
-univorch deploy /laboratorio/practica01/alumno01
+univorch /lab/networks> deploy student01
+# Mock clona desde 'linux-base'; descriptor pasa a 'deployed'
 
-# 5. Ver el estado — descriptor pasa a 'deployed'
-univorch status /laboratorio/practica01/alumno01
+univorch /lab/networks> status student01
+# State: deployed | Runtime: stopped
 
-# 6. Arrancar la VM
-univorch start /laboratorio/practica01/alumno01
+univorch /lab/networks> start student01
+# Runtime: running
 
-# 7. Ver estado runtime (deployed + running)
-univorch status /laboratorio/practica01/alumno01
+univorch /lab/networks> status student01
+# State: deployed | Runtime: running
 
-# 8. Parar
-univorch stop /laboratorio/practica01/alumno01
+univorch /lab/networks> stop student01
+univorch /lab/networks> undeploy student01
+# Descriptor vuelve a 'provisioned'
 
-# 9. Ver el árbol completo con estados
-univorch list /laboratorio/
+univorch /lab/networks> list
+# Árbol de la carpeta actual con estados
+
+univorch /lab/networks> exit
 ```
 
-Los YAMLs de la `demo/` son el material didáctico: muestran la estructura declarativa, la herencia
-(aunque simplificada en Sprint 1) y los comentarios preservados.
+Los YAMLs de la `demo/` son el material didáctico: muestran la estructura declarativa y los
+comentarios preservados. Ver también `demo/README.md` para la guía completa del profesor.
+
+---
+
+## Sintaxis YAML de Sprint 1
+
+Acordada el 2026-05-22. Referencia: `demo/setup.yml`.
+
+```yaml
+kind: apply        # único tipo soportado en Sprint 1
+version: "1"
+
+folders:
+  - path: /lab                   # obligatorio; ruta absoluta en el árbol
+    description: "..."           # opcional
+
+descriptors:
+  - path: /lab/networks/student01  # obligatorio
+    description: "..."             # opcional
+    connector: mock                # obligatorio: mock | vmware | proxmox
+    template: linux-base           # obligatorio: nombre de la VM base en el conector
+    cpu: 2                         # opcional (mock lo ignora; útil para validación futura)
+    memory_mb: 2048                # opcional
+    disk_gb: 20                    # opcional
+```
+
+**Limitación de Sprint 1:** los descriptores son autocontenidos — llevan toda su configuración
+inline. En Sprint 2, `connector`, `template` y otros campos vendrán heredados de la carpeta
+padre (herencia en cascada del Resolver). Los campos `cpu`/`memory_mb`/`disk_gb` están en el
+schema para que el YAML sea realista y los tests de validación tengan algo que comprobar.
+
+---
+
+## Comandos CLI de Sprint 1
+
+| Comando | Argumentos | Descripción |
+|---|---|---|
+| `apply <file>` | path al fichero YAML | Crea/actualiza árbol desde documento |
+| `list [path]` | ruta (default: CWD) | Lista carpetas y descriptores con estado |
+| `deploy <path>` | ruta absoluta o relativa | Despliega un descriptor (clone en el conector) |
+| `undeploy <path>` | ruta absoluta o relativa | Elimina la VM; descriptor vuelve a `provisioned` |
+| `start <path>` | ruta absoluta o relativa | Arranca la VM |
+| `stop <path>` | ruta absoluta o relativa | Para la VM |
+| `status <path>` | ruta absoluta o relativa | Estado del descriptor + estado runtime del hipervisor |
+| `cd <path>` | ruta (solo REPL) | Cambia la carpeta de trabajo (CWD) |
+| `pwd` | — (solo REPL) | Muestra la carpeta de trabajo actual |
+
+**Resolución de rutas:** cualquier path que no empiece por `/` se resuelve relativo al CWD.
+Ejemplo: estando en `/lab/networks`, `deploy student01` es equivalente a
+`deploy /lab/networks/student01`.
 
 ---
 

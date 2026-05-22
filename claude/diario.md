@@ -524,8 +524,9 @@ Arreglos de infraestructura aplicados (Fase 5):
 - `.devcontainer/devcontainer.json`: creado, imagen `mcr...python:3.12` + feature de uv documentado
   + `uv sync --extra dev` en postCreate + extensiones (Python, Ruff, mypy, Claude Code)
 
-Pendiente tras el rebuild del devcontainer: generar/commitear `uv.lock` (lo hace `uv sync` del
-postCreate) y actualizar `technologies.md` + DEC-033 con FastAPI/uvicorn/httpx.
+Pendiente tras el rebuild del devcontainer: ~~generar/commitear `uv.lock`~~ ✅ (commiteado
+2026-05-22) y ~~actualizar `technologies.md` + DEC-033 con FastAPI/uvicorn/httpx~~ ✅ (cerrado
+en cierre documental de sesión tarde 2026-05-22).
 
 ---
 
@@ -591,14 +592,41 @@ SSH + docker exec. Conclusión:
 - Se mantiene la arquitectura REST pero se documentará correctamente en la memoria del TFG:
   el REST es para la API pública, la CLI remota es un beneficio secundario.
 
-### Pendientes identificados antes de arrancar código
+### Pendientes identificados antes de arrancar código — CERRADOS
 
-Se identifican dos especificaciones que DEBEN definirse antes de escribir la primera línea de
-código del Sprint 1:
+~~Se identifican dos especificaciones que DEBEN definirse antes de escribir la primera línea de
+código del Sprint 1~~ → **cerrado en la misma sesión (tarde)**:
 
-1. **Sintaxis YAML de carpetas y descriptores** — qué campos aceptan, estructura del documento
-   para `apply`, cómo se referencia el hipervisor, las plantillas, los pools de IP, los permisos.
-2. **Comandos CLI del Sprint 1** — lista de comandos, argumentos, formato de salida; cómo funciona
-   el modo dual bash/REPL de cmd2.
+1. ✅ **Sintaxis YAML de Sprint 1** — definida y registrada en `claude/desarrollo.md`
+2. ✅ **Comandos CLI de Sprint 1** — tabla completa en `claude/desarrollo.md`
 
-Estas especificaciones son la siguiente tarea antes de escribir código.
+### Artefactos creados (sesión tarde)
+
+- `demo/setup.yml` — YAML de ejemplo con 2 carpetas y 3 descriptores; es la especificación
+  viva del parser de Sprint 1. Paths: `/lab`, `/lab/networks`, `/lab/networks/student0{1,2,3}`.
+- `demo/README.md` — guía del profesor paso a paso: arrancar servicio, flujo REPL completo,
+  mismos comandos en modo bash, sección "what is happening inside" para el tutor.
+- `rich>=13.7` añadido a dependencias de producción en `pyproject.toml`.
+- `uv.lock` commiteado por primera vez (era el pendiente de infra de Fase 5).
+- git-lfs instalado en el devcontainer (hook preexistente bloqueaba el push).
+
+### Otros temas acordados (sesión tarde)
+
+- **URI / identificadores:** no se añade esquema propio (`univorch://`) en v1. Los paths del
+  árbol ya son identificadores únicos; la API REST los expone como URIs. El diseño es
+  "URI-ready". Mencionar en la memoria del TFG como extensión natural para entornos
+  multi-instancia.
+- **REST como API pública:** el argumento para mantener REST no es la comodidad de la CLI
+  remota (admin tiene SSH) sino la API pública como punto de integración. CLI remota sin SSH
+  = beneficio secundario. Documentado así en `technologies.md` sección 7 y en DEC-033.
+- **ABC (Abstract Base Class):** acordado incluir explicación del concepto en el docstring
+  del módulo `src/univorch/connectors/base.py` y en la sección de conectores de la memoria.
+- **cmd2 modo dual:** modo bash (comandos sueltos, scriptable) + modo REPL (shell interactivo
+  con prompt, historial, Tab). Un solo método `do_<cmd>` sirve para ambos. Current folder
+  (`cd`/`pwd`) con prompt que refleja CWD. Colores de estados con Rich.
+
+### Cierre de sesión 2026-05-22
+
+- Toda la documentación al día: `technologies.md`, DEC-033, `desarrollo.md`, `demo/`.
+- Próxima sesión: arrancar TDD con `src/univorch/connectors/base.py` (ABC
+  `HypervisorConnector`). Primer test antes de la primera línea de implementación.

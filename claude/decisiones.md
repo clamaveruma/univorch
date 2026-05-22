@@ -308,4 +308,13 @@ Este fichero recoge las decisiones técnicas importantes del proyecto con refere
 - **Calidad de código — Ruff + mypy:** Ruff = linter + formateador en una herramienta Rust (sustituye flake8, isort, black; Astral, misma empresa que `uv`). mypy = comprobador de tipos (valida contratos ABC de conectores y firmas del `Resolver`). Solo en entorno de desarrollo (`[project.optional-dependencies] dev`), no en el contenedor de producción. Integrados en VSCode (extensiones oficiales) y en CI/CD (GitHub Actions) como puerta de calidad
 - **Librerías de hipervisor — extras opcionales:** `pyvmomi` (SDK oficial de VMware, vSphere API SOAP; lo que usa `esxobjects` del tutor, facilita la comparación final) y `proxmoxer` (wrapper de facto de la comunidad sobre la API REST de Proxmox; no existe SDK oficial). Modelados como extras opcionales en `pyproject.toml` (`vmware = [...]`, `proxmox = [...]`) — dependencias del conector concreto, no del núcleo
 - **Mock — sin dependencias:** clase Python in-process sobre el mismo ABC `HypervisorConnector`, estado en memoria. Función de inicialización con variantes (`empty()`, `with_defaults()`, `with_templates([...])`); las VMs base precargadas son necesarias como fuente de linked clone. Métodos de inspección/inyección fuera del ABC, solo para tests (`deployed_vms()`, `inject_drift()`, `make_unreachable()`). Variante mock-como-servicio-REST anotada como futuro (probaría la frontera out-of-process)
-- **Trazabilidad:** concreta DEC-029 (conectores ABC, mock para TDD), DEC-030 (TinyDB), coherente con DEC-026 (Resolver como función pura → Hypothesis). Entregable: `docs/technologies.md`
+- **Transporte REST — FastAPI + uvicorn + httpx:** FastAPI expone la API que la CLI consumirá
+  en Sprint 2+. El argumento principal para el REST **no** es la comodidad de la CLI remota
+  (el admin ya tiene SSH), sino la **API pública como efecto secundario**: integraciones
+  externas (scripts, CI/CD, GitOps futuro). La CLI remota sin SSH es un beneficio secundario.
+  Documentado así en la memoria del TFG. uvicorn sirve FastAPI; httpx es el cliente HTTP de
+  la CLI. Núcleo primero: FastAPI/httpx no se usan en Sprint 1.
+- **CLI output — Rich:** librería de output formateado para el terminal (colores por estado,
+  tablas, progreso). Dependencia de **producción** (forma parte de la UI del CLI, no de las
+  herramientas de desarrollo). Misma empresa (Textualize) que Textual (TUI futura).
+- **Trazabilidad:** concreta DEC-029 (conectores ABC, mock para TDD), DEC-030 (TinyDB), coherente con DEC-026 (Resolver como función pura → Hypothesis). Entregable: `docs/technologies.md`. Actualizado 2026-05-22 con FastAPI, uvicorn, httpx y Rich.

@@ -216,7 +216,53 @@ externalised to a separate service.
 
 ---
 
-## 7. Summary
+## 7. REST transport and CLI output
+
+Four additional production dependencies complete the stack. They are
+declared in `pyproject.toml` from the start so the lockfile is
+reproducible, even though FastAPI, uvicorn, and httpx are not used until
+Sprint 2 (core-first development order).
+
+### FastAPI
+
+**FastAPI** (≥0.110) is the REST framework that exposes the
+`OrchestratorService` as an HTTP API. It was chosen for three reasons:
+ASGI-native async performance, automatic OpenAPI documentation generation,
+and its large, maintained ecosystem.
+
+The REST layer is not primarily motivated by CLI convenience (the
+administrator already has SSH access). Its main value is the **API as a
+public integration point**: external scripts, CI/CD pipelines, and future
+GitOps triggers can all consume it without SSH. CLI remote access is a
+secondary benefit. This distinction is documented in the TFG thesis.
+
+### uvicorn
+
+**uvicorn** (≥0.29) is the ASGI server that runs the FastAPI application.
+It is invoked directly as a binary, which makes the Dockerfile `CMD`
+simple and keeps the runtime dependency minimal.
+
+### httpx
+
+**httpx** (≥0.27) is the HTTP client used by the CLI to call the REST
+API. It offers both synchronous and asynchronous APIs; the synchronous
+interface is sufficient for Sprint 2, and the async version is available
+without a library change if needed later.
+
+### Rich
+
+**Rich** (≥13.7) provides formatted terminal output for the CLI:
+colour-coded descriptor states, tree tables, and progress indicators.
+It is a **production dependency** (not a dev tool) because it is part
+of the user-facing interface, not the development toolchain.
+
+The colour scheme maps directly to descriptor states: green for
+`deployed`, red for `broken`, yellow for `drifted`, grey for
+`provisioned` and `unreachable`.
+
+---
+
+## 8. Summary
 
 | Concern | Choice | Key reason |
 |---|---|---|
@@ -232,6 +278,10 @@ externalised to a separate service.
 | VMware client | pyvmomi | official SDK; matches supervisor's library |
 | Proxmox client | proxmoxer | de-facto community wrapper; no official SDK |
 | Mock | none (in-memory) | TDD without a real hypervisor |
+| REST framework | FastAPI | ASGI; automatic OpenAPI docs; integration point |
+| ASGI server | uvicorn | runs FastAPI; simple binary invocation |
+| HTTP client (CLI) | httpx | CLI calls the REST API; sync + async API |
+| Terminal output | Rich | colours, tables, progress — part of the CLI UI |
 
 Development-only tooling (pytest, pytest-cov, Hypothesis, Ruff, mypy) is
 isolated under `[project.optional-dependencies] dev` and never reaches the
