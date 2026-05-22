@@ -484,7 +484,7 @@ Estado al cerrar esta sesión de Claude Code Web:
 
 ---
 
-## 2026-05-22
+## 2026-05-22 (sesión tarde)
 
 ### Revisión del esqueleto e inicio efectivo de la Fase 6
 
@@ -526,3 +526,79 @@ Arreglos de infraestructura aplicados (Fase 5):
 
 Pendiente tras el rebuild del devcontainer: generar/commitear `uv.lock` (lo hace `uv sync` del
 postCreate) y actualizar `technologies.md` + DEC-033 con FastAPI/uvicorn/httpx.
+
+---
+
+## 2026-05-22 (sesión tarde — repaso del entorno y preparación Sprint 1)
+
+### Repaso completo del entorno de desarrollo
+
+Sesión de comprensión del entorno antes de arrancar código. Se revisaron todos los ficheros de
+`claude/`, `docs/` e infraestructura. Temas aclarados:
+
+- **Docker producción vs desarrollo:** el `Dockerfile` es solo para la imagen de producción (imagen
+  mínima, multi-stage con uv). El devcontainer NO usa un Dockerfile propio — parte de una imagen
+  base de Microsoft y le añade features. Son dos mundos distintos: taller (devcontainer) vs producto
+  (imagen de producción).
+
+- **Named volumes vs bind mounts:** `univorch_data` en docker-compose.yml es un volumen con nombre
+  gestionado por Docker, NO una carpeta relativa del proyecto. Vive en
+  `/var/lib/docker/volumes/orch_pru_univorch_data/_data`. Invisible en el árbol del repo pero
+  sobrevive a recrear el contenedor.
+
+- **Sintaxis `${VAR:-default}`:** expansión de variables estilo POSIX que docker-compose soporta.
+  Lee la variable del host o usa el valor por defecto. En `UNIVORCH_PORT: "${UNIVORCH_PORT:-8080}"`
+  el lado izquierdo es la variable del contenedor y el derecho se evalúa en el host.
+
+- **PTY y docker exec -it:** el mecanismo de I/O de la CLI en producción usa pseudo-terminales
+  (PTY). `-t` asigna un PTY slave al proceso CLI (necesario para el REPL de cmd2); `-i` mantiene
+  stdin abierto. Docker gestiona el extremo master del PTY. Mismo mecanismo que SSH. Puede haber
+  dos PTYs en cadena con acceso SSH remoto.
+
+- **Proceso principal del contenedor:** `__main__.py` no es un daemon POSIX (no hace fork/setsid).
+  Es un bucle `sleep` infinito que mantiene vivo el PID 1 del namespace del contenedor. En Docker
+  no hace falta daemonizarse: el `-d` de compose ya desvincula el proceso. En Sprint 2 lo reemplaza
+  uvicorn/FastAPI.
+
+- **`docker exec` crea un proceso nuevo independiente** dentro del namespace del contenedor, no
+  entra en el proceso principal. En Sprint 1 la CLI tendrá su propia instancia del
+  OrchestratorService (in-process); en Sprint 2+ comunicará por HTTP con el servidor FastAPI.
+
+- **`uv run <cmd>`:** ejecuta el comando en el venv del proyecto, sincronizándolo si hace falta.
+  No requiere activar el venv manualmente. Forma robusta y reproducible de ejecutar herramientas.
+
+- **Para desarrollo, no se usa `univorch.sh`:** ese script levanta el contenedor de producción
+  (docker compose). En desarrollo se ejecuta directamente: `uv run univorch`. El CLI de Sprint 1
+  accede al service in-process, sin Docker.
+
+- **Estado actual del paquete:** solo existen `__init__.py` y `__main__.py`. El script `univorch`
+  apunta a `interfaces.cli.app:main` que aún no existe. `uv run univorch` fallaría ahora mismo.
+
+- **localhost en univorch.sh:** el mensaje de arranque dice `localhost:8080`. Con VSCode
+  Remote-SSH/Codespaces el port-forwarding lo hace correcto. Con SSH plano no. Se deja como
+  mejora cosmética futura, no bloquea nada.
+
+### Decisión sobre CLI via REST — argumento para la memoria
+
+Debate sobre si vale la pena tener una CLI como cliente REST separado vs acceso únicamente vía
+SSH + docker exec. Conclusión:
+
+- La ventaja de "CLI remota sin SSH" es real pero marginal para este entorno (los sysadmins ya
+  tienen SSH; los usuarios finales usan la web GUI).
+- **El argumento principal para mantener REST no es la comodidad de la CLI, sino la API pública
+  como efecto secundario**: permite integraciones externas (scripts, CI/CD, GitOps, otros sistemas)
+  sin acceso SSH al servidor.
+- Se mantiene la arquitectura REST pero se documentará correctamente en la memoria del TFG:
+  el REST es para la API pública, la CLI remota es un beneficio secundario.
+
+### Pendientes identificados antes de arrancar código
+
+Se identifican dos especificaciones que DEBEN definirse antes de escribir la primera línea de
+código del Sprint 1:
+
+1. **Sintaxis YAML de carpetas y descriptores** — qué campos aceptan, estructura del documento
+   para `apply`, cómo se referencia el hipervisor, las plantillas, los pools de IP, los permisos.
+2. **Comandos CLI del Sprint 1** — lista de comandos, argumentos, formato de salida; cómo funciona
+   el modo dual bash/REPL de cmd2.
+
+Estas especificaciones son la siguiente tarea antes de escribir código.
