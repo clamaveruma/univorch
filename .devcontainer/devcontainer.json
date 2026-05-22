@@ -1,0 +1,44 @@
+// Dev Container definition for UnivOrch.
+// The same file works in three setups: VSCode + local Docker, VSCode + Remote-SSH
+// to a Linux server, and GitHub Codespaces. See docs/environment.md.
+{
+  "name": "UnivOrch dev",
+
+  // Base image: Microsoft's devcontainer for Python 3.12.
+  // Brings Python, git, and common developer utilities. It does NOT bring uv.
+  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+
+  // Features are reusable, versioned install modules from the Dev Containers spec.
+  // This community-maintained feature installs the uv dependency manager and puts
+  // it on PATH, so we don't have to script the installation by hand.
+  // Reference: https://github.com/va-h/devcontainers-features/tree/main/src/uv
+  "features": {
+    "ghcr.io/va-h/devcontainers-features/uv:1": {}
+  },
+
+  // Runs once after the container is created: installs all dependencies
+  // (including the dev group) from uv.lock into the project's .venv.
+  "postCreateCommand": "uv sync --extra dev",
+
+  "customizations": {
+    "vscode": {
+      // Extensions installed automatically inside the container.
+      "extensions": [
+        "ms-python.python",            // Python language support
+        "charliermarsh.ruff",          // Ruff linter + formatter
+        "ms-python.mypy-type-checker", // mypy type checking
+        "anthropic.claude-code"        // Claude Code
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": ".venv/bin/python",
+        "editor.formatOnSave": true,
+        "[python]": {
+          "editor.defaultFormatter": "charliermarsh.ruff"
+        }
+      }
+    }
+  },
+
+  // Web GUI port (NiceGUI, Sprint 2+). Forwarded so it's reachable from the host.
+  "forwardPorts": [8080]
+}

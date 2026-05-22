@@ -7,8 +7,7 @@ __pycache__/
 dist/
 build/
 
-# uv
-uv.lock
+# uv: the uv.lock file IS versioned (reproducibility). Do not ignore it.
 
 # Testing & coverage
 .coverage
@@ -30,6 +29,6 @@ htmlcov/
 .DS_Store
 Thumbs.db
 
-# UnivOrch runtime data (development)
-*.json
-!demo/*.json
+# UnivOrch runtime data: never commit the TinyDB database file
+/data/
+*.tinydb.json

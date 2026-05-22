@@ -12,9 +12,12 @@ description = "Universal Virtual Machine Orchestrator — proof of concept"
 requires-python = ">=3.12"
 
 dependencies = [
-    "tinydb>=4.8",      # document DB, JSON file, no server required (v1)
-    "nicegui>=1.4",     # web GUI — Sprint 2
-    "cmd2>=2.4",        # CLI with dual bash + REPL mode
+    "tinydb>=4.8",       # document DB, JSON file, no server required (v1)
+    "fastapi>=0.110",    # REST API framework for the service
+    "uvicorn>=0.29",     # ASGI server that actually runs the FastAPI app
+    "httpx>=0.27",       # HTTP client used by the CLI to call the REST API
+    "nicegui>=1.4",      # web GUI — Sprint 2
+    "cmd2>=2.4",         # CLI with dual bash + REPL mode
     "ruamel.yaml>=0.18", # round-trip YAML parser (preserves comments)
 ]
 

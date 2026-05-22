@@ -1,6 +1,7 @@
 services:
   univorch:
-    image: ghcr.io/clamaveruma/univorch:latest
+    build: .                                     # build locally from the Dockerfile (development)
+    image: ghcr.io/clamaveruma/univorch:latest   # image name/tag; also used to publish to ghcr
     container_name: univorch
     ports:
       # Web GUI port — configurable via UNIVORCH_PORT env var.

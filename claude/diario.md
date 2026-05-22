@@ -481,3 +481,48 @@ Estado al cerrar esta sesión de Claude Code Web:
   solo en `validate()` donde se quieren acumular todos los errores antes de rechazar. Regla
   documentada en tabla en `claude/desarrollo.md`
 - **Funciones:** máximo ~30 líneas. Si crece, extraer función privada con nombre descriptivo
+
+---
+
+## 2026-05-22
+
+### Revisión del esqueleto e inicio efectivo de la Fase 6
+
+Primera sesión de trabajo en código (Codespaces, Claude Code en VSCode). Se revisa toda la
+documentación (`CLAUDE.md`, `claude/`, `docs/`) y el esqueleto real del repo. Hallazgos respecto a
+lo que el diario daba por hecho de la Fase 5:
+
+- El esqueleto es más mínimo de lo descrito: solo `__init__.py` con docstrings de paquete +
+  `__main__.py`. **No existen** los módulos `models.py`, `resolver.py`, `service.py`,
+  `connectors/base.py`, `mock.py`, etc. (los cajones etiquetados, vacíos)
+- **`.devcontainer/devcontainer.json` no existía** pese a lo que decían diario y `environment.md`.
+  Por eso el Codespace arrancó con la imagen genérica
+- **`uv.lock` estaba en `.gitignore`** (error: el lockfile debe versionarse para reproducibilidad)
+  y no se había generado nunca
+- **`docker-compose.yml` solo tenía `image:`** (ghcr inexistente) sin `build:` → `./univorch.sh
+  start` fallaría en local
+- **Faltaban FastAPI, uvicorn y httpx** en `pyproject.toml`. Aclarado con el usuario el transporte
+  CLI↔servicio: el servicio expone API REST con **FastAPI** (servida por **uvicorn**); la CLL es
+  cliente HTTP con **httpx**. Esto resuelve la incoherencia detectada entre requirements.md (decía
+  "CLI uses the REST API") y technologies.md (no listaba FastAPI/httpx)
+
+Decisiones de esta sesión:
+- Reescritura de conectores desde cero; comparar con `esxobjects`/`yamlinfr` del tutor al terminar
+  (confirma DEC-029). Snapshots y notas editables en mesa/ordenador: futuro, se explican en memoria
+- Orden de desarrollo: **núcleo primero, transporte REST después**. Aunque el diseño final tenga
+  REST, no es lo primero que se programa; el facade permite añadir FastAPI/httpx sin tocar la lógica
+- Primer componente a desarrollar (TDD): **MockConnector** (antes el ABC `HypervisorConnector`)
+- Forma de trabajo confirmada: Claude propone → se discute → con OK escribe poco código →
+  el usuario revisa → se sigue. TDD siempre
+
+Arreglos de infraestructura aplicados (Fase 5):
+- `pyproject.toml`: añadidos `fastapi`, `uvicorn`, `httpx` a dependencias de producción
+- `.gitignore`: `uv.lock` deja de ignorarse (se versiona)
+- `.gitignore`: `*.json` (demasiado agresivo, ignoraba también `devcontainer.json` y cualquier
+  JSON legítimo) sustituido por ignore específico de la BD: `/data/` y `*.tinydb.json`
+- `docker-compose.yml`: añadido `build: .` para construir la imagen en local
+- `.devcontainer/devcontainer.json`: creado, imagen `mcr...python:3.12` + feature de uv documentado
+  + `uv sync --extra dev` en postCreate + extensiones (Python, Ruff, mypy, Claude Code)
+
+Pendiente tras el rebuild del devcontainer: generar/commitear `uv.lock` (lo hace `uv sync` del
+postCreate) y actualizar `technologies.md` + DEC-033 con FastAPI/uvicorn/httpx.
