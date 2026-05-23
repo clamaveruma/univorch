@@ -20,6 +20,13 @@ class RuntimeState(StrEnum):
     UNKNOWN = "unknown"  # reachable, but state not determinable
 
 
+class CloneMode(StrEnum):
+    """How a VM is cloned from a template."""
+
+    LINKED = "linked"
+    FULL = "full"
+
+
 class VMInfo(BaseModel):
     """Full snapshot of a VM as it exists in the hypervisor.
 
