@@ -43,6 +43,7 @@ Este fichero recoge las decisiones técnicas importantes del proyecto con refere
 - **Referencia inversa:** campo de metadatos libre en la VM del hipervisor puede guardar la carpeta del orquestador — permite reconstruir el árbol y detectar VMs movidas directamente en el hipervisor
 - **v1:** descriptores de referencia y descubrimiento de VMs existentes quedan fuera de v1
 - **Futuro:** descubrimiento manual + autodescubrimiento en periodos de baja actividad
+- **Ampliación 2026-05-23 (referencia inversa — ideas de futuro):** el campo de metadatos libre se expone en el interface común del conector como `set_metadata`/`get_metadata` (dict); cada conector lo traduce a su campo nativo (VMware `annotation`/notes, Proxmox `description`), guardando un JSON delimitado que coexiste con texto previo. Utilidades: recuperación ante pérdida/corrupción de TinyDB reconstruyendo el mapeo descriptor→VM; detección de VMs movidas/renombradas; detección de huérfanos/fantasmas; marcas para descriptores de referencia (con cuidado por no invasión); recuperación de crash a mitad de deploy (DEC-030); arbitraje multi-instancia/MSP con `instance_id`. Cautelas: la marca es pista, no verdad; no estampar VMs de terceros; no guardar secretos; respetar el límite de tamaño del campo. El MockConnector llevará un campo `metadata` en memoria desde Sprint 1 para TDD futuro. Ver `diario.md#2026-05-23`
 
 ## DEC-006 — Arquitectura declarativa
 
@@ -212,6 +213,7 @@ Este fichero recoge las decisiones técnicas importantes del proyecto con refere
 - **Validación al definir:** cuando se crea o edita un pool, el sistema comprueba que su rango no solape con ningún otro pool existente. Si solapa, rechaza la operación. La comprobación es en escritura, no en despliegue
 - **En deploy:** el orquestador elige la primera IP libre del pool aplicable, la asigna al descriptor y la registra en BD
 - **En undeploy:** la IP se libera y vuelve al pool
+- **Refinamiento 2026-05-23 (multi-IP):** el modelo debe permitir **varias IPs por descriptor** (VMs multi-NIC). v1 asigna una sola IP del pool; la estructura de datos se diseña en plural para no rehacerla al añadir multi-NIC. Ver `diario.md#2026-05-23`
 - **Fuera de alcance del orquestador:** cómo la VM recibe efectivamente esa IP en la red (DHCP, cloud-init u otro mecanismo) no es responsabilidad de UnivOrch
 - **Futuro:** integración con IPAM externo (phpIPAM, NetBox) — solo cambia la implementación del IPPoolRepository
 
@@ -318,3 +320,31 @@ Este fichero recoge las decisiones técnicas importantes del proyecto con refere
   tablas, progreso). Dependencia de **producción** (forma parte de la UI del CLI, no de las
   herramientas de desarrollo). Misma empresa (Textualize) que Textual (TUI futura).
 - **Trazabilidad:** concreta DEC-029 (conectores ABC, mock para TDD), DEC-030 (TinyDB), coherente con DEC-026 (Resolver como función pura → Hypothesis). Entregable: `docs/technologies.md`. Actualizado 2026-05-22 con FastAPI, uvicorn, httpx y Rich.
+
+## DEC-034 — Adopción acotada de Pydantic v2
+
+- **Fecha:** 2026-05-23 → ver `diario.md#2026-05-23`
+- **Decisión:** se adopta **Pydantic v2** de forma deliberadamente sencilla, solo donde simplifica el diseño. Dependencia de producción (FastAPI ya lo arrastra en Sprint 2; entra antes para las entidades y la validación de `apply`)
+- **Dónde SÍ se usa:**
+  - **Entidades del dominio** (`Folder`, `Descriptor`, `Job`, `Session`) como `BaseModel`. Motivo principal: la frontera de serialización con TinyDB — `model_dump()`/`model_validate()` eliminan el código manual de conversión objeto↔dict JSON. La validación en construcción (p.ej. `path` debe empezar por `/`) es un extra alineado con el "fail fast" del proyecto
+  - **Validación del documento `apply`**: `ApplyDocument(BaseModel)` valida el esquema (kind, version, folders[].path, descriptors[].connector, descriptors[].template…) y da errores claros
+  - **Tipo de retorno `VMInfo`** de `get_info()` en el conector
+- **Dónde NO se usa:**
+  - **El Resolver:** opera sobre el campo `definition` de estructura libre (DEC-030) y Hypothesis necesita generar dicts arbitrarios; la validación estorbaría. Trabaja sobre dicts puros
+  - **`RuntimeState`:** es un `Enum` de stdlib, no un modelo Pydantic
+  - **`config.py`:** dos env vars → `os.environ` basta; `pydantic-settings` sería excesivo
+  - **El campo `definition` del `Descriptor`:** se queda como `dict` flexible (la herencia DEC-026 fusiona estructuras anidadas arbitrarias; evolucionará en Sprint 2)
+- **"Sencillo" significa:** `BaseModel` pelado, sin validators salvo donde cacen un bug real, sin alias ni serializers custom ni genéricos
+- **Reversibilidad:** el patrón Repository (DEC-030) aísla la serialización; la representación de las entidades se puede cambiar después con coste bajo
+- **Tipos que cruzan la frontera del conector:** `RuntimeState(Enum)` = RUNNING/STOPPED/PAUSED/UNKNOWN; `VMInfo(BaseModel)` = id, name, runtime_state, cpu, memory_mb, disk_gb (opcionales). `get_status()` → `RuntimeState` (consulta barata); `get_info()` → `VMInfo` (foto completa para detectar `drifted`). El `id` es **opaco para el core**, significativo solo para el conector (VMware MoRef/instanceUuid; Proxmox VMID+node); el nombre no sirve como clave
+- **Trazabilidad:** coherente con DEC-029 (ABC del conector), DEC-030 (TinyDB/Repository), DEC-026 (Resolver sobre dicts), DEC-033 (FastAPI usa Pydantic), DEC-022/032 (estados, `VMInfo` alimenta `drifted`)
+
+## DEC-035 — Idempotencia de las operaciones
+
+- **Fecha:** 2026-05-23 → ver `diario.md#2026-05-23`
+- **Decisión:** todas las operaciones del orquestador son **idempotentes**: aplicarlas varias veces lleva al mismo estado final. Es consecuencia directa de la filosofía declarativa (DEC-006) — son **aserciones de estado** ("asegura que está desplegado/encendido"), no deltas imperativos
+- **La idempotencia vive en el orquestador, NO en el conector:** las primitivas del conector (`clone`, `delete`) **no** son idempotentes (`clone` dos veces crea dos VMs). El **Command** (DEC-028) comprueba el estado actual del descriptor y solo llama al conector si hace falta. Separación: conector primitivo + orquestador convergente
+- **No-op = éxito informativo, nunca warning:** si se ordena algo ya hecho, la operación devuelve **éxito** (exit code 0, scriptable) con un mensaje informativo, siguiendo el modelo Ansible `changed`/`unchanged`. El Job lo registra como no-op. Un warning sería semánticamente incorrecto (el estado deseado se cumple). Coherente con el `plan`/diff (DEC-027): `apply` informa `3 unchanged, 1 created`; `start` ya encendido → `already running (no change)`
+- **Límite (camino feliz):** la idempotencia aplica al camino feliz. `deploy` sobre `broken` o `start` sobre `unreachable` son **errores**, no no-ops
+- **Documentación:** cada operación se marca como idempotente en su docstring y en `docs/`
+- **Trazabilidad:** concreta DEC-006 (declarativo), DEC-028 (Command), coherente con DEC-027 (plan/diff), DEC-022/032 (estados que distinguen no-op de error)

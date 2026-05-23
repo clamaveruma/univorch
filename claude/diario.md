@@ -638,3 +638,91 @@ código del Sprint 1~~ → **cerrado en la misma sesión (tarde)**:
 - Toda la documentación al día: `technologies.md`, DEC-033, `desarrollo.md`, `demo/`.
 - Próxima sesión: arrancar TDD con `src/univorch/connectors/base.py` (ABC
   `HypervisorConnector`). Primer test antes de la primera línea de implementación.
+
+---
+
+## 2026-05-23
+
+### Repaso de diseño previo al ABC del conector (Opus, esfuerzo alto)
+
+Sesión de reflexión antes de escribir la primera línea de código del conector. Se aclaran
+y deciden varios puntos del modelo. Pendiente formalizar en `decisiones.md` (DEC-034, DEC-035)
+tras confirmación del usuario.
+
+**Arreglo de entorno — intérprete de Python en VSCode**
+- El aviso "Could not resolve interpreter path '.venv/bin/python'" al reconectar al Codespace
+  es un falso positivo de timing: el `.venv` existe y persiste; la ruta relativa se evalúa
+  antes de montar el workspace. Arreglo: usar `${workspaceFolder}/.venv/bin/python` en
+  `.devcontainer/devcontainer.json`. Pendiente de aplicar.
+
+**Pydantic — adopción acotada (futura DEC-034)**
+- Se adopta Pydantic v2 "de forma sencilla, donde simplifique". Dónde SÍ: entidades
+  (`Folder`, `Descriptor`, `Job`, `Session`) como `BaseModel` por la serialización a TinyDB
+  (`model_dump()`/`model_validate()` eliminan el código de conversión a mano); validación del
+  documento `apply` (`ApplyDocument(BaseModel)`); tipo de retorno `VMInfo` de `get_info()`.
+  Dónde NO: el Resolver (opera sobre `definition` libre; Hypothesis necesita dicts arbitrarios);
+  `RuntimeState` (es un `Enum`, no Pydantic); `config.py` (2 env vars, `os.environ` basta); el
+  campo `definition` del descriptor (queda `dict` flexible, lo fusiona la herencia DEC-026).
+  "Sencillo" = `BaseModel` pelado, sin validators salvo donde cacen un bug real, sin alias ni
+  serializers custom. El patrón Repository (DEC-030) aísla la serialización → decisión reversible.
+
+**Tipos que cruzan la frontera del conector**
+- `RuntimeState(Enum)`: RUNNING, STOPPED, PAUSED, UNKNOWN — estado de energía del hipervisor.
+- `VMInfo(BaseModel)`: id, name, runtime_state, cpu, memory_mb, disk_gb (opcionales por ahora).
+- `get_status()` devuelve solo `RuntimeState` (consulta barata y frecuente); `get_info()`
+  devuelve el `VMInfo` completo (foto para comparar y detectar `drifted`). `get_status` es,
+  conceptualmente, "una porción barata de `get_info`".
+
+**Dos ejes de estado (aclaración de DEC-022/032)**
+- `status` muestra el producto de dos máquinas de estado: estado del descriptor
+  (`provisioned`/`deployed`+`drifted`/`broken`/`unreachable`) y, solo cuando está `deployed`,
+  el estado runtime (`running`/`stopped`/`paused`/`unknown`). "deployed + running",
+  "unreachable" (= disconnected), etc. son combinaciones de esos dos ejes, no un único estado.
+
+**Identidad de la VM**
+- En el orquestador: clave única = path completo (materialized path).
+- En el hipervisor: siempre un **id estable** (VMware: MoRef `vm-1234` + instanceUuid; Proxmox:
+  VMID entero + node). El **nombre NO sirve como clave** (mutable, no único).
+- El conector devuelve un **id opaco (`str`)** desde `clone()`; el core lo guarda en el descriptor
+  junto al conector y lo trata como caja negra. El `vm_id` es estado de runtime del descriptor:
+  `None` en `provisioned`, se rellena en `deploy`, se limpia en `undeploy`.
+- instanceUuid (VMware) importa más para el descubrimiento futuro de VMs preexistentes (DEC-020).
+
+**Metadatos en la VM del hipervisor — referencia inversa (ideas de futuro, no v1)**
+- Cada hipervisor tiene un campo de texto libre: VMware `annotation`/notes; Proxmox `description`.
+  En el interface común se expone como `set_metadata`/`get_metadata` (dict); cada conector traduce.
+- Se guarda un JSON delimitado (bloque marcado tipo `# BEGIN/END managed by UnivOrch`) que
+  coexiste con texto previo del humano.
+- Utilidades futuras: (1) recuperación ante pérdida/corrupción de TinyDB reconstruyendo el mapeo
+  descriptor→VM desde los hipervisores; (2) detección de VMs movidas/renombradas a mano;
+  (3) detección de huérfanos/fantasmas (categoría 4 de las 8); (4) marcas para descriptores de
+  referencia (con cuidado por no invasión, DEC-020); (5) recuperación de crash a mitad de deploy
+  (limitación de consistencia DEC-030); (6) arbitraje multi-instancia/MSP con `instance_id`.
+- Cautelas: la marca es pista, no verdad (un humano puede editarla); no estampar VMs de terceros;
+  no guardar secretos (es visible en el hipervisor); respetar límites de tamaño del campo (~KB).
+- Sprint 1: el MockConnector llevará un campo `metadata` en su estado en memoria desde ya (coste
+  cero) para poder hacer TDD de la reconciliación en el futuro sin hipervisor real.
+- Refina DEC-005b (referencia inversa) y DEC-020 (descubrimiento).
+
+**Operativa por rol — huecos detectados**
+- Hueco A (acceso del alumno): NO es un hueco. La web muestra la(s) IP(s) de cada VM; cómo se
+  conecta es ajeno al core. Matices: el modelo debe permitir varias IPs (multi-NIC); URL de
+  consola noVNC = mejora opcional futura.
+- Hueco B (gestión de Jobs): hace falta, y distinta por rol (admin todo / manager su rama /
+  alumno los suyos). Sprints siguientes.
+- Hueco C (`whoami` + usabilidad): `whoami` entra. cmd2 da `help`/`help <cmd>` autogenerados,
+  tab-completion de comandos y, clave, **completers de paths del árbol** (navegar como un FS).
+  Prompt podría incluir el rol (`univorch:admin /lab/networks>`) — opcional.
+- Recordatorio: crear mesas/asignaturas/alumnos es **capa 2** (aplicación docente), no el core.
+
+**Idempotencia (futura DEC-035)**
+- Todas las operaciones del orquestador son idempotentes por la filosofía declarativa (DEC-006):
+  son aserciones de estado ("asegura X"), no deltas imperativos. Se documentará por operación.
+- **La idempotencia vive en el orquestador, NO en el conector.** Las primitivas del conector
+  (`clone`, `delete`) NO son idempotentes; el Command (DEC-028) comprueba el estado y solo llama
+  al conector si hace falta. Conector primitivo + orquestador convergente.
+- Límite honesto: idempotencia solo en el camino feliz. `deploy` sobre `broken` o `start` sobre
+  `unreachable` son errores, no no-ops.
+- No-op (orden de algo ya hecho) = **éxito + mensaje informativo, nunca warning** (modelo Ansible
+  `changed`/`unchanged`). El Job lo registra como no-op. Coherente con el `plan`/diff (DEC-027):
+  `apply` informaría `3 unchanged, 1 created`; `start` ya encendido → `already running (no change)`.
