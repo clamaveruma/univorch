@@ -726,3 +726,37 @@ tras confirmación del usuario.
 - No-op (orden de algo ya hecho) = **éxito + mensaje informativo, nunca warning** (modelo Ansible
   `changed`/`unchanged`). El Job lo registra como no-op. Coherente con el `plan`/diff (DEC-027):
   `apply` informaría `3 unchanged, 1 created`; `start` ya encendido → `already running (no change)`.
+
+### Primer código — contrato del conector (TDD)
+
+Arranca la Fase 6 en código. Se desarrolla el contrato del conector en tres piezas, cada una
+escrita, revisada por el usuario y commiteada por separado (ritmo lento acordado):
+
+- **Pieza 1 — tipos de frontera** (`connectors/types.py`): `RuntimeState(StrEnum)`
+  RUNNING/STOPPED/PAUSED/UNKNOWN y `VMInfo(BaseModel)` (id opaco, name, runtime_state, cpu/mem/disk
+  opcionales). Test: estados del enum, comportamiento StrEnum, construcción mínima, round-trip
+  `model_dump`/`model_validate`, campo requerido. Commit `c60f857`.
+- **Pieza 2 — ABC** (`connectors/base.py`): `HypervisorConnector(ABC)` con los 9 métodos de DEC-016.
+  Contrato de errores común (`ValueError`/`ConnectionError`) en el docstring de la clase, no
+  repetido por método. Idempotencia anotada en los métodos de ciclo de vida. Añadido
+  `CloneMode(StrEnum)` {LINKED, FULL} a `types.py`. Commits `57e636f`.
+- **Pieza 3 — test del ABC** (`tests/unit/test_connector_base.py`): subclase completa instanciable,
+  ABC no instanciable directamente, subclase incompleta → `TypeError`. Demuestra el "fail fast" del
+  ABC. Commit `57e636f`.
+
+Decisiones de implementación de esta tanda:
+- Plugin `pydantic.mypy` activado en `pyproject.toml` para que mypy valide la construcción de modelos
+  (coherente con `strict = true` + DEC-034).
+- Nombre del fichero del contrato: `base.py` (convención Python estándar; se descartó `common_*` por
+  no idiomático).
+- Fix del aviso del intérprete en VSCode: `${workspaceFolder}/.venv/bin/python` en `devcontainer.json`.
+- Feedback del usuario sobre comentarios: útiles para entender el código, sin sobreexplicar (no
+  justificar features del lenguaje en comentarios). Aplicado al recortar docstrings.
+
+Estado: 9 tests en verde, `types.py` y `base.py` al 100% de cobertura. Toda la puerta de calidad
+(ruff + mypy + pytest) pasa en local.
+
+Próximo: **`MockConnector`** — primera implementación real del ABC, estado en memoria (plantillas
+precargadas + VMs desplegadas), TDD del comportamiento (clone, start/stop, get_status/get_info,
+simulación de fallos/latencia/drift). Variantes `empty()`/`with_defaults()`/`with_templates()` y
+métodos de inspección fuera del ABC (`deployed_vms`, `inject_drift`, `make_unreachable`).
