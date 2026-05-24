@@ -69,30 +69,36 @@ class MockConnector(HypervisorConnector):
         except KeyError:
             raise ValueError(f"unknown vm: {vm_id}") from None
 
-    # --- skeleton: filled in later pieces (M2/M3) ---
-
-    @override
-    def delete(self, vm_id: str) -> None:
-        raise NotImplementedError
-
     @override
     def start(self, vm_id: str) -> None:
-        raise NotImplementedError
+        self._get(vm_id).runtime_state = RuntimeState.RUNNING
 
     @override
     def stop(self, vm_id: str) -> None:
-        raise NotImplementedError
+        self._get(vm_id).runtime_state = RuntimeState.STOPPED
 
     @override
     def force_stop(self, vm_id: str) -> None:
-        raise NotImplementedError
+        self._get(vm_id).runtime_state = RuntimeState.STOPPED
 
     @override
     def pause(self, vm_id: str) -> None:
-        raise NotImplementedError
+        vm = self._get(vm_id)
+        if vm.runtime_state is RuntimeState.STOPPED:
+            raise ValueError(f"cannot pause a stopped vm: {vm_id}")
+        vm.runtime_state = RuntimeState.PAUSED
 
     @override
     def resume(self, vm_id: str) -> None:
+        vm = self._get(vm_id)
+        if vm.runtime_state is RuntimeState.STOPPED:
+            raise ValueError(f"cannot resume a stopped vm: {vm_id}")
+        vm.runtime_state = RuntimeState.RUNNING
+
+    # --- skeleton: filled in M3 ---
+
+    @override
+    def delete(self, vm_id: str) -> None:
         raise NotImplementedError
 
     @override

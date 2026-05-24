@@ -50,3 +50,72 @@ class TestGetStatus:
         mock = MockConnector.with_demo_templates()
         with pytest.raises(ValueError):
             mock.get_status("nope")
+
+
+class TestLifecycle:
+    def _deployed(self) -> tuple[MockConnector, str]:
+        mock = MockConnector.with_demo_templates()
+        return mock, mock.clone("linux-base", "vm")
+
+    def test_start_powers_on(self) -> None:
+        mock, vm = self._deployed()
+        mock.start(vm)
+        assert mock.get_status(vm) == RuntimeState.RUNNING
+
+    def test_start_is_harmless_when_already_running(self) -> None:
+        mock, vm = self._deployed()
+        mock.start(vm)
+        mock.start(vm)
+        assert mock.get_status(vm) == RuntimeState.RUNNING
+
+    def test_start_resumes_a_paused_vm(self) -> None:
+        mock, vm = self._deployed()
+        mock.start(vm)
+        mock.pause(vm)
+        mock.start(vm)
+        assert mock.get_status(vm) == RuntimeState.RUNNING
+
+    def test_stop_powers_off(self) -> None:
+        mock, vm = self._deployed()
+        mock.start(vm)
+        mock.stop(vm)
+        assert mock.get_status(vm) == RuntimeState.STOPPED
+
+    def test_stop_is_harmless_when_already_stopped(self) -> None:
+        mock, vm = self._deployed()
+        mock.stop(vm)
+        assert mock.get_status(vm) == RuntimeState.STOPPED
+
+    def test_force_stop_powers_off(self) -> None:
+        mock, vm = self._deployed()
+        mock.start(vm)
+        mock.force_stop(vm)
+        assert mock.get_status(vm) == RuntimeState.STOPPED
+
+    def test_pause_suspends_a_running_vm(self) -> None:
+        mock, vm = self._deployed()
+        mock.start(vm)
+        mock.pause(vm)
+        assert mock.get_status(vm) == RuntimeState.PAUSED
+
+    def test_pause_a_stopped_vm_raises(self) -> None:
+        mock, vm = self._deployed()
+        with pytest.raises(ValueError):
+            mock.pause(vm)
+
+    def test_resume_returns_a_paused_vm_to_running(self) -> None:
+        mock, vm = self._deployed()
+        mock.start(vm)
+        mock.pause(vm)
+        mock.resume(vm)
+        assert mock.get_status(vm) == RuntimeState.RUNNING
+
+    def test_resume_a_stopped_vm_raises(self) -> None:
+        mock, vm = self._deployed()
+        with pytest.raises(ValueError):
+            mock.resume(vm)
+
+    def test_lifecycle_on_unknown_vm_raises(self) -> None:
+        mock = MockConnector.with_demo_templates()
+        with pytest.raises(ValueError):
+            mock.start("nope")
