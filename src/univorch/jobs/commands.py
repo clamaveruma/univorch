@@ -11,6 +11,7 @@ from abc import ABC, abstractmethod
 from typing import ClassVar, override
 
 from univorch.connectors.base import HypervisorConnector
+from univorch.connectors.types import RuntimeState
 from univorch.models import DescriptorState, Operation
 from univorch.persistence.tinydb.repositories import DescriptorRepository
 
@@ -69,3 +70,118 @@ class DeployCommand(Command):
         descriptor.vm_id = vm_id
         self._descriptors.save(descriptor)
         return f"deployed as {vm_id}"
+
+
+class UndeployCommand(Command):
+    """Undeploy: delete the VM and return the descriptor to provisioned."""
+
+    operation = Operation.UNDEPLOY
+
+    def __init__(
+        self,
+        path: str,
+        descriptors: DescriptorRepository,
+        connector: HypervisorConnector,
+    ) -> None:
+        self.target = path
+        self._descriptors = descriptors
+        self._connector = connector
+
+    @override
+    def validate(self) -> list[str]:
+        descriptor = self._descriptors.get(self.target)
+        if descriptor is None:
+            return [f"descriptor not found: {self.target}"]
+        if descriptor.state == DescriptorState.BROKEN:
+            return [f"cannot undeploy a broken descriptor: {self.target}"]
+        return []
+
+    @override
+    def execute(self) -> str:
+        errors = self.validate()
+        if errors:
+            raise ValueError("; ".join(errors))
+        descriptor = self._descriptors.get(self.target)
+        assert descriptor is not None  # validate() guaranteed it exists
+        if descriptor.state == DescriptorState.PROVISIONED:
+            return "already undeployed (no change)"  # idempotent no-op (DEC-035)
+        assert descriptor.vm_id is not None  # deployed → vm_id is set
+        self._connector.delete(descriptor.vm_id)
+        descriptor.state = DescriptorState.PROVISIONED
+        descriptor.vm_id = None
+        self._descriptors.save(descriptor)
+        return "undeployed"
+
+
+class StartCommand(Command):
+    """Power on the VM (runtime state only; descriptor state unchanged)."""
+
+    operation = Operation.START
+
+    def __init__(
+        self,
+        path: str,
+        descriptors: DescriptorRepository,
+        connector: HypervisorConnector,
+    ) -> None:
+        self.target = path
+        self._descriptors = descriptors
+        self._connector = connector
+
+    @override
+    def validate(self) -> list[str]:
+        descriptor = self._descriptors.get(self.target)
+        if descriptor is None:
+            return [f"descriptor not found: {self.target}"]
+        if descriptor.state != DescriptorState.DEPLOYED:
+            return [f"cannot start a descriptor that is not deployed: {self.target}"]
+        return []
+
+    @override
+    def execute(self) -> str:
+        errors = self.validate()
+        if errors:
+            raise ValueError("; ".join(errors))
+        descriptor = self._descriptors.get(self.target)
+        assert descriptor is not None and descriptor.vm_id is not None
+        if self._connector.get_status(descriptor.vm_id) == RuntimeState.RUNNING:
+            return "already running (no change)"  # idempotent no-op (DEC-035)
+        self._connector.start(descriptor.vm_id)
+        return "started"
+
+
+class StopCommand(Command):
+    """Power off the VM (runtime state only; descriptor state unchanged)."""
+
+    operation = Operation.STOP
+
+    def __init__(
+        self,
+        path: str,
+        descriptors: DescriptorRepository,
+        connector: HypervisorConnector,
+    ) -> None:
+        self.target = path
+        self._descriptors = descriptors
+        self._connector = connector
+
+    @override
+    def validate(self) -> list[str]:
+        descriptor = self._descriptors.get(self.target)
+        if descriptor is None:
+            return [f"descriptor not found: {self.target}"]
+        if descriptor.state != DescriptorState.DEPLOYED:
+            return [f"cannot stop a descriptor that is not deployed: {self.target}"]
+        return []
+
+    @override
+    def execute(self) -> str:
+        errors = self.validate()
+        if errors:
+            raise ValueError("; ".join(errors))
+        descriptor = self._descriptors.get(self.target)
+        assert descriptor is not None and descriptor.vm_id is not None
+        if self._connector.get_status(descriptor.vm_id) == RuntimeState.STOPPED:
+            return "already stopped (no change)"  # idempotent no-op (DEC-035)
+        self._connector.stop(descriptor.vm_id)
+        return "stopped"
