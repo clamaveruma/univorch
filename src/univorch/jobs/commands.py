@@ -5,6 +5,12 @@ Each command encapsulates one operation on one target with two methods:
 the plan/dry-run check; ``execute()`` performs the work and returns a result
 message. ``execute()`` re-runs ``validate()`` first and raises if it fails, so it
 is safe to call on its own; the Jobs engine wraps it to record the Job.
+
+Concepts: an ``OperationType`` is the *kind* of operation (an op-code). A
+``Command`` and a ``Job`` are two views of the same operation instance — the
+Command is its executable form (logic + dependencies, in memory), the Job its
+persistent record (status, result, on disk). They share ``operation`` and
+``target``; one Command execution produces one Job.
 """
 
 from abc import ABC, abstractmethod
@@ -12,14 +18,14 @@ from typing import ClassVar, override
 
 from univorch.connectors.base import HypervisorConnector
 from univorch.connectors.types import RuntimeState
-from univorch.models import DescriptorState, Operation
+from univorch.models import DescriptorState, OperationType
 from univorch.persistence.tinydb.repositories import DescriptorRepository
 
 
 class Command(ABC):
     """One operation on one target (DEC-028)."""
 
-    operation: ClassVar[Operation]  # the kind of operation, set by each command
+    operation: ClassVar[OperationType]  # the kind of operation, set by each command
     target: str  # the path it acts on, set in __init__
 
     @abstractmethod
@@ -34,7 +40,7 @@ class Command(ABC):
 class DeployCommand(Command):
     """Deploy a descriptor: clone its base VM and mark it deployed."""
 
-    operation = Operation.DEPLOY
+    operation = OperationType.DEPLOY
 
     def __init__(
         self,
@@ -75,7 +81,7 @@ class DeployCommand(Command):
 class UndeployCommand(Command):
     """Undeploy: delete the VM and return the descriptor to provisioned."""
 
-    operation = Operation.UNDEPLOY
+    operation = OperationType.UNDEPLOY
 
     def __init__(
         self,
@@ -116,7 +122,7 @@ class UndeployCommand(Command):
 class StartCommand(Command):
     """Power on the VM (runtime state only; descriptor state unchanged)."""
 
-    operation = Operation.START
+    operation = OperationType.START
 
     def __init__(
         self,
@@ -153,7 +159,7 @@ class StartCommand(Command):
 class StopCommand(Command):
     """Power off the VM (runtime state only; descriptor state unchanged)."""
 
-    operation = Operation.STOP
+    operation = OperationType.STOP
 
     def __init__(
         self,

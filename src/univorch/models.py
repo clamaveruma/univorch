@@ -83,7 +83,7 @@ class JobStatus(StrEnum):
     FAILED = "failed"  # finished with an error
 
 
-class Operation(StrEnum):
+class OperationType(StrEnum):
     """Kind of operation recorded by a Job; grows as new operations are added."""
 
     DEPLOY = "deploy"
@@ -102,7 +102,7 @@ class Job(BaseModel):
 
     # uuid: a job has no natural key like a path; generated on creation
     id: str = Field(default_factory=lambda: uuid4().hex)
-    operation: Operation
+    operation: OperationType
     target: str  # path of the affected folder or descriptor
     status: JobStatus = JobStatus.PENDING
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
