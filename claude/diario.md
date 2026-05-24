@@ -853,3 +853,58 @@ predicado simple (se evita la imprecisión de tipos de `.test()` de TinyDB sobre
 
 Próximo: **J2** (Commands con `validate()`/`execute()`: deploy/undeploy/start/stop + crear
 carpeta/descriptor) y **J3** (motor que ejecuta un Command y gestiona el ciclo de vida del Job).
+
+### J2 — patrón Command (deploy/undeploy/start/stop)
+
+`jobs/commands.py`. `Command(ABC)` con `operation` (ClassVar) + `target`, `validate() -> list[str]`
+(acumula errores; es también el chequeo de `plan`/dry-run) y `execute() -> str` (devuelve mensaje
+para `Job.message`). Decisiones acordadas con el usuario:
+
+- **`execute()` es seguro en solitario:** empieza llamando a `validate()` y lanza si hay errores; no
+  "confía a ciegas". `validate` = recoger todo sin tocar nada (para batch fail-fast); `execute` =
+  actuar y lanzar; el motor (J3) lo envolverá en try/except → Job FAILED / descriptor broken.
+- **Conector ya resuelto inyectado, no el registro.** El descriptor sabe su hipervisor por *nombre*
+  (`hypervisor`, serializable); el objeto conector vivo no cabe en el descriptor. La capa que crea
+  el Command (el `OrchestratorService`, J3) resolverá nombre→conector vía el registro (DEC-029) y le
+  pasa al Command **un** `HypervisorConnector`.
+- **Por qué path + repo y no el descriptor ya resuelto:** el descriptor es dato mutable persistido
+  que el Command lee/modifica/guarda; se lee **fresco** del repo (no obsoleto) y la comprobación
+  "no existe" es parte de `validate`. (El conector sí se pasa resuelto: objeto de runtime estable.)
+- **Nombre de la VM en `clone` = path completo** (el mock lo guarda tal cual; los conectores reales
+  lo sanearán: `/`→`_`, longitud máxima, etc. — pendiente para conectores reales). La identidad real
+  es `vm_id` (clave) + path en el campo metadata del hipervisor (reverse reference, DEC-005b, futuro).
+- **Idempotencia (DEC-035):** deploy/undeploy comprueban el estado del descriptor (no-op si ya en
+  destino). start/stop **no cambian el estado del descriptor** (solo runtime); consultan `get_status`
+  para reportar el no-op (`already running/stopped (no change)`).
+- Commands: `DeployCommand` (provisioned→clone→deployed+vm_id), `UndeployCommand`
+  (deployed→delete→provisioned, vm_id=None), `StartCommand`/`StopCommand` (runtime via conector).
+- Tests parametrizados para las ramas de error comunes; `commands.py` al 100%.
+
+### Renombrado Operation → OperationType + modelo conceptual
+
+- `Operation` (enum) → **`OperationType`**: es el **tipo/op-code**, no un peer de Command/Job
+  (aclaración del usuario). Se mantiene el nombre **`Command`** (patrón GoF, DEC-028; evita colisión
+  con `OperationType`).
+- Modelo documentado en el docstring de `commands.py`: **`OperationType`** = el tipo (op-code) ·
+  **`Command`** = la operación en forma **ejecutable** (lógica + dependencias, en memoria) · **`Job`**
+  = la operación en forma **registrada** (estado + resultado, en disco). Comparten `(operation,
+  target)`; **1:1** entre Command ejecutado y Job. No es "Job = Command serializado": cada uno añade
+  su dimensión (Command el *cómo*, Job el *qué pasó*).
+
+### Cierre de sesión 2026-05-24
+
+Estado del núcleo hacia la **demo mínima de Sprint 1** (orden bottom-up, TDD):
+- ✅ `MockConnector` (M1-M3) · ✅ modelos `Folder`/`Descriptor` · ✅ repos TinyDB
+  (`Folder`/`Descriptor`/`Job`) · ✅ `Job`/`JobStatus`/`OperationType` · ✅ Commands de máquina
+  (`Deploy`/`Undeploy`/`Start`/`Stop`).
+- ⏭️ **Pendiente para retomar:**
+  1. **J2 (cierre):** `CreateFolderCommand` + `CreateDescriptorCommand` (operaciones de definición;
+     reciben el objeto a crear, no conector; aquí entra la validación contextual "el padre existe").
+  2. **J3 — motor de Jobs:** ejecuta un Command, crea/persiste el Job (pending→running→
+     completed/failed), captura excepciones → FAILED + descriptor broken. (Lock pospuesto, DEC-028.)
+  3. **`OrchestratorService`** (facade, DEC-031): `apply`/`deploy`/`start`/`stop`/`status`/`list`;
+     resuelve el conector vía el registro y construye los Commands.
+  4. **Parser YAML** (`ApplyDocument`) → `apply` ejecuta un Command por item.
+  5. **CLI** (cmd2) → la demo de `demo/README.md` corre.
+- 84 tests en verde; toda la puerta de calidad (ruff + mypy + pytest) pasa. `docs/diagrams.md`
+  reorganizado según C4 (pendiente actualizarlo cuando avance el código: faltan Jobs/Commands).
