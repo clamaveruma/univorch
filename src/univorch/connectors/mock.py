@@ -95,12 +95,21 @@ class MockConnector(HypervisorConnector):
             raise ValueError(f"cannot resume a stopped vm: {vm_id}")
         vm.runtime_state = RuntimeState.RUNNING
 
-    # --- skeleton: filled in M3 ---
-
     @override
     def delete(self, vm_id: str) -> None:
-        raise NotImplementedError
+        try:
+            del self._deployed[vm_id]
+        except KeyError:
+            raise ValueError(f"unknown vm: {vm_id}") from None
 
     @override
     def get_info(self, vm_id: str) -> VMInfo:
-        raise NotImplementedError
+        return self._to_info(self._get(vm_id))
+
+    def deployed_vms(self) -> list[VMInfo]:
+        """Snapshot of every deployed VM. Test-only; not part of the ABC."""
+        return [self._to_info(vm) for vm in self._deployed.values()]
+
+    @staticmethod
+    def _to_info(vm: _MockVM) -> VMInfo:
+        return VMInfo(id=vm.id, name=vm.name, runtime_state=vm.runtime_state)
