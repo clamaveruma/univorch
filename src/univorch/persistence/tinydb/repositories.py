@@ -5,19 +5,17 @@ instance and uses its own table. The tree is keyed by materialized path, so a
 subtree is a path-prefix query.
 """
 
-from collections.abc import Callable
-
 from tinydb import Query, TinyDB
 
 from univorch.models import Descriptor, Folder
 
 
-def _in_subtree(prefix: str) -> Callable[[str], bool]:
-    """Match a path that is ``prefix`` itself or sits below it (segment-aware).
+def _in_subtree(prefix: str, path: str) -> bool:
+    """True if ``path`` is ``prefix`` itself or sits below it (segment-aware).
 
     ``/lab`` matches ``/lab`` and ``/lab/...`` but not ``/lab2``.
     """
-    return lambda path: path == prefix or path.startswith(prefix + "/")
+    return path == prefix or path.startswith(prefix + "/")
 
 
 class FolderRepository:
@@ -40,9 +38,13 @@ class FolderRepository:
         return self._table.contains(Query().path == path)
 
     def subtree(self, prefix: str) -> list[Folder]:
-        # .test(fn) filters with a custom predicate; a simple == can't express it
-        docs = self._table.search(Query().path.test(_in_subtree(prefix)))
-        return [Folder.model_validate(doc) for doc in docs]
+        # TinyDB has no native prefix query; for the PoC's small data we filter
+        # in Python (a server DB like MongoDB would push this into the query)
+        return [
+            Folder.model_validate(doc)
+            for doc in self._table.all()
+            if _in_subtree(prefix, doc["path"])
+        ]
 
     def delete(self, path: str) -> None:
         self._table.remove(Query().path == path)
@@ -66,8 +68,11 @@ class DescriptorRepository:
         return self._table.contains(Query().path == path)
 
     def subtree(self, prefix: str) -> list[Descriptor]:
-        docs = self._table.search(Query().path.test(_in_subtree(prefix)))
-        return [Descriptor.model_validate(doc) for doc in docs]
+        return [
+            Descriptor.model_validate(doc)
+            for doc in self._table.all()
+            if _in_subtree(prefix, doc["path"])
+        ]
 
     def delete(self, path: str) -> None:
         self._table.remove(Query().path == path)
