@@ -10,8 +10,9 @@
 > service, a database, the CLI) — **not** a Docker container. UnivOrch's service
 > happens to run in a Docker container, but the word means different things.
 >
-> **Mermaid note:** Context and Container use Mermaid's native C4 renderer, which
-> is experimental; if they render poorly they can be redrawn as plain flowcharts.
+> **Rendering note:** the diagrams follow the C4 *model*; for reliable layout
+> they are drawn as Mermaid flowcharts and class diagrams (with C4 stereotypes
+> like «Person» and «Container»), not Mermaid's experimental native C4 renderer.
 >
 > **Last updated:** 2026-05-24 — Sprint 1, connector contract + MockConnector + domain models.
 
@@ -22,22 +23,22 @@
 The big picture: who uses UnivOrch and which external systems it talks to.
 
 ```mermaid
-C4Context
-    title System context — UnivOrch
+flowchart TB
+    admin["«Person»<br/>Admin / Teacher<br/>Defines the tree, deploys and manages VMs"]:::person
+    student["«Person»<br/>Student<br/>Operates and uses assigned VMs"]:::person
+    univorch["«System»<br/>UnivOrch<br/>Universal VM orchestrator"]:::system
+    vmware["«External System»<br/>VMware vSphere"]:::ext
+    proxmox["«External System»<br/>Proxmox VE"]:::ext
 
-    Person(admin, "Admin / Teacher", "Defines the tree, deploys and manages VMs")
-    Person(student, "Student", "Starts, stops and uses assigned VMs")
+    admin -->|"Manages / deploys (REST, Web)"| univorch
+    student -->|"Operates own VMs (Web)"| univorch
+    univorch -->|"Clones and controls VMs (vSphere SOAP)"| vmware
+    univorch -->|"Clones and controls VMs (Proxmox REST)"| proxmox
+    student -.->|"Uses the VM (SSH / RDP / console)"| vmware
 
-    System(univorch, "UnivOrch", "Universal VM orchestrator")
-
-    System_Ext(vmware, "VMware vSphere", "Hypervisor platform")
-    System_Ext(proxmox, "Proxmox VE", "Hypervisor platform")
-
-    Rel(admin, univorch, "Manages / deploys", "REST, Web")
-    Rel(student, univorch, "Operates own VMs", "Web")
-    Rel(univorch, vmware, "Clones & controls VMs", "vSphere SOAP")
-    Rel(univorch, proxmox, "Clones & controls VMs", "Proxmox REST")
-    Rel(student, vmware, "Uses the VM", "SSH / RDP / console")
+    classDef person fill:#08427b,color:#fff,stroke:#052e56;
+    classDef system fill:#1168bd,color:#fff,stroke:#0b4884;
+    classDef ext fill:#999999,color:#fff,stroke:#6b6b6b;
 ```
 
 ---
@@ -47,28 +48,31 @@ C4Context
 The independently runnable units that make up UnivOrch.
 
 ```mermaid
-C4Container
-    title Containers — UnivOrch
+flowchart TB
+    admin["«Person»<br/>Admin / Teacher"]:::person
+    student["«Person»<br/>Student"]:::person
 
-    Person(admin, "Admin / Teacher")
-    Person(student, "Student")
+    subgraph sys["UnivOrch system"]
+        cli["«Container»<br/>CLI<br/>Python, cmd2 + httpx"]:::container
+        web["«Container»<br/>Web GUI<br/>Python, NiceGUI"]:::container
+        api["«Container»<br/>Orchestrator service<br/>Python, FastAPI / uvicorn"]:::container
+        db[("«Database»<br/>TinyDB<br/>JSON file")]:::db
+    end
 
-    System_Boundary(s1, "UnivOrch") {
-        Container(cli, "CLI", "Python · cmd2 + httpx", "Scriptable command line")
-        Container(web, "Web GUI", "Python · NiceGUI", "Browser interface for all roles")
-        Container(api, "Orchestrator service", "Python · FastAPI / uvicorn", "Facade, jobs, connectors")
-        ContainerDb(db, "TinyDB", "JSON file", "Folders, descriptors, jobs, sessions")
-    }
+    hv["«External System»<br/>Hypervisors (VMware / Proxmox)"]:::ext
 
-    System_Ext(hv, "Hypervisors", "VMware / Proxmox")
+    admin -->|"Uses"| cli
+    admin -->|"Uses (HTTPS)"| web
+    student -->|"Uses (HTTPS)"| web
+    cli -->|"Calls (REST / HTTPS)"| api
+    web -->|"Calls"| api
+    api -->|"Reads / writes"| db
+    api -->|"Clones and controls (SOAP / REST)"| hv
 
-    Rel(admin, cli, "Uses")
-    Rel(admin, web, "Uses", "HTTPS")
-    Rel(student, web, "Uses", "HTTPS")
-    Rel(cli, api, "Calls", "REST / HTTPS")
-    Rel(web, api, "Calls")
-    Rel(api, db, "Reads / writes")
-    Rel(api, hv, "Clones & controls VMs", "SOAP / REST")
+    classDef person fill:#08427b,color:#fff,stroke:#052e56;
+    classDef container fill:#1168bd,color:#fff,stroke:#0b4884;
+    classDef db fill:#1168bd,color:#fff,stroke:#0b4884;
+    classDef ext fill:#999999,color:#fff,stroke:#6b6b6b;
 ```
 
 ---
