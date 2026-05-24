@@ -1,25 +1,88 @@
 # UnivOrch — Internal diagrams
 
-> This document collects the project's diagrams: the intended **deployment
-> topology** (the general philosophy) and **as-built** views of the code, which
-> grow with it and are updated roughly once a day. For the full intended design
-> see [architecture.md](architecture.md).
+> This document follows the **C4 model** (Context → Container → Component → Code,
+> plus a supplementary **Deployment** view). The higher levels (Context,
+> Container, Deployment) are the intended design; the lower levels (Component,
+> Code) are **as-built** and grow with the code. For the full narrative design see
+> [architecture.md](architecture.md).
+>
+> **Terminology note:** a C4 *container* is any independently runnable unit (a
+> service, a database, the CLI) — **not** a Docker container. UnivOrch's service
+> happens to run in a Docker container, but the word means different things.
+>
+> **Mermaid note:** Context and Container use Mermaid's native C4 renderer, which
+> is experimental; if they render poorly they can be redrawn as plain flowcharts.
 >
 > **Last updated:** 2026-05-24 — Sprint 1, connector contract + MockConnector + domain models.
 
 ---
 
-## 1. Deployment topology
+## 1. Context (C4 level 1)
 
-The general philosophy across hosts and tiers. This is the **target** scenario,
-largely future — it shows how the pieces are meant to be deployed, not what is
-built yet.
+The big picture: who uses UnivOrch and which external systems it talks to.
+
+```mermaid
+C4Context
+    title System context — UnivOrch
+
+    Person(admin, "Admin / Teacher", "Defines the tree, deploys and manages VMs")
+    Person(student, "Student", "Starts, stops and uses assigned VMs")
+
+    System(univorch, "UnivOrch", "Universal VM orchestrator")
+
+    System_Ext(vmware, "VMware vSphere", "Hypervisor platform")
+    System_Ext(proxmox, "Proxmox VE", "Hypervisor platform")
+
+    Rel(admin, univorch, "Manages / deploys", "REST, Web")
+    Rel(student, univorch, "Operates own VMs", "Web")
+    Rel(univorch, vmware, "Clones & controls VMs", "vSphere SOAP")
+    Rel(univorch, proxmox, "Clones & controls VMs", "Proxmox REST")
+    Rel(student, vmware, "Uses the VM", "SSH / RDP / console")
+```
+
+---
+
+## 2. Containers (C4 level 2)
+
+The independently runnable units that make up UnivOrch.
+
+```mermaid
+C4Container
+    title Containers — UnivOrch
+
+    Person(admin, "Admin / Teacher")
+    Person(student, "Student")
+
+    System_Boundary(s1, "UnivOrch") {
+        Container(cli, "CLI", "Python · cmd2 + httpx", "Scriptable command line")
+        Container(web, "Web GUI", "Python · NiceGUI", "Browser interface for all roles")
+        Container(api, "Orchestrator service", "Python · FastAPI / uvicorn", "Facade, jobs, connectors")
+        ContainerDb(db, "TinyDB", "JSON file", "Folders, descriptors, jobs, sessions")
+    }
+
+    System_Ext(hv, "Hypervisors", "VMware / Proxmox")
+
+    Rel(admin, cli, "Uses")
+    Rel(admin, web, "Uses", "HTTPS")
+    Rel(student, web, "Uses", "HTTPS")
+    Rel(cli, api, "Calls", "REST / HTTPS")
+    Rel(web, api, "Calls")
+    Rel(api, db, "Reads / writes")
+    Rel(api, hv, "Clones & controls VMs", "SOAP / REST")
+```
+
+---
+
+## 3. Deployment (C4 supplementary view)
+
+How the containers map onto hosts and tiers. This is the **target** topology —
+largely future; it shows how the pieces are meant to be deployed.
 
 - **Tier 1 — clients:** admins/teachers (CLI + browser) and students (browser).
-- **Tier 2 — orchestrator:** a single Linux host running UnivOrch in a Docker
+- **Tier 2 — orchestrator:** one Linux host running UnivOrch in a Docker
   container; TinyDB persists on a host-managed named volume mounted into it.
-- **Tier 3 — hypervisors + VMs:** VMware/Proxmox hosts running the VMs. The
-  orchestrator's connectors talk to each hypervisor's management API.
+- **Tier 3 — hypervisors + VMs:** VMware/Proxmox hosts running the VMs; the
+  connectors talk to each hypervisor's management API.
 
 ```mermaid
 flowchart LR
@@ -65,11 +128,10 @@ with `uv run` (no container).
 
 ---
 
-## 2. Component architecture
+## 4. Components (C4 level 3) — as-built
 
-How the pieces fit together inside the orchestrator. Most of the engine is still
-pending; the connector subsystem and the domain models are the first implemented
-parts.
+Modules inside the orchestrator. Most of the engine is still pending; the
+connector subsystem and the domain models are the first implemented parts.
 
 **Legend:** solid = implemented · dashed/grey = designed, not yet implemented.
 
@@ -116,7 +178,7 @@ flowchart TD
 
 ---
 
-## 3. Class diagram (implemented code)
+## 5. Code (C4 level 4) — as-built
 
 The classes that exist today, in `connectors/` and `models.py`. Fields typed
 `X | None` (`description`, `cpu`, `memory_mb`, `disk_gb`, `vm_id`) are optional

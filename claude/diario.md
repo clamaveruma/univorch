@@ -808,3 +808,9 @@ discontinuo) y diagrama de clases del código actual. Se actualizará ~una vez a
 progreso (para el profesor y la memoria final). Distinto de `architecture.md`, que es el diseño
 previsto. Decidido `.md` + Mermaid (versionado, renderiza en GitHub, exportable a PDF para la
 memoria) frente a PDF como fuente.
+
+Ampliado el mismo día: añadido un diagrama de despliegue (topología hosts/tiers: clientes /
+orquestador en contenedor / hipervisores con VMs) y luego reorganizado todo el documento según el
+**modelo C4** (Context, Container, Deployment, Component, Code). Context y Container con la notación
+C4 nativa de Mermaid (experimental); Deployment/Component/Code como flowchart/classDiagram. Nota de
+terminología: "container" en C4 ≠ contenedor Docker. C4 se mencionará en la memoria como marco.
