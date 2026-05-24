@@ -1,19 +1,77 @@
 # UnivOrch — Internal diagrams
 
-> **As-built view.** These diagrams reflect the **current code** and grow with it,
-> updated roughly once a day. For the intended end-state design see
-> [architecture.md](architecture.md); this document shows what actually exists.
+> This document collects the project's diagrams: the intended **deployment
+> topology** (the general philosophy) and **as-built** views of the code, which
+> grow with it and are updated roughly once a day. For the full intended design
+> see [architecture.md](architecture.md).
 >
 > **Last updated:** 2026-05-24 — Sprint 1, connector contract + MockConnector + domain models.
 
-**Legend:** solid = implemented · dashed/grey = designed, not yet implemented.
+---
+
+## 1. Deployment topology
+
+The general philosophy across hosts and tiers. This is the **target** scenario,
+largely future — it shows how the pieces are meant to be deployed, not what is
+built yet.
+
+- **Tier 1 — clients:** admins/teachers (CLI + browser) and students (browser).
+- **Tier 2 — orchestrator:** a single Linux host running UnivOrch in a Docker
+  container; TinyDB persists on a host-managed named volume mounted into it.
+- **Tier 3 — hypervisors + VMs:** VMware/Proxmox hosts running the VMs. The
+  orchestrator's connectors talk to each hypervisor's management API.
+
+```mermaid
+flowchart LR
+    subgraph Clients["Tier 1 — Client hosts"]
+        Admin["Admin / teacher<br/>CLI + browser"]
+        Student["Student<br/>browser"]
+    end
+
+    subgraph OrchHost["Tier 2 — Orchestrator host (Linux + Docker)"]
+        subgraph Container["UnivOrch container"]
+            API["FastAPI + uvicorn<br/>REST API + Web GUI :8080"]
+            Core["Core<br/>service · jobs · connectors"]
+        end
+        Vol[("TinyDB<br/>named volume")]
+    end
+
+    subgraph HV1["Tier 3 — Hypervisor host (VMware ESXi)"]
+        ESX["vSphere API"]
+        VM1["VM"]
+        VM2["VM"]
+    end
+
+    subgraph HV2["Tier 3 — Hypervisor host (Proxmox)"]
+        PVE["Proxmox API"]
+        VM3["VM"]
+    end
+
+    Admin -->|REST / HTTPS| API
+    Student -->|Web GUI / HTTPS| API
+    API --> Core
+    Core --> Vol
+    Core -->|vSphere SOAP| ESX
+    Core -->|Proxmox REST| PVE
+    ESX --- VM1
+    ESX --- VM2
+    PVE --- VM3
+    Student -. direct access by IP .-> VM1
+```
+
+In **development and the demo**, the `MockConnector` stands in for the hypervisor
+tier: no real ESXi/Proxmox hosts are needed, and the orchestrator runs directly
+with `uv run` (no container).
 
 ---
 
-## 1. Component architecture
+## 2. Component architecture
 
-How the pieces fit together. Most of the engine is still pending; the connector
-subsystem and the domain models are the first implemented parts.
+How the pieces fit together inside the orchestrator. Most of the engine is still
+pending; the connector subsystem and the domain models are the first implemented
+parts.
+
+**Legend:** solid = implemented · dashed/grey = designed, not yet implemented.
 
 ```mermaid
 flowchart TD
@@ -58,7 +116,7 @@ flowchart TD
 
 ---
 
-## 2. Class diagram (implemented code)
+## 3. Class diagram (implemented code)
 
 The classes that exist today, in `connectors/` and `models.py`. Fields typed
 `X | None` (`description`, `cpu`, `memory_mb`, `disk_gb`, `vm_id`) are optional
