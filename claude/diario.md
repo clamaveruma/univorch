@@ -760,3 +760,51 @@ Próximo: **`MockConnector`** — primera implementación real del ABC, estado e
 precargadas + VMs desplegadas), TDD del comportamiento (clone, start/stop, get_status/get_info,
 simulación de fallos/latencia/drift). Variantes `empty()`/`with_defaults()`/`with_templates()` y
 métodos de inspección fuera del ABC (`deployed_vms`, `inject_drift`, `make_unreachable`).
+
+---
+
+## 2026-05-24
+
+### MockConnector completo (M1-M3, TDD)
+
+Primera implementación real del ABC, en tres sub-piezas commiteadas por separado:
+- **M1** (`46b9d62`): estado en memoria (templates + deployed + contador), constructores
+  `empty()`/`with_demo_templates()`/`with_templates()`, `clone()` (rechaza FULL, valida plantilla,
+  id determinista `mock-vm-N`, nace STOPPED) y `get_status()` vía helper `_get()` (EAFP).
+- **M2** (`61a44ab`): ciclo de vida `start`/`stop`/`force_stop`/`pause`/`resume`. Tabla de
+  transiciones acordada: start/stop/force_stop totales (convergen al destino); pause/resume sobre
+  una VM STOPPED → `ValueError`. `force_stop` = `stop` en el mock (no hay SO real). Idempotencia "de
+  verdad" (reporte unchanged) vive en el orquestador (DEC-035), no aquí: el conector solo fija estado.
+- **M3** (`46b9d62`… `M3` commit): `delete` (no idempotente, DEC-035), `get_info` (VMInfo con specs
+  en None), `deployed_vms()` (inspección fuera del ABC). Mock al 100% de cobertura.
+- **M4** (simulación de fallos: `make_unreachable`/latencia/`inject_drift`) pospuesto hasta que haya
+  lógica de errores del orquestador que probar.
+- Renombrado el constructor `with_defaults` → **`with_demo_templates`** (más descriptivo; "demo
+  templates", coherente con `with_templates`).
+
+### Modelos del dominio — `Folder`, `Descriptor` (TDD)
+
+`src/univorch/models.py` con Pydantic (DEC-034):
+- `DescriptorState(StrEnum)`: PROVISIONED/DEPLOYED/BROKEN/UNREACHABLE.
+- `Folder` (path, description) y `Descriptor` (path, hypervisor, base_vm, specs, state, vm_id).
+- `TreePath = Annotated[str, AfterValidator(_validate_path)]`: tipo reutilizable con **validación
+  sintáctica** del path (empieza por `/`, sin segmentos vacíos, segmentos `[A-Za-z0-9_-]+`).
+  No se repite el validador en cada modelo.
+- **Separación de validación (decidida con el usuario):** la sintáctica va en el modelo; la
+  contextual (padre existe, crear vs actualizar, referencias) y el RBAC van en el service/`apply`
+  (DEC-027/031), nunca en el modelo. El patrón de nombres de segmento es provisional, a refinar.
+
+### Renombrado de campos del descriptor
+
+`connector` → **`hypervisor`** (el descriptor habla en dominio: dónde vive la VM, no el adaptador) y
+`template` → **`base_vm`** (más claro, coherente con "VM"). Actualizados `demo/setup.yml` y la spec
+YAML de `desarrollo.md`. El conector sigue recibiendo el id de plantilla como `source_id` (capa
+distinta).
+
+### Documento de diagramas — `docs/diagrams.md`
+
+Nuevo documento "as-built" con Mermaid: diagrama de componentes (construido en sólido / pendiente en
+discontinuo) y diagrama de clases del código actual. Se actualizará ~una vez al día para reflejar el
+progreso (para el profesor y la memoria final). Distinto de `architecture.md`, que es el diseño
+previsto. Decidido `.md` + Mermaid (versionado, renderiza en GitHub, exportable a PDF para la
+memoria) frente a PDF como fuente.
