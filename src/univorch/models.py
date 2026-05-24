@@ -10,10 +10,12 @@ create vs update, references) and RBAC belong to the apply/service layer
 """
 
 import re
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Annotated
+from uuid import uuid4
 
-from pydantic import AfterValidator, BaseModel
+from pydantic import AfterValidator, BaseModel, Field
 
 _SEGMENT = re.compile(r"[A-Za-z0-9_-]+")  # provisional pattern, to be refined later
 
@@ -70,3 +72,39 @@ class Descriptor(BaseModel):
     disk_gb: int | None = None
     state: DescriptorState = DescriptorState.PROVISIONED
     vm_id: str | None = None
+
+
+class JobStatus(StrEnum):
+    """Lifecycle state of a Job."""
+
+    PENDING = "pending"  # created, not started yet
+    RUNNING = "running"  # executing
+    COMPLETED = "completed"  # finished successfully
+    FAILED = "failed"  # finished with an error
+
+
+class Operation(StrEnum):
+    """Kind of operation recorded by a Job; grows as new operations are added."""
+
+    DEPLOY = "deploy"
+    UNDEPLOY = "undeploy"
+    START = "start"
+    STOP = "stop"
+    CREATE_FOLDER = "create_folder"
+    CREATE_DESCRIPTOR = "create_descriptor"
+
+
+class Job(BaseModel):
+    """An operation recorded for audit and state tracking (DEC-014/028).
+
+    A descriptor's state changes only as the result of a Job (DEC-032).
+    """
+
+    # uuid: a job has no natural key like a path; generated on creation
+    id: str = Field(default_factory=lambda: uuid4().hex)
+    operation: Operation
+    target: str  # path of the affected folder or descriptor
+    status: JobStatus = JobStatus.PENDING
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    finished_at: datetime | None = None
+    message: str | None = None

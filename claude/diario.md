@@ -814,3 +814,42 @@ orquestador en contenedor / hipervisores con VMs) y luego reorganizado todo el d
 **modelo C4** (Context, Container, Deployment, Component, Code). Context y Container con la notación
 C4 nativa de Mermaid (experimental); Deployment/Component/Code como flowchart/classDiagram. Nota de
 terminología: "container" en C4 ≠ contenedor Docker. C4 se mencionará en la memoria como marco.
+
+Iteración posterior: el C4 nativo de Mermaid cruzaba flechas (layout flojo); se pasan §1 Context y
+§2 Container a flowchart con etiquetas C4 (`«Person»`, `«Container»`…). Se mantiene el modelo C4.
+
+### Persistencia: repositorios TinyDB (Folder, Descriptor)
+
+`persistence/tinydb/repositories.py`. Tras debatir genérico vs dos repos, se eligen **dos repos
+independientes** (el usuario prefiere evitar genéricos/`TypeVar`): `FolderRepository` y
+`DescriptorRepository`, indexados por path. Métodos: `save` (upsert), `get`, `exists`,
+`subtree(prefix)` (subárbol por materialized path, frontera de segmento), `delete`. Inyección de la
+instancia `TinyDB` (tests con `MemoryStorage`, sin disco). Serialización Pydantic
+`model_dump(mode="json")`/`model_validate`. ABC de repositorios pospuesta (aditiva: el core llama a
+los métodos por inyección; añadir el ABC luego no toca el core). `subtree` filtra en Python con un
+predicado simple (se evita la imprecisión de tipos de `.test()` de TinyDB sobre campos).
+
+### J1 — modelo Job + JobRepository
+
+- `models.py`: `JobStatus` (PENDING/RUNNING/COMPLETED=éxito/FAILED=error), `Operation`
+  (DEPLOY/UNDEPLOY/START/STOP/CREATE_FOLDER/CREATE_DESCRIPTOR, crecerá), `Job` (id uuid auto,
+  operation, target, status, created_at UTC auto, finished_at, message).
+- **Terminología aclarada:** "operación" = concepto genérico (máquina vs definición, DEC-027); el
+  enum `Operation` es el catálogo de tipos; toda operación genera un Job (DEC-014). Se decide
+  **unificar todo en Jobs** (también las de definición/árbol: crear carpeta/descriptor) — sin
+  excepciones, todo auditable. Esto amplía el set de Commands de J2.
+- `JobRepository` (tabla `jobs`, clave `id`, distinta de los repos de árbol): `save`, `get`,
+  `find_by_target` (historial de un descriptor), `find_by_status` (filtra + ordena FIFO por
+  `created_at`).
+- **Decisión documentada (cola de pendientes):** el usuario propuso mantener una cola/índice de
+  pendientes a mano para no barrer toda la tabla. Se descarta: sería un índice secundario manual =
+  estado duplicado, y TinyDB no tiene transacciones multi-documento (DEC-030), así que la cola y la
+  tabla podrían desincronizarse — nueva fuente de incoherencia justo en el punto débil de TinyDB.
+  La solución correcta es un **índice de BD** sobre `status`/`created_at`, responsabilidad del motor;
+  llega con MongoDB en producción y el Repository lo oculta. En la PoC se acepta el barrido (tabla
+  pequeña, acotada por retención DEC-023; Sprint 1 síncrono ≈0-1 pendientes). Buen material
+  evaluativo para la memoria. FIFO sale de `created_at` cuando exista el worker asíncrono (futuro).
+- **Lock por descriptor (DEC-028) pospuesto** hasta tocar concurrencia/HA.
+
+Próximo: **J2** (Commands con `validate()`/`execute()`: deploy/undeploy/start/stop + crear
+carpeta/descriptor) y **J3** (motor que ejecuta un Command y gestiona el ciclo de vida del Job).

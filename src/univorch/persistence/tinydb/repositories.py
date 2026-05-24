@@ -7,7 +7,7 @@ subtree is a path-prefix query.
 
 from tinydb import Query, TinyDB
 
-from univorch.models import Descriptor, Folder
+from univorch.models import Descriptor, Folder, Job, JobStatus
 
 
 def _in_subtree(prefix: str, path: str) -> bool:
@@ -48,6 +48,33 @@ class FolderRepository:
 
     def delete(self, path: str) -> None:
         self._table.remove(Query().path == path)
+
+
+class JobRepository:
+    """Stores jobs, keyed by id (a job is not a tree node, so not by path)."""
+
+    def __init__(self, db: TinyDB) -> None:
+        self._table = db.table("jobs")
+
+    def save(self, job: Job) -> None:
+        data = job.model_dump(mode="json")
+        self._table.upsert(data, Query().id == data["id"])
+
+    def get(self, job_id: str) -> Job | None:
+        doc = self._table.get(Query().id == job_id)
+        return Job.model_validate(doc) if doc else None
+
+    def find_by_target(self, target: str) -> list[Job]:
+        docs = self._table.search(Query().target == target)
+        return [Job.model_validate(doc) for doc in docs]
+
+    def find_by_status(self, status: JobStatus) -> list[Job]:
+        # Full table scan: TinyDB has no indexes. Fine for the PoC's small,
+        # retention-capped table; production (MongoDB) would index status and
+        # created_at to avoid the scan (DEC-030). The Repository hides this.
+        docs = self._table.search(Query().status == status)
+        jobs = [Job.model_validate(doc) for doc in docs]
+        return sorted(jobs, key=lambda job: job.created_at)  # FIFO by creation
 
 
 class DescriptorRepository:
