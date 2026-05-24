@@ -120,7 +120,7 @@ demo usando la CLI, y puede ver los conceptos clave en acción sin necesidad de 
 - [ ] Modelo de datos: `Folder`, `Descriptor`, `Job` (sin herencia completa todavía — YAMLs
       autocontenidos en Sprint 1; Resolver completo en Sprint 2)
 - [ ] Repositorios TinyDB: `FolderRepository`, `DescriptorRepository`, `JobRepository`
-- [ ] `MockConnector` con `empty()`, `with_defaults()`, `with_templates()` y métodos de
+- [ ] `MockConnector` con `empty()`, `with_demo_templates()`, `with_templates()` y métodos de
       inspección (`deployed_vms()`, `inject_drift()`, `make_unreachable()`)
 - [ ] Motor de Jobs básico: ciclo de vida `pending → running → completed/failed`, lock por
       descriptor en BD
@@ -201,15 +201,15 @@ folders:
 descriptors:
   - path: /lab/networks/student01  # obligatorio
     description: "..."             # opcional
-    connector: mock                # obligatorio: mock | vmware | proxmox
-    template: linux-base           # obligatorio: nombre de la VM base en el conector
+    hypervisor: mock               # obligatorio: mock | vmware | proxmox
+    base_vm: linux-base            # obligatorio: nombre de la VM base en el hipervisor
     cpu: 2                         # opcional (mock lo ignora; útil para validación futura)
     memory_mb: 2048                # opcional
     disk_gb: 20                    # opcional
 ```
 
 **Limitación de Sprint 1:** los descriptores son autocontenidos — llevan toda su configuración
-inline. En Sprint 2, `connector`, `template` y otros campos vendrán heredados de la carpeta
+inline. En Sprint 2, `hypervisor`, `base_vm` y otros campos vendrán heredados de la carpeta
 padre (herencia en cascada del Resolver). Los campos `cpu`/`memory_mb`/`disk_gb` están en el
 schema para que el YAML sea realista y los tests de validación tengan algo que comprobar.
 
