@@ -1,6 +1,7 @@
 """Tests for the CLI shell: path resolution and navigation (C1)."""
 
 import io
+from pathlib import Path
 
 import pytest
 from tinydb import TinyDB
@@ -111,3 +112,21 @@ class TestMachineCommands:
     def test_status_unknown_shows_no_state(self, shell: UnivOrchShell) -> None:
         out = _run(shell, "status /lab/nope")
         assert "deployed" not in out and "provisioned" not in out
+
+
+class TestApplyCommand:
+    def test_applies_a_yaml_file(self, shell: UnivOrchShell, tmp_path: Path) -> None:
+        f = tmp_path / "setup.yml"
+        f.write_text(
+            "kind: apply\n"
+            "folders:\n  - path: /lab\n"
+            "descriptors:\n"
+            "  - path: /lab/vm\n    hypervisor: mock\n    base_vm: linux-base\n"
+        )
+        out = _run(shell, f"apply {f}")
+        assert "/lab" in out  # report mentions the created items
+        assert "/lab/vm" in _run(shell, "list /")  # tree was created
+
+    def test_missing_file_creates_nothing(self, shell: UnivOrchShell) -> None:
+        _run(shell, "apply /nope/missing.yml")  # error to stderr, no crash
+        assert "/lab" not in _run(shell, "list /")

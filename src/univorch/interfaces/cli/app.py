@@ -16,10 +16,13 @@ import sys
 from collections.abc import Callable
 
 import cmd2
+from pydantic import ValidationError
+from ruamel.yaml.error import YAMLError
 from tinydb import TinyDB
 
 from univorch.connectors.mock import MockConnector
 from univorch.models import DescriptorState, Job, JobStatus
+from univorch.parser import load_apply_file
 from univorch.persistence.tinydb.repositories import (
     DescriptorRepository,
     FolderRepository,
@@ -124,6 +127,17 @@ class UnivOrchShell(cmd2.Cmd):
             f"runtime={runtime}  vm_id={vm_id}",
             markup=True,
         )
+
+    def do_apply(self, arg: str) -> None:
+        """Apply a YAML file: create/update folders and descriptors from it."""
+        try:
+            document = load_apply_file(arg.strip())
+        except (OSError, YAMLError, ValidationError) as error:
+            self.perror(str(error))
+            return
+        for result in self._service.apply(document):
+            style = "green" if result.ok else "red"
+            self.poutput(f"{result.path}  {result.message}", style=style)
 
 
 def main() -> None:

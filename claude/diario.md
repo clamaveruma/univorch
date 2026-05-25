@@ -1134,7 +1134,43 @@ Primera pieza de la última interfaz. `cmd2.Cmd` con métodos `do_*` (sirven par
 - Decisión de palabras: en el chat se usan términos españoles ("salvedad", "ensamblaje"…) en vez de
   jerga inglesa cuando existe equivalente (a petición del usuario).
 
+### C2 — CLI: `status` y comandos de máquina (Rich vía cmd2 3.x)
+
+Segunda pieza. Operaciones que cambian estado + lectura de estado:
+- **`do_deploy`/`do_undeploy`/`do_start`/`do_stop`** delegan en un helper `_machine(operation, arg)`:
+  resuelve el path, llama a la operación del service, captura `OperationError` (rechazo de
+  validación → `perror`, en rojo a stderr), y si va bien imprime `job.message` en verde/rojo según
+  `COMPLETED`/`FAILED`. La interfaz no decide nada: solo traduce y colorea (DEC-031).
+- **`do_status`**: pinta el estado del descriptor con color por estado (`_STATE_STYLE`:
+  provisioned=dim, deployed=verde, broken=rojo, unreachable=amarillo) y el runtime si está desplegado.
+- **Colores con cmd2 3.x:** `poutput(..., style=...)` y `markup=True` (cmd2 3.x integra Rich y
+  detecta TTY: color en terminal, texto plano en tests/redirección). Se descartó montar una `Console`
+  de Rich aparte. El prompt coloreado se aplaza (API de cmd2 3.x).
+- Tests: deploy→status, start cambia runtime, ciclo completo (deploy/start/stop/undeploy),
+  provisioned sin runtime, rechazos (path desconocido no muestra éxito).
+
+### C3 — CLI: comando `apply` (cierra la demo mínima)
+
+Última pieza de la CLI y del núcleo de Sprint 1:
+- **`do_apply(file)`**: lee el fichero con `load_apply_file` (parser ruamel + Pydantic), captura
+  `OSError`/`YAMLError`/`ValidationError` → `perror` sin tocar nada; si parsea, recorre
+  `service.apply(document)` e imprime el informe `ApplyResult` por item (verde si `ok`, rojo si no).
+  Best-effort coherente con el service (DEC-027): lo válido se aplica, lo rechazado se anota.
+- **Salvedad de mypy:** `YAMLError` se importa de `ruamel.yaml.error` (no del paquete raíz; los stubs
+  no lo exponen arriba) aunque en runtime ambos funcionen.
+- Tests: aplica un YAML real (con `tmp_path`) y comprueba que el árbol se crea; fichero inexistente →
+  error a stderr, no crea nada.
+- **Estado:** 137 tests en verde; toda la puerta de calidad (ruff + mypy strict + pytest) pasa.
+  `app.py` al 92% (solo `main()` sin cubrir, punto de entrada). **La demo de `demo/README.md` corre
+  de punta a punta** con `apply`/`list`/`deploy`/`start`/`status`/`stop`/`undeploy` + `cd`/`pwd`.
+
+### Sprint 1 — núcleo mínimo completo
+
+Cerrado el camino bottom-up con TDD: conector mock → modelos → repos TinyDB → Job/Command/motor →
+`OrchestratorService` (facade) → parser YAML → CLI. La demo del profesor (sin hipervisor real,
+mock en memoria) es ejecutable. Pendientes diferidos a Sprint 2+: herencia en cascada (Resolver),
+web GUI (NiceGUI), RBAC, conectores reales, capa docente, `broken` + simulación de fallos del mock
+(M4), todo-o-se-rechaza del batch + Job padre, prompt coloreado, daemon + REST.
+
 ### Próximo
-- **C2** — `status` + máquina (`deploy`/`undeploy`/`start`/`stop`) con salida Rich + `OperationError`.
-- **C3** — `apply` (lee el YAML con el parser, lo pasa a `service.apply`, muestra el informe).
-- Con C2+C3, la demo de `demo/README.md` corre de punta a punta.
+- Probar la demo end-to-end (REPL interactivo + modo bash) y guiar al usuario.
