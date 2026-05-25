@@ -93,6 +93,11 @@ class OrchestratorService:
         return self._run(self._machine_command(StopCommand, path))
 
     def status(self, path: str) -> DescriptorStatus:
+        """Report a descriptor's status: its orchestrator state and, only when it
+        is deployed, the live runtime state queried from its hypervisor.
+
+        A read — creates no Job. Raises OperationError if the path is unknown.
+        """
         descriptor = self._descriptors.get(path)
         if descriptor is None:
             raise OperationError([f"descriptor not found: {path}"])
@@ -113,7 +118,12 @@ class OrchestratorService:
         )
 
     def list_tree(self, path: str = "/") -> list[TreeEntry]:
-        # folders and descriptors are separate tables; merge each subtree
+        """List the subtree rooted at ``path`` as one listing sorted by path.
+
+        Folders and descriptors live in separate tables, so this reads each one's
+        subtree and merges them. Reads the DB only (no hypervisor calls) and
+        creates no Job.
+        """
         entries: list[TreeEntry] = [
             TreeEntry(path=folder.path, kind="folder")
             for folder in self._folders.subtree(path)
@@ -125,7 +135,11 @@ class OrchestratorService:
         return sorted(entries, key=lambda entry: entry.path)
 
     def _machine_command(self, command_cls: MachineCommand, path: str) -> Command:
-        """Build a machine command, resolving the descriptor and its connector."""
+        """Build a machine command for ``path``.
+
+        Loads the descriptor (rejects if missing) and resolves its hypervisor's
+        connector (rejects if unknown), then constructs the command with both.
+        """
         descriptor = self._descriptors.get(path)
         if descriptor is None:
             raise OperationError([f"descriptor not found: {path}"])
@@ -135,7 +149,11 @@ class OrchestratorService:
         return command_cls(path, self._descriptors, connector)
 
     def _run(self, command: Command) -> Job:
-        """Validate (a rejection raises, no Job) then run via the Jobs engine."""
+        """Run an already-built command.
+
+        Validates first — any error raises OperationError and creates no Job —
+        then hands it to the engine, which records and returns the Job.
+        """
         errors = command.validate()
         if errors:
             raise OperationError(errors)  # rejected: no Job created
