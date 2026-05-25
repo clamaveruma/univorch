@@ -1116,3 +1116,25 @@ Discusión con el usuario (todo para Sprint 2, con la herencia en cascada):
      hace `descriptor.hypervisor` hoy, pero sin el paso de "definición" (el nombre apuntará a (1)).
   - Separación: **definir (recurso) ≠ aliasar (derivado) ≠ usar (referencia)**. Enlaza DEC-010,
     DEC-017, DEC-026, DEC-011 (visibilidad de hipervisores por rol).
+
+### C1 — CLI base con cmd2 (`interfaces/cli/app.py`)
+
+Primera pieza de la última interfaz. `cmd2.Cmd` con métodos `do_*` (sirven para REPL y bash a la vez):
+- **`build_service(db)`** = raíz de composición: TinyDB → repos + `{"mock": with_demo_templates()}` →
+  `OrchestratorService`. En Sprint 1 la CLI lo monta **en su propio proceso** (el mock en memoria se
+  reinicia entre procesos; la demo es una sesión REPL, así funciona; daemon real en Sprint 2).
+- **Navegación:** `_cwd` (carpeta actual), `do_cd`/`do_pwd`, prompt `univorch <cwd}>`, y `_resolve`
+  (path relativo → absoluto contra el CWD).
+- **`do_list`** (lectura): `service.list_tree(resolve(arg))` formateado.
+- **`main()`:** lee `UNIVORCH_DB` (o default), construye el shell; si hay args → un comando (bash),
+  si no → `cmdloop()` (REPL). No se testea unitariamente (punto de entrada interactivo).
+- Tests (`tests/unit/test_cli.py`): `_resolve` (absoluto/relativo/vacío), `cd`/`pwd` (incl.
+  encadenado y a raíz), `list`. Captura de salida con `StringIO` en `shell.stdout`. 129 tests; app.py
+  al 85% (solo `main()` sin cubrir).
+- Decisión de palabras: en el chat se usan términos españoles ("salvedad", "ensamblaje"…) en vez de
+  jerga inglesa cuando existe equivalente (a petición del usuario).
+
+### Próximo
+- **C2** — `status` + máquina (`deploy`/`undeploy`/`start`/`stop`) con salida Rich + `OperationError`.
+- **C3** — `apply` (lee el YAML con el parser, lo pasa a `service.apply`, muestra el informe).
+- Con C2+C3, la demo de `demo/README.md` corre de punta a punta.
