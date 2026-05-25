@@ -156,12 +156,13 @@ class OrchestratorService:
         # shallowest paths first so a parent folder is created before its children
         for folder in sorted(document.folders, key=lambda f: f.path.count("/")):
             results.append(self._apply_one(CreateFolderCommand(folder, self._folders)))
+        # descriptors after every folder, so their parent folder already exists
         for descriptor in document.descriptors:
             command = CreateDescriptorCommand(
                 descriptor, self._descriptors, self._folders
             )
             results.append(self._apply_one(command))
-        return results
+        return results  # one result row per item processed
 
     def _machine_command(self, command_cls: MachineCommand, path: str) -> Command:
         """Build a machine command for ``path``.
@@ -189,15 +190,19 @@ class OrchestratorService:
         return self._engine.run(command)
 
     def _apply_one(self, command: Command) -> ApplyResult:
-        """Run one apply item, turning a rejection into a result instead of raising."""
+        """Run one apply item and return its result row; never raises.
+
+        Wraps the two outcomes of ``_run`` so ``apply`` can collect a result per
+        item and keep going (best-effort).
+        """
         try:
-            job = self._run(command)
+            job = self._run(command)  # it ran: there is a Job (COMPLETED or FAILED)
             return ApplyResult(
                 path=command.target,
                 ok=job.status == JobStatus.COMPLETED,
                 message=job.message or "",
             )
-        except OperationError as error:
+        except OperationError as error:  # rejected by validation: no Job created
             return ApplyResult(
                 path=command.target, ok=False, message="; ".join(error.errors)
             )
