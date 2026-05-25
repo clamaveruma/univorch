@@ -97,6 +97,7 @@ class OrchestratorService:
         if descriptor is None:
             raise OperationError([f"descriptor not found: {path}"])
         runtime: RuntimeState | None = None
+        # runtime state only exists for a deployed VM — ask its hypervisor
         if descriptor.state == DescriptorState.DEPLOYED and descriptor.vm_id:
             connector = self._connectors.get(descriptor.hypervisor)
             runtime = (
@@ -112,6 +113,7 @@ class OrchestratorService:
         )
 
     def list_tree(self, path: str = "/") -> list[TreeEntry]:
+        # folders and descriptors are separate tables; merge each subtree
         entries: list[TreeEntry] = [
             TreeEntry(path=folder.path, kind="folder")
             for folder in self._folders.subtree(path)
@@ -123,6 +125,7 @@ class OrchestratorService:
         return sorted(entries, key=lambda entry: entry.path)
 
     def _machine_command(self, command_cls: MachineCommand, path: str) -> Command:
+        """Build a machine command, resolving the descriptor and its connector."""
         descriptor = self._descriptors.get(path)
         if descriptor is None:
             raise OperationError([f"descriptor not found: {path}"])
@@ -132,6 +135,7 @@ class OrchestratorService:
         return command_cls(path, self._descriptors, connector)
 
     def _run(self, command: Command) -> Job:
+        """Validate (a rejection raises, no Job) then run via the Jobs engine."""
         errors = command.validate()
         if errors:
             raise OperationError(errors)  # rejected: no Job created
