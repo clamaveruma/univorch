@@ -12,7 +12,7 @@ create vs update, references) and RBAC belong to the apply/service layer
 import re
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import uuid4
 
 from pydantic import AfterValidator, BaseModel, Field
@@ -108,3 +108,17 @@ class Job(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     finished_at: datetime | None = None
     message: str | None = None
+
+
+class ApplyDocument(BaseModel):
+    """A batch of folders and descriptors to create/update (the ``apply`` input).
+
+    Flat in v1: every item carries its full path. Nested definitions with cascade
+    inheritance (a folder's children inheriting its properties) are a Sprint 2
+    refinement.
+    """
+
+    kind: Literal["apply"] = "apply"
+    version: str = "1"
+    folders: list[Folder] = Field(default_factory=list)
+    descriptors: list[Descriptor] = Field(default_factory=list)

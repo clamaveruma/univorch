@@ -14,13 +14,15 @@ from univorch.connectors.base import HypervisorConnector
 from univorch.connectors.types import RuntimeState
 from univorch.jobs.commands import (
     Command,
+    CreateDescriptorCommand,
+    CreateFolderCommand,
     DeployCommand,
     StartCommand,
     StopCommand,
     UndeployCommand,
 )
 from univorch.jobs.engine import JobEngine
-from univorch.models import DescriptorState, Job
+from univorch.models import ApplyDocument, DescriptorState, Job, JobStatus
 from univorch.persistence.tinydb.repositories import (
     DescriptorRepository,
     FolderRepository,
@@ -57,6 +59,14 @@ class TreeEntry(BaseModel):
     path: str
     kind: Literal["folder", "descriptor"]
     state: DescriptorState | None = None  # None for folders
+
+
+class ApplyResult(BaseModel):
+    """Per-item outcome of an ``apply`` (best-effort report)."""
+
+    path: str
+    ok: bool
+    message: str
 
 
 class OrchestratorService:
@@ -134,6 +144,25 @@ class OrchestratorService:
         ]
         return sorted(entries, key=lambda entry: entry.path)
 
+    def apply(self, document: ApplyDocument) -> list[ApplyResult]:
+        """Create/update the folders and descriptors in ``document``.
+
+        Best-effort (DEC-027): items run in dependency order — folders shallowest
+        first, then descriptors — and a rejected item is recorded while the rest
+        continue. Each item is its own Job. (Batch all-or-reject and a parent Job
+        for the whole apply are future work, DEC-028.)
+        """
+        results: list[ApplyResult] = []
+        # shallowest paths first so a parent folder is created before its children
+        for folder in sorted(document.folders, key=lambda f: f.path.count("/")):
+            results.append(self._apply_one(CreateFolderCommand(folder, self._folders)))
+        for descriptor in document.descriptors:
+            command = CreateDescriptorCommand(
+                descriptor, self._descriptors, self._folders
+            )
+            results.append(self._apply_one(command))
+        return results
+
     def _machine_command(self, command_cls: MachineCommand, path: str) -> Command:
         """Build a machine command for ``path``.
 
@@ -158,3 +187,17 @@ class OrchestratorService:
         if errors:
             raise OperationError(errors)  # rejected: no Job created
         return self._engine.run(command)
+
+    def _apply_one(self, command: Command) -> ApplyResult:
+        """Run one apply item, turning a rejection into a result instead of raising."""
+        try:
+            job = self._run(command)
+            return ApplyResult(
+                path=command.target,
+                ok=job.status == JobStatus.COMPLETED,
+                message=job.message or "",
+            )
+        except OperationError as error:
+            return ApplyResult(
+                path=command.target, ok=False, message="; ".join(error.errors)
+            )

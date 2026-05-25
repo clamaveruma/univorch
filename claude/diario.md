@@ -1060,3 +1060,34 @@ Discusión extensa con el usuario; **todo fuera de v1** (síncrono). Material ev
 1. **S3 — `apply`** (batch de creaciones; orden padre-primero; validación del lote, best-effort).
 2. **Parser YAML** (`ApplyDocument`) → `apply` = un Command por item.
 3. **CLI** (cmd2) → corre la demo de `demo/README.md`.
+
+### S3 — `apply` (batch de creaciones, best-effort)
+
+`models.py`: **`ApplyDocument`** (Pydantic, **plano** en v1): `kind`, `version`, `folders[]`,
+`descriptors[]`. Es la entrada de `apply`; el parser YAML lo producirá.
+
+`service.py`: `apply(document) -> list[ApplyResult]`:
+- **orden de dependencia:** carpetas de menos a más profundas (`path.count("/")`), luego
+  descriptores → el padre se crea antes que el hijo;
+- por item, `_apply_one` ejecuta vía `_run` y convierte el **rechazo en un resultado** (no relanza)
+  → **best-effort**: lo válido se aplica, lo rechazado se anota; cada item es su propio Job;
+- `ApplyResult{path, ok, message}` como informe.
+- 115 tests; `models.py` y `service.py` al 100%.
+
+**Decisiones de sintaxis / alcance acordadas con el usuario:**
+- **YAML plano en v1** (cada item con su path completo). El **anidamiento** (descriptores dentro de
+  la carpeta, paths relativos) se introduce **en Sprint 2 con la herencia en cascada** (DEC-026):
+  ahí la carpeta define `hypervisor`/`base_vm`/… y los descriptores anidados los **heredan** →
+  quedan minúsculos. Sin herencia (v1) anidar solo ahorraría el prefijo y añadiría complejidad al
+  parser. Es la discusión de sintaxis YAML ya marcada para un sprint futuro.
+
+**Futuros pendientes (no olvidar):**
+- **"todo-o-se-rechaza"** del batch (DEC-028): validar el lote entero (consciente del documento) y
+  rechazar antes de tocar nada. Requiere validación document-aware + lock. v1 es best-effort (DEC-027).
+- **Job padre** del batch (agrupar los Jobs hijos bajo uno; resultado éxito/fallo/parcial).
+- **Anidamiento YAML + herencia** (Sprint 2).
+
+### Próximo (tras S3)
+1. **Parser YAML** (`ruamel.yaml`) → construye `ApplyDocument` desde el fichero; `apply` lo consume.
+2. **CLI** (cmd2): `apply`/`deploy`/`undeploy`/`start`/`stop`/`status`/`list` + `cd`/`pwd` →
+   corre la demo de `demo/README.md`. Es la última pieza para la demo mínima.

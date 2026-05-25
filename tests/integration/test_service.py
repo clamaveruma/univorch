@@ -6,7 +6,13 @@ from tinydb.storages import MemoryStorage
 
 from univorch.connectors.mock import MockConnector
 from univorch.connectors.types import RuntimeState
-from univorch.models import Descriptor, DescriptorState, Folder, JobStatus
+from univorch.models import (
+    ApplyDocument,
+    Descriptor,
+    DescriptorState,
+    Folder,
+    JobStatus,
+)
 from univorch.persistence.tinydb.repositories import (
     DescriptorRepository,
     FolderRepository,
@@ -149,3 +155,48 @@ class TestListTree:
         folders.save(Folder(path="/lab"))
         folders.save(Folder(path="/other"))
         assert [e.path for e in service.list_tree("/lab")] == ["/lab"]
+
+
+class TestApply:
+    def test_creates_folders_and_descriptors(
+        self,
+        service: OrchestratorService,
+        folders: FolderRepository,
+        descriptors: DescriptorRepository,
+    ) -> None:
+        doc = ApplyDocument(
+            folders=[Folder(path="/lab"), Folder(path="/lab/networks")],
+            descriptors=[
+                Descriptor(
+                    path="/lab/networks/vm1", hypervisor="mock", base_vm="linux-base"
+                )
+            ],
+        )
+        results = service.apply(doc)
+        assert all(r.ok for r in results)
+        assert folders.exists("/lab") and folders.exists("/lab/networks")
+        assert descriptors.get("/lab/networks/vm1") is not None
+
+    def test_orders_parents_first(
+        self, service: OrchestratorService, folders: FolderRepository
+    ) -> None:
+        # child listed before parent in the document → sorted, so both succeed
+        doc = ApplyDocument(folders=[Folder(path="/lab/networks"), Folder(path="/lab")])
+        assert all(r.ok for r in service.apply(doc))
+        assert folders.exists("/lab/networks")
+
+    def test_best_effort_records_rejection(
+        self, service: OrchestratorService, folders: FolderRepository
+    ) -> None:
+        doc = ApplyDocument(folders=[Folder(path="/lab"), Folder(path="/x/y")])
+        by_path = {r.path: r for r in service.apply(doc)}
+        assert by_path["/lab"].ok
+        assert not by_path["/x/y"].ok  # parent /x missing
+        assert folders.exists("/lab")  # the valid one was still applied
+        assert not folders.exists("/x/y")
+
+    def test_idempotent(self, service: OrchestratorService) -> None:
+        doc = ApplyDocument(folders=[Folder(path="/lab")])
+        service.apply(doc)
+        results = service.apply(doc)
+        assert results[0].ok and "no change" in results[0].message
