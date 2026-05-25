@@ -993,9 +993,50 @@ incluye un test que comprueba que el Job está persistido y `RUNNING` durante `e
 Estado: **100 tests** en verde. Núcleo: conector, modelos, repos, Job, los 6 Commands y el **motor**.
 Falta: `OrchestratorService` (facade) + parser YAML + CLI para la demo.
 
+### S1 — OrchestratorService: construcción + operaciones de máquina (TDD)
+
+`src/univorch/service.py`. Facade único (DEC-031); CLI/web/capa-2 pasan por aquí, nadie habla con
+repos/conectores/motor directamente.
+- `OrchestratorService(folders_repo, descriptors_repo, jobs_repo, hypervisor_connectors)` — el
+  registro renombrado a `hypervisor_connectors`; crea el `JobEngine` por dentro.
+- `OperationError(Exception)` con `errors: list[str]`: el **rechazo de validación** (no crea Job);
+  la interfaz lo captura y muestra los motivos.
+- `deploy`/`undeploy`/`start`/`stop(path) -> Job`: resuelven descriptor + conector (rechazo si no
+  existe / hipervisor desconocido), `validate()` (rechazo si errores, **sin Job**), `engine.run()`.
+- Helpers `_machine_command(cls, path)` y `_run(command)`. Alias PEP 695 `type MachineCommand`.
+- Service construye los Commands directamente (sin `CommandFactory`, como acordado).
+- Tests de integración (`tests/integration/test_service.py`): deploy completa y marca deployed;
+  ciclo completo deploy→start→stop→undeploy; rechazos (path desconocido **sin crear Job**,
+  hipervisor desconocido, descriptor broken). `service.py` al 100%; 105 tests en verde.
+- Pendiente del service: **S2** (`status`/`list`, lecturas sin Job) y **S3** (`apply`).
+
+### Notas de diseño futuro — async, concurrencia y transporte (para la memoria)
+
+Discusión extensa con el usuario; **todo fuera de v1** (síncrono). Material evaluativo:
+- **Jobs ≠ asincronía.** Un Job es persistencia/auditoría de un **cambio de estado**; async es "no
+  bloquear". Ejes ortogonales. En v1 todo es síncrono aunque las escrituras creen Job.
+- **Dos ejes:** **cola durable** (la tabla de Jobs; persistencia; solo escrituras) vs
+  **concurrencia** (pool/asyncio + timeouts; ejecución paralela). El worker usa la concurrencia para
+  procesar la cola durable. **Las lecturas usan solo la concurrencia**, sin cola durable.
+- **No dos agentes redundantes:** una maquinaria de concurrencia compartida; la cola durable es
+  solo-escrituras; las lecturas se la saltan.
+- **Transporte REST — 3 patrones:** (a) respuesta síncrona completa; (b) **streaming** (chunked /
+  NDJSON / SSE: una conexión que entrega resultados a trozos, **sin polling**); (c) **aceptado +
+  poll** (devuelve job id, `GET /jobs/{id}`).
+  - Escrituras largas (deploy de 100) → **(c) job + poll** (durable, no cuelga la conexión).
+  - Lecturas masivas (status de 100) → **(a)** síncrona+concurrencia+timeout (simple) o **(b)**
+    streaming.
+- **Timeout y bloqueo de cabeza de línea:** con (a), si una máquina está caída, **toda** la consulta
+  espera el timeout (p.ej. 3s) antes de devolver nada — las rápidas quedan rehenes de la lenta. Con
+  **streaming (b)** las rápidas llegan al instante y la caída aparece "unreachable" tras su timeout.
+  → para status masivo/dashboard, **streaming** es mejor UX; (a) vale para una/pocas.
+- **Auditoría de lecturas** (quién consultó qué) → **log del sistema** (syslog, DEC-023), no Jobs.
+- `unreachable` **persistido** (estado) lo pone una **operación** que falla por comunicación (vía su
+  Job); un read solo **reporta** un "ahora no llego" transitorio.
+
 ### Próximo
-1. **`OrchestratorService`** (facade, DEC-031): valida y rechaza (sin Job) si procede; construye los
-   Commands (resuelve el conector vía el registro) y los pasa al motor; `apply`/`deploy`/`start`/
-   `stop`/`status`/`list`. (Aquí se decide service-construye-directo vs `CommandFactory`.)
-2. **Parser YAML** (`ApplyDocument`) → `apply` = un Command por item.
-3. **CLI** (cmd2) → corre la demo.
+1. **S2 — `status`/`list`** en el service (lecturas, sin Job; resultados —incl. mixtos— en el valor
+   de retorno).
+2. **S3 — `apply`** (batch de creaciones; orden padre-primero; validación del lote).
+3. **Parser YAML** (`ApplyDocument`) → `apply` = un Command por item.
+4. **CLI** (cmd2) → corre la demo.
