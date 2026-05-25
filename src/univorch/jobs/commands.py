@@ -18,8 +18,11 @@ from typing import ClassVar, override
 
 from univorch.connectors.base import HypervisorConnector
 from univorch.connectors.types import RuntimeState
-from univorch.models import DescriptorState, OperationType
-from univorch.persistence.tinydb.repositories import DescriptorRepository
+from univorch.models import Descriptor, DescriptorState, Folder, OperationType
+from univorch.persistence.tinydb.repositories import (
+    DescriptorRepository,
+    FolderRepository,
+)
 
 
 class Command(ABC):
@@ -46,11 +49,11 @@ class DeployCommand(Command):
         self,
         path: str,
         descriptors: DescriptorRepository,
-        connector: HypervisorConnector,
+        hypervisor_connector: HypervisorConnector,
     ) -> None:
         self.target = path
         self._descriptors = descriptors
-        self._connector = connector
+        self._connector = hypervisor_connector
 
     @override
     def validate(self) -> list[str]:
@@ -87,11 +90,11 @@ class UndeployCommand(Command):
         self,
         path: str,
         descriptors: DescriptorRepository,
-        connector: HypervisorConnector,
+        hypervisor_connector: HypervisorConnector,
     ) -> None:
         self.target = path
         self._descriptors = descriptors
-        self._connector = connector
+        self._connector = hypervisor_connector
 
     @override
     def validate(self) -> list[str]:
@@ -128,11 +131,11 @@ class StartCommand(Command):
         self,
         path: str,
         descriptors: DescriptorRepository,
-        connector: HypervisorConnector,
+        hypervisor_connector: HypervisorConnector,
     ) -> None:
         self.target = path
         self._descriptors = descriptors
-        self._connector = connector
+        self._connector = hypervisor_connector
 
     @override
     def validate(self) -> list[str]:
@@ -165,11 +168,11 @@ class StopCommand(Command):
         self,
         path: str,
         descriptors: DescriptorRepository,
-        connector: HypervisorConnector,
+        hypervisor_connector: HypervisorConnector,
     ) -> None:
         self.target = path
         self._descriptors = descriptors
-        self._connector = connector
+        self._connector = hypervisor_connector
 
     @override
     def validate(self) -> list[str]:
@@ -191,3 +194,93 @@ class StopCommand(Command):
             return "already stopped (no change)"  # idempotent no-op (DEC-035)
         self._connector.stop(descriptor.vm_id)
         return "stopped"
+
+
+class CreateFolderCommand(Command):
+    """Create or update a folder (definition operation; no hypervisor)."""
+
+    operation = OperationType.CREATE_FOLDER
+
+    def __init__(self, folder: Folder, folders: FolderRepository) -> None:
+        self.target = folder.path
+        self._folder = folder
+        self._folders = folders
+
+    @override
+    def validate(self) -> list[str]:
+        parent = self.target.rsplit("/", 1)[0]
+        if parent and not self._folders.exists(parent):
+            return [f"parent folder does not exist: {parent}"]
+        return []
+
+    @override
+    def execute(self) -> str:
+        errors = self.validate()
+        if errors:
+            raise ValueError("; ".join(errors))
+        existing = self._folders.get(self.target)
+        if existing == self._folder:
+            return f"folder {self.target} unchanged (no change)"
+        self._folders.save(self._folder)
+        verb = "updated" if existing else "created"
+        return f"folder {self.target} {verb}"
+
+
+class CreateDescriptorCommand(Command):
+    """Create or update a descriptor's definition (definition operation).
+
+    A descriptor mixes definition (hypervisor, base_vm, specs) with runtime state
+    (state, vm_id). Re-applying only touches the definition: an existing
+    descriptor that is not provisioned can only be redefined if the definition is
+    unchanged (otherwise it must be undeployed first), so its runtime state is
+    never clobbered.
+    """
+
+    operation = OperationType.CREATE_DESCRIPTOR
+
+    def __init__(
+        self,
+        descriptor: Descriptor,
+        descriptors: DescriptorRepository,
+        folders: FolderRepository,
+    ) -> None:
+        self.target = descriptor.path
+        self._descriptor = descriptor
+        self._descriptors = descriptors
+        self._folders = folders
+
+    @override
+    def validate(self) -> list[str]:
+        errors: list[str] = []
+        parent = self.target.rsplit("/", 1)[0]
+        if not parent or not self._folders.exists(parent):
+            errors.append(f"parent folder does not exist: {parent or '/'}")
+        existing = self._descriptors.get(self.target)
+        if (
+            existing is not None
+            and existing.state != DescriptorState.PROVISIONED
+            and self._differs(existing)
+        ):
+            errors.append(
+                f"cannot redefine a non-provisioned descriptor: {self.target}"
+            )
+        return errors
+
+    @override
+    def execute(self) -> str:
+        errors = self.validate()
+        if errors:
+            raise ValueError("; ".join(errors))
+        existing = self._descriptors.get(self.target)
+        if existing is not None and not self._differs(existing):
+            return f"descriptor {self.target} unchanged (no change)"
+        self._descriptors.save(self._descriptor)
+        verb = "updated" if existing else "created"
+        return f"descriptor {self.target} {verb}"
+
+    def _differs(self, existing: Descriptor) -> bool:
+        """True if the definition (ignoring runtime state) differs from existing."""
+        runtime = {"state", "vm_id"}
+        return existing.model_dump(exclude=runtime) != self._descriptor.model_dump(
+            exclude=runtime
+        )

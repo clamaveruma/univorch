@@ -7,13 +7,23 @@ from tinydb.storages import MemoryStorage
 from univorch.connectors.mock import MockConnector
 from univorch.connectors.types import RuntimeState
 from univorch.jobs.commands import (
+    CreateDescriptorCommand,
+    CreateFolderCommand,
     DeployCommand,
     StartCommand,
     StopCommand,
     UndeployCommand,
 )
-from univorch.models import Descriptor, DescriptorState
-from univorch.persistence.tinydb.repositories import DescriptorRepository
+from univorch.models import Descriptor, DescriptorState, Folder
+from univorch.persistence.tinydb.repositories import (
+    DescriptorRepository,
+    FolderRepository,
+)
+
+
+@pytest.fixture
+def folders() -> FolderRepository:
+    return FolderRepository(TinyDB(storage=MemoryStorage))
 
 
 @pytest.fixture
@@ -178,3 +188,96 @@ def test_start_stop_require_deployed(
 ) -> None:
     _save(descriptors)  # provisioned, no VM
     assert command_cls("/lab/vm", descriptors, connector).validate() != []
+
+
+class TestCreateFolderCommand:
+    def test_creates(self, folders: FolderRepository) -> None:
+        msg = CreateFolderCommand(Folder(path="/lab"), folders).execute()
+        assert folders.get("/lab") is not None
+        assert "created" in msg
+
+    def test_top_level_needs_no_parent(self, folders: FolderRepository) -> None:
+        assert CreateFolderCommand(Folder(path="/lab"), folders).validate() == []
+
+    def test_requires_parent(self, folders: FolderRepository) -> None:
+        cmd = CreateFolderCommand(Folder(path="/lab/networks"), folders)
+        assert cmd.validate() != []
+
+    def test_execute_raises_without_parent(self, folders: FolderRepository) -> None:
+        cmd = CreateFolderCommand(Folder(path="/lab/networks"), folders)
+        with pytest.raises(ValueError):
+            cmd.execute()
+
+    def test_idempotent(self, folders: FolderRepository) -> None:
+        CreateFolderCommand(Folder(path="/lab"), folders).execute()
+        msg = CreateFolderCommand(Folder(path="/lab"), folders).execute()
+        assert "no change" in msg
+
+    def test_updates_existing(self, folders: FolderRepository) -> None:
+        CreateFolderCommand(Folder(path="/lab", description="old"), folders).execute()
+        msg = CreateFolderCommand(
+            Folder(path="/lab", description="new"), folders
+        ).execute()
+        assert "updated" in msg
+
+
+class TestCreateDescriptorCommand:
+    def _desc(self, **kwargs: object) -> Descriptor:
+        base = {"path": "/lab/vm", "hypervisor": "mock", "base_vm": "linux-base"}
+        return Descriptor(**(base | kwargs))
+
+    def test_creates_when_parent_exists(
+        self, descriptors: DescriptorRepository, folders: FolderRepository
+    ) -> None:
+        folders.save(Folder(path="/lab"))
+        msg = CreateDescriptorCommand(self._desc(), descriptors, folders).execute()
+        assert descriptors.get("/lab/vm") is not None
+        assert "created" in msg
+
+    def test_requires_parent_folder(
+        self, descriptors: DescriptorRepository, folders: FolderRepository
+    ) -> None:
+        cmd = CreateDescriptorCommand(self._desc(), descriptors, folders)  # no /lab
+        assert cmd.validate() != []
+
+    def test_execute_raises_without_parent_folder(
+        self, descriptors: DescriptorRepository, folders: FolderRepository
+    ) -> None:
+        with pytest.raises(ValueError):
+            CreateDescriptorCommand(self._desc(), descriptors, folders).execute()
+
+    def test_idempotent(
+        self, descriptors: DescriptorRepository, folders: FolderRepository
+    ) -> None:
+        folders.save(Folder(path="/lab"))
+        CreateDescriptorCommand(self._desc(), descriptors, folders).execute()
+        msg = CreateDescriptorCommand(self._desc(), descriptors, folders).execute()
+        assert "no change" in msg
+
+    def test_updates_provisioned(
+        self, descriptors: DescriptorRepository, folders: FolderRepository
+    ) -> None:
+        folders.save(Folder(path="/lab"))
+        descriptors.save(self._desc(description="old"))
+        msg = CreateDescriptorCommand(
+            self._desc(description="new"), descriptors, folders
+        ).execute()
+        assert "updated" in msg
+
+    def test_rejects_redefining_deployed(
+        self, descriptors: DescriptorRepository, folders: FolderRepository
+    ) -> None:
+        folders.save(Folder(path="/lab"))
+        descriptors.save(self._desc(state=DescriptorState.DEPLOYED, vm_id="mock-vm-1"))
+        cmd = CreateDescriptorCommand(self._desc(base_vm="other"), descriptors, folders)
+        assert cmd.validate() != []
+
+    def test_reapply_same_on_deployed_is_noop(
+        self, descriptors: DescriptorRepository, folders: FolderRepository
+    ) -> None:
+        folders.save(Folder(path="/lab"))
+        descriptors.save(self._desc(state=DescriptorState.DEPLOYED, vm_id="mock-vm-1"))
+        msg = CreateDescriptorCommand(self._desc(), descriptors, folders).execute()
+        assert "no change" in msg
+        d = descriptors.get("/lab/vm")
+        assert d is not None and d.state == DescriptorState.DEPLOYED  # runtime kept
