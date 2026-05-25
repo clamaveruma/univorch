@@ -299,6 +299,32 @@ Este fichero recoge las decisiones técnicas importantes del proyecto con refere
 - **8 categorías de problemas cubiertas por mecanismos ya diseñados:** conectividad → `unreachable`; deriva → `drifted`; recursos del hipervisor → Job falla → `broken`; recursos huérfanos → detección bajo demanda; operaciones sobre el árbol → validación previa (fail-fast); ciclo de vida → `broken` + lock; capa de datos → limitación de consistencia aceptada (DEC-030); usuarios y permisos → RBAC centralizado en el facade
 - **Mock como herramienta de prueba:** configurable para simular fallos, latencia y deriva — permite TDD de toda la lógica de errores sin hipervisor real
 - **Trazabilidad:** confirma DEC-022 (estados del descriptor), coherente con DEC-027 (validación fail-fast), DEC-028 (lock + `broken`), DEC-030 (limitación de consistencia), DEC-031 (RBAC en facade)
+- **Refinamiento 2026-05-25 — definición precisa de `broken` y dónde se determina:**
+  - **Definición:** un descriptor está `broken` cuando una **operación de ciclo de vida
+    (deploy/undeploy) falla a medias** y deja **incierta/inconsistente** la correspondencia
+    descriptor↔VM (el orquestador no puede fiarse de si la VM existe o coincide). Requiere
+    intervención (`force-undeploy`)
+  - **Se pone `broken`:** (1) en `deploy`/`undeploy`, si el conector falla tras pasar la
+    validación (un `clone`/`delete` a medias deja la VM en estado incierto) — el Command lo marca,
+    guarda y relanza; fuente principal en v1. (2) Futuro: por **reconciliación** (descriptor vs
+    realidad del hipervisor). (3) Ventana "conector OK pero falla el `save`" (DEC-030): no se puede
+    registrar en el momento (la BD es lo que falla) → se detecta por reconciliación. Futuro
+  - **NO se pone `broken`:** rechazos de validación (no se intentó nada); fallos de
+    `start`/`stop`/`pause`/`resume` (no cambian la correspondencia; transitorios → a lo sumo
+    `unreachable`); `unreachable` es estado aparte (conectividad, recuperable)
+  - **Salida:** `force-undeploy` (limpia VM residual → `provisioned`). No construido aún
+  - **Implicación en `validate`:** para que un fallo en `execute` sea un fallo real a medias (no un
+    error de config), `validate` debe cazar precondiciones predecibles (plantilla existe, hipervisor
+    alcanzable — DEC-027 lo permite consultando al conector). A afinar
+  - **Alcance:** definido ahora; **se implementa junto con la simulación de fallos del mock (M4)** y
+    las rutas de error, porque probar `broken` requiere fallos simulados. La demo mínima es camino
+    feliz y no toca `broken`. Ver `diario.md#2026-05-25`
+- **Validación antes del Job (aclaración con el usuario, 2026-05-25):** la validación que **rechaza**
+  vive en el `OrchestratorService` (valida la operación o el batch entero y rechaza **sin crear
+  ningún Job**, DEC-027/028). El **motor de Jobs** solo ejecuta Commands ya validados: crea el Job y
+  lo marca `COMPLETED`/`FAILED` según falle la **ejecución** (runtime). `execute()` revalida por
+  dentro solo como red de seguridad para llamadas sueltas. Semántica: fallo de validación → **no hay
+  Job**; fallo de ejecución → **Job `FAILED`**
 
 ## DEC-033 — Stack tecnológico v1
 

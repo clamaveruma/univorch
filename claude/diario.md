@@ -952,3 +952,50 @@ Estado: **J2 completo** (6 commands: Deploy/Undeploy/Start/Stop/CreateFolder/Cre
    pasa al motor; `apply`/`deploy`/`start`/`stop`/`status`/`list`.
 3. **Parser YAML** (`ApplyDocument`) → `apply` = un Command por item.
 4. **CLI** (cmd2) → corre la demo.
+
+---
+
+## 2026-05-25
+
+### Renombrados de claridad
+
+- Parámetros de los Commands: `descriptors`→`descriptors_repo`, `folders`→`folders_repo`
+  (atributos internos se mantienen cortos, igual que `hypervisor_connector`→`self._connector`).
+- `operation` → **`operation_type`** en `Command` y `Job` (es el tipo/op-code; desambigua la
+  confusión instancia/tipo). El enum sigue siendo `OperationType`. Matiz: diverge de
+  `status: JobStatus` (no decimos `status_type`), pero "operation" sí arrastra la ambigüedad.
+
+### Validación: dónde rechaza (corrección, aportada por el usuario)
+
+Se corrige el modelo previo. La **validación que rechaza vive en el `OrchestratorService`**, no en
+el motor: valida la operación (o el batch entero, `plan`) y **rechaza sin crear ningún Job**
+(DEC-027/028 — crear un Job ya es tocar la BD). El **motor** solo ejecuta Commands ya validados.
+Semántica limpia: **fallo de validación → no hay Job**; **fallo de ejecución (runtime) → Job
+`FAILED`**. `execute()` revalida por dentro solo como red de seguridad para llamadas sueltas.
+
+### `broken` — definición precisa (DEC-032 refinado)
+
+Definido con el usuario (registrado en `decisiones.md`, DEC-032): `broken` = una operación de ciclo
+de vida (deploy/undeploy) falla **a medias** y deja **incierta** la correspondencia descriptor↔VM.
+Se determina en deploy/undeploy cuando el conector falla (fuente v1) y, en el futuro, por
+reconciliación. NO en rechazos de validación, ni en fallos de start/stop, ni en `unreachable`.
+Salida: `force-undeploy` (futuro). **Se implementará junto con la simulación de fallos del mock
+(M4)** —aplazada— porque probar `broken` requiere fallos simulados; la demo mínima es camino feliz.
+
+### J3 — motor de Jobs (`jobs/engine.py`, TDD)
+
+`JobEngine(jobs_repo)` con `run(command) -> Job`: crea el Job (`PENDING`) y lo **persiste antes de
+ejecutar** (DEC-028), lo marca `RUNNING`, ejecuta el Command, y lo cierra `COMPLETED` (con el mensaje)
+o `FAILED` (con el error, capturando `Exception`), con `finished_at`. No valida (lo hace el service),
+no marca `broken` (va con M4), sin lock (pospuesto). Tests con Commands "falsos" para aislar el motor;
+incluye un test que comprueba que el Job está persistido y `RUNNING` durante `execute`. 100% cobertura.
+
+Estado: **100 tests** en verde. Núcleo: conector, modelos, repos, Job, los 6 Commands y el **motor**.
+Falta: `OrchestratorService` (facade) + parser YAML + CLI para la demo.
+
+### Próximo
+1. **`OrchestratorService`** (facade, DEC-031): valida y rechaza (sin Job) si procede; construye los
+   Commands (resuelve el conector vía el registro) y los pasa al motor; `apply`/`deploy`/`start`/
+   `stop`/`status`/`list`. (Aquí se decide service-construye-directo vs `CommandFactory`.)
+2. **Parser YAML** (`ApplyDocument`) → `apply` = un Command por item.
+3. **CLI** (cmd2) → corre la demo.
