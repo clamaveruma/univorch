@@ -67,6 +67,16 @@ class TestSubtree:
         paths = {f.path for f in repo.subtree("/lab")}
         assert paths == {"/lab", "/lab/networks"}  # /lab2 excluded
 
+    def test_root_contains_everything(self, db: TinyDB) -> None:
+        repo = FolderRepository(db)
+        for p in ["/lab", "/lab/networks", "/other"]:
+            repo.save(Folder(path=p))
+        assert {f.path for f in repo.subtree("/")} == {
+            "/lab",
+            "/lab/networks",
+            "/other",
+        }
+
 
 class TestDescriptorRepository:
     def test_round_trip_with_state(self, db: TinyDB) -> None:

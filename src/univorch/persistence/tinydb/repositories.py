@@ -13,8 +13,11 @@ from univorch.models import Descriptor, Folder, Job, JobStatus
 def _in_subtree(prefix: str, path: str) -> bool:
     """True if ``path`` is ``prefix`` itself or sits below it (segment-aware).
 
-    ``/lab`` matches ``/lab`` and ``/lab/...`` but not ``/lab2``.
+    ``/lab`` matches ``/lab`` and ``/lab/...`` but not ``/lab2``; the root ``/``
+    contains everything.
     """
+    if prefix == "/":
+        return True
     return path == prefix or path.startswith(prefix + "/")
 
 

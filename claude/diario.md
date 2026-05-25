@@ -1040,3 +1040,23 @@ Discusión extensa con el usuario; **todo fuera de v1** (síncrono). Material ev
 2. **S3 — `apply`** (batch de creaciones; orden padre-primero; validación del lote).
 3. **Parser YAML** (`ApplyDocument`) → `apply` = un Command por item.
 4. **CLI** (cmd2) → corre la demo.
+
+### S2 — lecturas del service: `status` y `list_tree`
+
+`service.py`. Lecturas, **sin Job** (no cambian estado):
+- `status(path) -> DescriptorStatus`: estado del descriptor (BD) + runtime (consulta el conector
+  solo si `deployed`). Si no existe → `OperationError`. DTO Pydantic (REST-ready):
+  `{path, state, runtime_state|None, vm_id}`.
+- `list_tree(path="/") -> list[TreeEntry]`: une `subtree` de carpetas y descriptores, ordenado por
+  path; **solo lee la BD** (sin conectores). DTO `TreeEntry{path, kind, state|None}` (state None en
+  carpetas). Llamado `list_tree` para no pisar el builtin.
+- **Arreglo:** `_in_subtree` ahora trata la raíz `/` como "contiene todo" (antes `prefix + "/"` daba
+  `//` y `subtree("/")` no devolvía nada). Necesario para `list /`.
+- Comentario en el docstring de `OrchestratorService` explicando `path` (identificador =
+  materialized path completo) y `hypervisor_connector`/registro (DEC-029), a petición del usuario.
+- 111 tests; `service.py` y `repositories.py` al 100%.
+
+### Próximo (actualizado)
+1. **S3 — `apply`** (batch de creaciones; orden padre-primero; validación del lote, best-effort).
+2. **Parser YAML** (`ApplyDocument`) → `apply` = un Command por item.
+3. **CLI** (cmd2) → corre la demo de `demo/README.md`.

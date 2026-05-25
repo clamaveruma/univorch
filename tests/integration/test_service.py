@@ -5,7 +5,8 @@ from tinydb import TinyDB
 from tinydb.storages import MemoryStorage
 
 from univorch.connectors.mock import MockConnector
-from univorch.models import Descriptor, DescriptorState, JobStatus
+from univorch.connectors.types import RuntimeState
+from univorch.models import Descriptor, DescriptorState, Folder, JobStatus
 from univorch.persistence.tinydb.repositories import (
     DescriptorRepository,
     FolderRepository,
@@ -20,6 +21,11 @@ def db() -> TinyDB:
 
 
 @pytest.fixture
+def folders(db: TinyDB) -> FolderRepository:
+    return FolderRepository(db)
+
+
+@pytest.fixture
 def descriptors(db: TinyDB) -> DescriptorRepository:
     return DescriptorRepository(db)
 
@@ -31,10 +37,12 @@ def jobs(db: TinyDB) -> JobRepository:
 
 @pytest.fixture
 def service(
-    db: TinyDB, descriptors: DescriptorRepository, jobs: JobRepository
+    folders: FolderRepository,
+    descriptors: DescriptorRepository,
+    jobs: JobRepository,
 ) -> OrchestratorService:
     connectors = {"mock": MockConnector.with_templates(["linux-base"])}
-    return OrchestratorService(FolderRepository(db), descriptors, jobs, connectors)
+    return OrchestratorService(folders, descriptors, jobs, connectors)
 
 
 def _provisioned(repo: DescriptorRepository, **kwargs: object) -> None:
@@ -86,3 +94,58 @@ def test_broken_descriptor_rejected(
     _provisioned(descriptors, state=DescriptorState.BROKEN)
     with pytest.raises(OperationError):
         service.deploy("/lab/vm")
+
+
+class TestStatus:
+    def test_provisioned_has_no_runtime(
+        self, service: OrchestratorService, descriptors: DescriptorRepository
+    ) -> None:
+        _provisioned(descriptors)
+        s = service.status("/lab/vm")
+        assert s.state == DescriptorState.PROVISIONED
+        assert s.runtime_state is None
+        assert s.vm_id is None
+
+    def test_deployed_reports_runtime(
+        self, service: OrchestratorService, descriptors: DescriptorRepository
+    ) -> None:
+        _provisioned(descriptors)
+        service.deploy("/lab/vm")
+        s = service.status("/lab/vm")
+        assert s.state == DescriptorState.DEPLOYED
+        assert s.runtime_state == RuntimeState.STOPPED  # freshly cloned
+        assert s.vm_id is not None
+
+    def test_unknown_path_rejected(self, service: OrchestratorService) -> None:
+        with pytest.raises(OperationError):
+            service.status("/lab/nope")
+
+
+class TestListTree:
+    def test_lists_subtree_sorted_with_states(
+        self,
+        service: OrchestratorService,
+        folders: FolderRepository,
+        descriptors: DescriptorRepository,
+    ) -> None:
+        folders.save(Folder(path="/lab"))
+        folders.save(Folder(path="/lab/networks"))
+        _provisioned(descriptors, path="/lab/networks/vm")
+        entries = service.list_tree("/")
+        assert [e.path for e in entries] == [
+            "/lab",
+            "/lab/networks",
+            "/lab/networks/vm",
+        ]
+        by_path = {e.path: e for e in entries}
+        assert by_path["/lab"].kind == "folder"
+        assert by_path["/lab"].state is None
+        assert by_path["/lab/networks/vm"].kind == "descriptor"
+        assert by_path["/lab/networks/vm"].state == DescriptorState.PROVISIONED
+
+    def test_scopes_to_subtree(
+        self, service: OrchestratorService, folders: FolderRepository
+    ) -> None:
+        folders.save(Folder(path="/lab"))
+        folders.save(Folder(path="/other"))
+        assert [e.path for e in service.list_tree("/lab")] == ["/lab"]
