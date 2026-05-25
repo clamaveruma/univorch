@@ -102,7 +102,7 @@ class Job(BaseModel):
 
     # uuid: a job has no natural key like a path; generated on creation
     id: str = Field(default_factory=lambda: uuid4().hex)
-    operation: OperationType
+    operation_type: OperationType
     target: str  # path of the affected folder or descriptor
     status: JobStatus = JobStatus.PENDING
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

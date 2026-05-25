@@ -9,7 +9,7 @@ is safe to call on its own; the Jobs engine wraps it to record the Job.
 Concepts: an ``OperationType`` is the *kind* of operation (an op-code). A
 ``Command`` and a ``Job`` are two views of the same operation instance — the
 Command is its executable form (logic + dependencies, in memory), the Job its
-persistent record (status, result, on disk). They share ``operation`` and
+persistent record (status, result, on disk). They share ``operation_type`` and
 ``target``; one Command execution produces one Job.
 """
 
@@ -28,7 +28,7 @@ from univorch.persistence.tinydb.repositories import (
 class Command(ABC):
     """One operation on one target (DEC-028)."""
 
-    operation: ClassVar[OperationType]  # the kind of operation, set by each command
+    operation_type: ClassVar[OperationType]  # set by each concrete command
     target: str  # the path it acts on, set in __init__
 
     @abstractmethod
@@ -43,16 +43,16 @@ class Command(ABC):
 class DeployCommand(Command):
     """Deploy a descriptor: clone its base VM and mark it deployed."""
 
-    operation = OperationType.DEPLOY
+    operation_type = OperationType.DEPLOY
 
     def __init__(
         self,
         path: str,
-        descriptors: DescriptorRepository,
+        descriptors_repo: DescriptorRepository,
         hypervisor_connector: HypervisorConnector,
     ) -> None:
         self.target = path
-        self._descriptors = descriptors
+        self._descriptors = descriptors_repo
         self._connector = hypervisor_connector
 
     @override
@@ -84,16 +84,16 @@ class DeployCommand(Command):
 class UndeployCommand(Command):
     """Undeploy: delete the VM and return the descriptor to provisioned."""
 
-    operation = OperationType.UNDEPLOY
+    operation_type = OperationType.UNDEPLOY
 
     def __init__(
         self,
         path: str,
-        descriptors: DescriptorRepository,
+        descriptors_repo: DescriptorRepository,
         hypervisor_connector: HypervisorConnector,
     ) -> None:
         self.target = path
-        self._descriptors = descriptors
+        self._descriptors = descriptors_repo
         self._connector = hypervisor_connector
 
     @override
@@ -125,16 +125,16 @@ class UndeployCommand(Command):
 class StartCommand(Command):
     """Power on the VM (runtime state only; descriptor state unchanged)."""
 
-    operation = OperationType.START
+    operation_type = OperationType.START
 
     def __init__(
         self,
         path: str,
-        descriptors: DescriptorRepository,
+        descriptors_repo: DescriptorRepository,
         hypervisor_connector: HypervisorConnector,
     ) -> None:
         self.target = path
-        self._descriptors = descriptors
+        self._descriptors = descriptors_repo
         self._connector = hypervisor_connector
 
     @override
@@ -162,16 +162,16 @@ class StartCommand(Command):
 class StopCommand(Command):
     """Power off the VM (runtime state only; descriptor state unchanged)."""
 
-    operation = OperationType.STOP
+    operation_type = OperationType.STOP
 
     def __init__(
         self,
         path: str,
-        descriptors: DescriptorRepository,
+        descriptors_repo: DescriptorRepository,
         hypervisor_connector: HypervisorConnector,
     ) -> None:
         self.target = path
-        self._descriptors = descriptors
+        self._descriptors = descriptors_repo
         self._connector = hypervisor_connector
 
     @override
@@ -199,12 +199,12 @@ class StopCommand(Command):
 class CreateFolderCommand(Command):
     """Create or update a folder (definition operation; no hypervisor)."""
 
-    operation = OperationType.CREATE_FOLDER
+    operation_type = OperationType.CREATE_FOLDER
 
-    def __init__(self, folder: Folder, folders: FolderRepository) -> None:
+    def __init__(self, folder: Folder, folders_repo: FolderRepository) -> None:
         self.target = folder.path
         self._folder = folder
-        self._folders = folders
+        self._folders = folders_repo
 
     @override
     def validate(self) -> list[str]:
@@ -236,18 +236,18 @@ class CreateDescriptorCommand(Command):
     never clobbered.
     """
 
-    operation = OperationType.CREATE_DESCRIPTOR
+    operation_type = OperationType.CREATE_DESCRIPTOR
 
     def __init__(
         self,
         descriptor: Descriptor,
-        descriptors: DescriptorRepository,
-        folders: FolderRepository,
+        descriptors_repo: DescriptorRepository,
+        folders_repo: FolderRepository,
     ) -> None:
         self.target = descriptor.path
         self._descriptor = descriptor
-        self._descriptors = descriptors
-        self._folders = folders
+        self._descriptors = descriptors_repo
+        self._folders = folders_repo
 
     @override
     def validate(self) -> list[str]:

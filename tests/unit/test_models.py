@@ -60,7 +60,7 @@ class TestPathValidation:
 
 class TestJob:
     def test_defaults(self) -> None:
-        job = Job(operation=OperationType.DEPLOY, target="/lab/vm")
+        job = Job(operation_type=OperationType.DEPLOY, target="/lab/vm")
         assert job.status == JobStatus.PENDING
         assert job.finished_at is None
         assert job.message is None
@@ -68,10 +68,10 @@ class TestJob:
         assert job.created_at is not None
 
     def test_ids_are_unique(self) -> None:
-        a = Job(operation=OperationType.START, target="/lab/vm")
-        b = Job(operation=OperationType.START, target="/lab/vm")
+        a = Job(operation_type=OperationType.START, target="/lab/vm")
+        b = Job(operation_type=OperationType.START, target="/lab/vm")
         assert a.id != b.id
 
     def test_round_trips_through_model_dump(self) -> None:
-        job = Job(operation=OperationType.DEPLOY, target="/lab/vm")
+        job = Job(operation_type=OperationType.DEPLOY, target="/lab/vm")
         assert Job.model_validate(job.model_dump(mode="json")) == job

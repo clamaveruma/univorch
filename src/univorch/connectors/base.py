@@ -4,7 +4,7 @@
 implements (mock, VMware, Proxmox). An ABC defines a contract of methods a
 subclass must implement; Python refuses to instantiate a subclass that leaves
 any of them undefined, so an incomplete connector fails at construction rather
-than at the first call. 
+than at the first call.
 The connector exposes only hypervisor primitives and identifies VMs by an opaque
 id. ``deploy``/``undeploy`` are orchestrator concepts built on ``clone``/
 ``delete``, not connector methods.
