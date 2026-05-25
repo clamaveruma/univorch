@@ -15,7 +15,7 @@ from enum import StrEnum
 from typing import Annotated, Literal
 from uuid import uuid4
 
-from pydantic import AfterValidator, BaseModel, Field
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field
 
 _SEGMENT = re.compile(r"[A-Za-z0-9_-]+")  # provisional pattern, to be refined later
 
@@ -52,6 +52,8 @@ class DescriptorState(StrEnum):
 class Folder(BaseModel):
     """A node in the descriptor tree, addressed by its materialized path."""
 
+    model_config = ConfigDict(extra="forbid")  # reject unknown fields (typos)
+
     path: TreePath
     description: str | None = None
 
@@ -62,6 +64,8 @@ class Descriptor(BaseModel):
     Sprint 1 carries the configuration inline (``hypervisor``, ``base_vm``,
     specs); Sprint 2 moves it to an inherited ``definition`` (DEC-026/034).
     """
+
+    model_config = ConfigDict(extra="forbid")  # reject unknown fields (typos)
 
     path: TreePath
     description: str | None = None
@@ -117,6 +121,8 @@ class ApplyDocument(BaseModel):
     inheritance (a folder's children inheriting its properties) are a Sprint 2
     refinement.
     """
+
+    model_config = ConfigDict(extra="forbid")  # reject unknown fields (typos)
 
     kind: Literal["apply"] = "apply"
     version: str = "1"

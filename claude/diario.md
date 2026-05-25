@@ -1091,3 +1091,28 @@ Discusión extensa con el usuario; **todo fuera de v1** (síncrono). Material ev
 1. **Parser YAML** (`ruamel.yaml`) → construye `ApplyDocument` desde el fichero; `apply` lo consume.
 2. **CLI** (cmd2): `apply`/`deploy`/`undeploy`/`start`/`stop`/`status`/`list` + `cd`/`pwd` →
    corre la demo de `demo/README.md`. Es la última pieza para la demo mínima.
+
+### Validación del documento — `extra="forbid"` (acordado)
+
+Los modelos parseados del YAML (`Folder`, `Descriptor`, `ApplyDocument`) usan
+`ConfigDict(extra="forbid")`: un campo desconocido (errata como `descripton`) → `ValidationError`,
+en vez de descartarse en silencio. Mejor diagnóstico para ficheros escritos a mano. Es seguro para
+los repos (el `model_validate` de TinyDB recibe exactamente los campos de `model_dump`).
+
+### Notas de diseño futuro — hipervisores y herencia (Sprint 2)
+
+Discusión con el usuario (todo para Sprint 2, con la herencia en cascada):
+- **`hypervisor` obligatorio es *relativo*:** en v1 (autocontenido) el descriptor lo requiere; en
+  Sprint 2 podrá **heredarse** → el campo pasará a **opcional** en el modelo y la comprobación "debe
+  tener hipervisor" se mueve a **después de resolver la herencia** (sobre la definición efectiva).
+  Encaja con la separación validación sintáctica (modelo) vs contextual (resolver/service),
+  DEC-026/027.
+- **Tres usos distintos del "hipervisor" en los ficheros de definición:**
+  1. **Definir** un hipervisor: nombre → tipo, dirección, credenciales (el *recurso*; DEC-010, la
+     raíz define hipervisores). Hoy es el registro cableado al arrancar.
+  2. **Aliasar / definir basado en otro:** nombre nuevo derivado de uno existente — misma idea que
+     los alias de datastores (DEC-017), llevada a hipervisores. El más avanzado; quizá post-Sprint 2.
+  3. **Usar:** el descriptor (o heredado) referencia un nombre de hipervisor ya definido. Es lo que
+     hace `descriptor.hypervisor` hoy, pero sin el paso de "definición" (el nombre apuntará a (1)).
+  - Separación: **definir (recurso) ≠ aliasar (derivado) ≠ usar (referencia)**. Enlaza DEC-010,
+    DEC-017, DEC-026, DEC-011 (visibilidad de hipervisores por rol).
