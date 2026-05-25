@@ -908,3 +908,47 @@ Estado del núcleo hacia la **demo mínima de Sprint 1** (orden bottom-up, TDD):
   5. **CLI** (cmd2) → la demo de `demo/README.md` corre.
 - 84 tests en verde; toda la puerta de calidad (ruff + mypy + pytest) pasa. `docs/diagrams.md`
   reorganizado según C4 (pendiente actualizarlo cuando avance el código: faltan Jobs/Commands).
+
+### J2 cerrado — Commands de definición (CreateFolder/CreateDescriptor)
+
+Continuación tras el cierre: se completa J2 con los dos commands de definición (sin conector).
+
+- **`CreateFolderCommand(folder, folders)`**: validate = la carpeta padre existe (raíz `/`
+  implícita); execute = no-op si idéntica, si no `save` (created/updated).
+- **`CreateDescriptorCommand(descriptor, descriptors, folders)`**: validate = la carpeta padre
+  existe. **Regla de redefinición (aportada por el usuario):** un descriptor solo se sobreescribe
+  si está `provisioned`; si está `deployed` y la **definición cambia** → error ("undeploy primero");
+  si la definición es **idéntica** → no-op (mantiene idempotencia de `apply` incluso sobre deployed).
+  Así **nunca se pisa el runtime** (`state`/`vm_id`) — elimina la necesidad de "preservar runtime"
+  que se había propuesto. La definición se compara con `model_dump(exclude={"state","vm_id"})`.
+- Estos commands **reciben el objeto a crear** (no un path): el objeto aún no existe en el repo, es
+  la entrada (asimetría con los de máquina, que leen un descriptor existente por path).
+- **Decisión de nombres:** parámetro `connector` → **`hypervisor_connector`** en los commands de
+  máquina (explícito: es el conector, y de dominio). Atributo interno `self._connector` por brevedad.
+- **Command Factory:** el usuario propuso una factoría que guarde las referencias comunes (repos,
+  registro) para construir Commands sin globales. Conclusión: es el papel del `OrchestratorService`;
+  decisión de J3, no afecta a las clases Command. Empezar con el service construyendo directamente;
+  extraer una `CommandFactory` solo si esa lógica crece. **Globales descartadas** (tests, multi-
+  instancia, dependencias ocultas).
+
+Estado: **J2 completo** (6 commands: Deploy/Undeploy/Start/Stop/CreateFolder/CreateDescriptor),
+`commands.py` al 100%, 97 tests en verde.
+
+### Conceptos aclarados (sesión, para la memoria)
+
+- **Ciclo de vida de una operación:** entrada → service construye el Command → motor crea/persiste
+  el Job (PENDING) → ejecuta (RUNNING) → desenlace (COMPLETED/FAILED, descriptor `broken` si falla).
+  En **v1 síncrono el Command vive en memoria** todo el rato (no se reconstruye); en el **futuro
+  asíncrono** el worker **reconstruye el Command desde el Job** (`operation`+`target` = op-code +
+  operandos). Una **caché/cola en memoria** de pendientes sería optimización futura (fuera del TFG;
+  MongoDB con índice probablemente la hace innecesaria); la BD es la fuente de verdad (HA, crash).
+- **Batch** (futuro): operación compuesta → Job padre + Jobs hijos; resultado éxito/fallo/parcial
+  (best-effort, DEC-027/028).
+
+### Próximo (retomar aquí)
+1. **J3 — motor de Jobs:** ejecuta un Command, crea/persiste el Job (pending→running→completed/
+   failed), captura excepciones → FAILED + descriptor `broken`. (Lock pospuesto, DEC-028.)
+2. **`OrchestratorService`** (facade): construye los Commands (resuelve conector vía registro) y los
+   pasa al motor; `apply`/`deploy`/`start`/`stop`/`status`/`list`.
+3. **Parser YAML** (`ApplyDocument`) → `apply` = un Command por item.
+4. **CLI** (cmd2) → corre la demo.
