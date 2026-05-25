@@ -13,17 +13,27 @@ CLI process therefore has its own mock state — fine within one REPL session
 
 import os
 import sys
+from collections.abc import Callable
 
 import cmd2
 from tinydb import TinyDB
 
 from univorch.connectors.mock import MockConnector
+from univorch.models import DescriptorState, Job, JobStatus
 from univorch.persistence.tinydb.repositories import (
     DescriptorRepository,
     FolderRepository,
     JobRepository,
 )
-from univorch.service import OrchestratorService
+from univorch.service import OperationError, OrchestratorService
+
+# Rich style per descriptor state (cmd2 3.x renders poutput with Rich)
+_STATE_STYLE = {
+    DescriptorState.PROVISIONED: "dim",
+    DescriptorState.DEPLOYED: "green",
+    DescriptorState.BROKEN: "red",
+    DescriptorState.UNREACHABLE: "yellow",
+}
 
 
 def build_service(db: TinyDB) -> OrchestratorService:
@@ -72,6 +82,48 @@ class UnivOrchShell(cmd2.Cmd):
         for entry in self._service.list_tree(self._resolve(arg.strip())):
             state = f"  [{entry.state}]" if entry.state else ""
             self.poutput(f"{entry.path}  ({entry.kind}){state}")
+
+    def do_deploy(self, arg: str) -> None:
+        """Deploy a descriptor: clone its base VM (provisioned -> deployed)."""
+        self._machine(self._service.deploy, arg)
+
+    def do_undeploy(self, arg: str) -> None:
+        """Undeploy a descriptor: delete its VM (-> provisioned)."""
+        self._machine(self._service.undeploy, arg)
+
+    def do_start(self, arg: str) -> None:
+        """Start (power on) a deployed descriptor's VM."""
+        self._machine(self._service.start, arg)
+
+    def do_stop(self, arg: str) -> None:
+        """Stop (power off) a deployed descriptor's VM."""
+        self._machine(self._service.stop, arg)
+
+    def _machine(self, operation: Callable[[str], Job], arg: str) -> None:
+        """Run a machine command; print the Job message (green/red) or the error."""
+        try:
+            job = operation(self._resolve(arg.strip()))
+        except OperationError as error:
+            self.perror("; ".join(error.errors))
+            return
+        style = "green" if job.status == JobStatus.COMPLETED else "red"
+        self.poutput(job.message or "", style=style)
+
+    def do_status(self, arg: str) -> None:
+        """Show a descriptor's state and, if deployed, its runtime state."""
+        try:
+            info = self._service.status(self._resolve(arg.strip()))
+        except OperationError as error:
+            self.perror("; ".join(error.errors))
+            return
+        style = _STATE_STYLE.get(info.state, "white")
+        runtime = info.runtime_state or "-"
+        vm_id = info.vm_id or "-"
+        self.poutput(
+            f"{info.path}  state=[{style}]{info.state}[/]  "
+            f"runtime={runtime}  vm_id={vm_id}",
+            markup=True,
+        )
 
 
 def main() -> None:

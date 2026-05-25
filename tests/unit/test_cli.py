@@ -7,7 +7,7 @@ from tinydb import TinyDB
 from tinydb.storages import MemoryStorage
 
 from univorch.interfaces.cli.app import UnivOrchShell, build_service
-from univorch.models import ApplyDocument, Folder
+from univorch.models import ApplyDocument, Descriptor, Folder
 
 
 @pytest.fixture
@@ -65,3 +65,49 @@ class TestList:
         assert "/lab" in out
         assert "/lab/networks" in out
         assert "folder" in out
+
+
+def _provision(shell: UnivOrchShell) -> None:
+    shell._service.apply(
+        ApplyDocument(
+            folders=[Folder(path="/lab")],
+            descriptors=[
+                Descriptor(path="/lab/vm", hypervisor="mock", base_vm="linux-base")
+            ],
+        )
+    )
+
+
+class TestMachineCommands:
+    def test_deploy_then_status(self, shell: UnivOrchShell) -> None:
+        _provision(shell)
+        assert "deployed" in _run(shell, "deploy /lab/vm")
+        out = _run(shell, "status /lab/vm")
+        assert "deployed" in out  # descriptor state
+        assert "stopped" in out  # runtime: freshly cloned
+
+    def test_start_changes_runtime(self, shell: UnivOrchShell) -> None:
+        _provision(shell)
+        _run(shell, "deploy /lab/vm")
+        _run(shell, "start /lab/vm")
+        assert "running" in _run(shell, "status /lab/vm")
+
+    def test_full_lifecycle(self, shell: UnivOrchShell) -> None:
+        _provision(shell)
+        _run(shell, "deploy /lab/vm")
+        _run(shell, "start /lab/vm")
+        assert "stopped" in _run(shell, "stop /lab/vm")
+        assert "undeployed" in _run(shell, "undeploy /lab/vm")
+        assert "provisioned" in _run(shell, "status /lab/vm")
+
+    def test_status_provisioned_has_no_runtime(self, shell: UnivOrchShell) -> None:
+        _provision(shell)
+        out = _run(shell, "status /lab/vm")
+        assert "provisioned" in out
+
+    def test_unknown_path_shows_no_success(self, shell: UnivOrchShell) -> None:
+        assert "deployed" not in _run(shell, "deploy /lab/nope")
+
+    def test_status_unknown_shows_no_state(self, shell: UnivOrchShell) -> None:
+        out = _run(shell, "status /lab/nope")
+        assert "deployed" not in out and "provisioned" not in out
