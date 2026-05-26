@@ -27,7 +27,7 @@ from tinydb import TinyDB
 
 from univorch.connectors.mock import MockConnector
 from univorch.models import DescriptorState, Job, JobStatus
-from univorch.parser import load_apply_file
+from univorch.parser import parse_definition_file
 from univorch.persistence.tinydb.repositories import (
     DescriptorRepository,
     FolderRepository,
@@ -76,13 +76,25 @@ def _path_arg_parser(description: str, *, required: bool) -> cmd2.Cmd2ArgumentPa
     return parser
 
 
-def _apply_arg_parser() -> cmd2.Cmd2ArgumentParser:
-    """Build the parser for 'apply' (a filesystem path, Tab-completed)."""
+def _load_arg_parser() -> cmd2.Cmd2ArgumentParser:
+    """Build the parser for 'load' (file path + optional destination)."""
     parser = cmd2.Cmd2ArgumentParser(
-        description="Apply a YAML file: create or update folders and VMs from it."
+        description=(
+            "Load a YAML definition into a folder. The file describes folders "
+            "and VMs to place inside the destination (default: current folder); "
+            "it never modifies the destination's own properties."
+        )
     )
     parser.add_argument(
-        "file", help="path to the YAML apply document", completer=cmd2.Cmd.path_complete
+        "file",
+        help="path to the YAML definition file",
+        completer=cmd2.Cmd.path_complete,
+    )
+    parser.add_argument(
+        "destination",
+        nargs="?",
+        default="",
+        help="tree folder to load into (default: current folder)",
     )
     return parser
 
@@ -254,14 +266,20 @@ class UnivOrchShell(cmd2.Cmd):
             markup=True,
         )
 
-    @cmd2.with_argparser(_apply_arg_parser())
-    def do_apply(self, args: argparse.Namespace) -> None:
+    @cmd2.with_argparser(_load_arg_parser())
+    def do_load(self, args: argparse.Namespace) -> None:
         try:
-            document = load_apply_file(args.file)
+            document = parse_definition_file(args.file)
         except (OSError, YAMLError, ValidationError) as error:
             self.perror(str(error))
             return
-        for result in self._service.apply(document):
+        destination = self._resolve(args.destination)
+        try:
+            results = self._service.load(document, destination)
+        except OperationError as error:  # destination doesn't exist, etc.
+            self.perror("; ".join(error.errors))
+            return
+        for result in results:
             style = "green" if result.ok else "red"
             self.poutput(f"{result.path}  {result.message}", style=style)
 

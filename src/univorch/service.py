@@ -23,7 +23,16 @@ from univorch.jobs.commands import (
     UndeployCommand,
 )
 from univorch.jobs.engine import JobEngine
-from univorch.models import ApplyDocument, DescriptorState, Job, JobStatus
+from univorch.models import (
+    DefinitionDocument,
+    Descriptor,
+    DescriptorDef,
+    DescriptorState,
+    Folder,
+    FolderDef,
+    Job,
+    JobStatus,
+)
 from univorch.persistence.tinydb.repositories import (
     DescriptorRepository,
     FolderRepository,
@@ -62,8 +71,8 @@ class TreeEntry(BaseModel):
     state: DescriptorState | None = None  # None for folders
 
 
-class ApplyResult(BaseModel):
-    """Per-item outcome of an ``apply`` (best-effort report)."""
+class LoadResult(BaseModel):
+    """Per-item outcome of a ``load`` (best-effort report, DEC-027)."""
 
     path: str
     ok: bool
@@ -158,25 +167,56 @@ class OrchestratorService:
         """
         return path == "/" or self._folders.exists(path)
 
-    def apply(self, document: ApplyDocument) -> list[ApplyResult]:
-        """Create/update the folders and descriptors in ``document``.
+    def load(
+        self, document: DefinitionDocument, destination: str = "/"
+    ) -> list[LoadResult]:
+        """Load ``document`` into ``destination``: create the folders and VMs.
 
-        Best-effort (DEC-027): items run in dependency order — folders shallowest
-        first, then descriptors — and a rejected item is recorded while the rest
-        continue. Each item is its own Job. (Batch all-or-reject and a parent Job
-        for the whole apply are future work, DEC-028.)
+        The document is **relative** (no paths inside); ``destination`` is where
+        it gets attached. The destination must already exist (an explicit pre-
+        condition, separate from per-item validation — DEC-027).
+
+        Items are run parent-first by walking the nested structure: a folder is
+        created before its children, every folder before its sibling descriptors
+        at the same level. Each item is its own Job; best-effort means rejected
+        items are recorded while the rest continue. (Batch all-or-reject and a
+        parent Job for the whole load are future work, DEC-028.)
         """
-        results: list[ApplyResult] = []
-        # shallowest paths first so a parent folder is created before its children
-        for folder in sorted(document.folders, key=lambda f: f.path.count("/")):
-            results.append(self._apply_one(CreateFolderCommand(folder, self._folders)))
-        # descriptors after every folder, so their parent folder already exists
-        for descriptor in document.descriptors:
-            command = CreateDescriptorCommand(
-                descriptor, self._descriptors, self._folders
-            )
-            results.append(self._apply_one(command))
-        return results  # one result row per item processed
+        if not self.folder_exists(destination):
+            raise OperationError([f"destination folder not found: {destination}"])
+        results: list[LoadResult] = []
+        # walk folders first at this level, then descriptors — same recursive shape
+        for name, folder_def in document.folders.items():
+            results.extend(self._load_folder(name, folder_def, destination))
+        for name, descriptor_def in document.descriptors.items():
+            path = posixpath.join(destination, name)
+            results.append(self._load_descriptor(path, descriptor_def))
+        return results
+
+    def _load_folder(
+        self, name: str, folder_def: FolderDef, base: str
+    ) -> list[LoadResult]:
+        """Materialize one folder and its contents under ``base``."""
+        path = posixpath.join(base, name)
+        folder = Folder(path=path, description=folder_def.description)
+        results = [self._load_one(CreateFolderCommand(folder, self._folders))]
+        # recurse: subfolders first (so they exist when their items try to attach),
+        # then this folder's own descriptors at the same level
+        for sub_name, sub_def in folder_def.folders.items():
+            results.extend(self._load_folder(sub_name, sub_def, path))
+        for descriptor_name, descriptor_def in folder_def.descriptors.items():
+            descriptor_path = posixpath.join(path, descriptor_name)
+            results.append(self._load_descriptor(descriptor_path, descriptor_def))
+        return results
+
+    def _load_descriptor(self, path: str, def_: DescriptorDef) -> LoadResult:
+        """Materialize one descriptor at ``path``."""
+        # exclude_none keeps optional fields (cpu/memory_mb/disk_gb/description)
+        # absent from the YAML out of the Descriptor too, matching the user's intent
+        descriptor = Descriptor(path=path, **def_.model_dump(exclude_none=True))
+        return self._load_one(
+            CreateDescriptorCommand(descriptor, self._descriptors, self._folders)
+        )
 
     def _machine_command(self, command_cls: MachineCommand, path: str) -> Command:
         """Build a machine command for ``path``.
@@ -203,20 +243,20 @@ class OrchestratorService:
             raise OperationError(errors)  # rejected: no Job created
         return self._engine.run(command)
 
-    def _apply_one(self, command: Command) -> ApplyResult:
-        """Run one apply item and return its result row; never raises.
+    def _load_one(self, command: Command) -> LoadResult:
+        """Run one load item and return its result row; never raises.
 
-        Wraps the two outcomes of ``_run`` so ``apply`` can collect a result per
+        Wraps the two outcomes of ``_run`` so ``load`` can collect a result per
         item and keep going (best-effort).
         """
         try:
             job = self._run(command)  # it ran: there is a Job (COMPLETED or FAILED)
-            return ApplyResult(
+            return LoadResult(
                 path=command.target,
                 ok=job.status == JobStatus.COMPLETED,
                 message=job.message or "",
             )
         except OperationError as error:  # rejected by validation: no Job created
-            return ApplyResult(
+            return LoadResult(
                 path=command.target, ok=False, message="; ".join(error.errors)
             )

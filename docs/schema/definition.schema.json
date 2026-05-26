@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://univorch.example.com/schemas/definition.schema.json",
+  "title": "UnivOrch definition document",
+  "description": "A relative tree of folders and VMs that the 'load' command attaches to a destination folder. Folders are keys ending in '/'; VMs are keys without '/'. The destination's own properties are never modified by load.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "kind": {
+      "const": "definition",
+      "description": "Document discriminator; only 'definition' is supported."
+    },
+    "version": {
+      "type": "string",
+      "default": "1",
+      "description": "Schema version; '1' for now."
+    }
+  },
+  "patternProperties": {
+    "^[A-Za-z0-9_-]+/$": { "$ref": "#/$defs/Folder" },
+    "^(?!kind$|version$)[A-Za-z0-9_-]+$": { "$ref": "#/$defs/Descriptor" }
+  },
+  "$defs": {
+    "Folder": {
+      "type": ["object", "null"],
+      "description": "A folder to create inside the destination. May contain nested folders (keys ending in '/') and VMs (keys without '/').",
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "Free-text description of the folder."
+        }
+      },
+      "patternProperties": {
+        "^[A-Za-z0-9_-]+/$": { "$ref": "#/$defs/Folder" },
+        "^(?!description$)[A-Za-z0-9_-]+$": { "$ref": "#/$defs/Descriptor" }
+      }
+    },
+    "Descriptor": {
+      "type": "object",
+      "description": "A VM to create. Requires the hypervisor it lives on and the base VM to clone from.",
+      "additionalProperties": false,
+      "required": ["hypervisor", "base_vm"],
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "Free-text description of the VM."
+        },
+        "hypervisor": {
+          "type": "string",
+          "description": "Name of the hypervisor where the VM lives (e.g., 'mock', 'vmware-prod')."
+        },
+        "base_vm": {
+          "type": "string",
+          "description": "Name of the base VM on the hypervisor to clone from."
+        },
+        "cpu": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Number of virtual CPUs."
+        },
+        "memory_mb": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Memory in megabytes."
+        },
+        "disk_gb": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Disk size in gigabytes."
+        }
+      }
+    }
+  }
+}

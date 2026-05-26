@@ -7,10 +7,12 @@ from tinydb.storages import MemoryStorage
 from univorch.connectors.mock import MockConnector
 from univorch.connectors.types import RuntimeState
 from univorch.models import (
-    ApplyDocument,
+    DefinitionDocument,
     Descriptor,
+    DescriptorDef,
     DescriptorState,
     Folder,
+    FolderDef,
     JobStatus,
 )
 from univorch.persistence.tinydb.repositories import (
@@ -174,46 +176,95 @@ class TestListTree:
         assert [e.path for e in service.list_tree("/lab")] == ["/lab/x"]
 
 
-class TestApply:
-    def test_creates_folders_and_descriptors(
+class TestLoad:
+    def _vm_def(self) -> DescriptorDef:
+        return DescriptorDef(hypervisor="mock", base_vm="linux-base")
+
+    def test_creates_nested_tree_at_root(
         self,
         service: OrchestratorService,
         folders: FolderRepository,
         descriptors: DescriptorRepository,
     ) -> None:
-        doc = ApplyDocument(
-            folders=[Folder(path="/lab"), Folder(path="/lab/networks")],
-            descriptors=[
-                Descriptor(
-                    path="/lab/networks/vm1", hypervisor="mock", base_vm="linux-base"
+        doc = DefinitionDocument(
+            folders={
+                "lab": FolderDef(
+                    folders={"networks": FolderDef(descriptors={"vm1": self._vm_def()})}
                 )
-            ],
+            }
         )
-        results = service.apply(doc)
+        results = service.load(doc)  # default destination = root
         assert all(r.ok for r in results)
         assert folders.exists("/lab") and folders.exists("/lab/networks")
         assert descriptors.get("/lab/networks/vm1") is not None
 
-    def test_orders_parents_first(
-        self, service: OrchestratorService, folders: FolderRepository
+    def test_loads_into_destination(
+        self,
+        service: OrchestratorService,
+        folders: FolderRepository,
+        descriptors: DescriptorRepository,
     ) -> None:
-        # child listed before parent in the document → sorted, so both succeed
-        doc = ApplyDocument(folders=[Folder(path="/lab/networks"), Folder(path="/lab")])
-        assert all(r.ok for r in service.apply(doc))
-        assert folders.exists("/lab/networks")
+        folders.save(Folder(path="/lab"))  # destination must exist
+        doc = DefinitionDocument(descriptors={"vm": self._vm_def()})
+        results = service.load(doc, destination="/lab")
+        assert all(r.ok for r in results)
+        assert descriptors.get("/lab/vm") is not None  # hung under destination
 
-    def test_best_effort_records_rejection(
-        self, service: OrchestratorService, folders: FolderRepository
+    def test_top_level_folder_and_descriptor(
+        self,
+        service: OrchestratorService,
+        folders: FolderRepository,
+        descriptors: DescriptorRepository,
     ) -> None:
-        doc = ApplyDocument(folders=[Folder(path="/lab"), Folder(path="/x/y")])
-        by_path = {r.path: r for r in service.apply(doc)}
-        assert by_path["/lab"].ok
-        assert not by_path["/x/y"].ok  # parent /x missing
-        assert folders.exists("/lab")  # the valid one was still applied
-        assert not folders.exists("/x/y")
+        # a folder and a VM at the same (top) level of the document
+        doc = DefinitionDocument(
+            folders={"lab": FolderDef()},
+            descriptors={"shared_vm": self._vm_def()},
+        )
+        assert all(r.ok for r in service.load(doc))
+        assert folders.exists("/lab")
+        assert descriptors.get("/shared_vm") is not None
+
+    def test_rejects_missing_destination(self, service: OrchestratorService) -> None:
+        doc = DefinitionDocument(descriptors={"vm": self._vm_def()})
+        with pytest.raises(OperationError):
+            service.load(doc, destination="/nope")
+
+    def test_best_effort_records_failure(
+        self,
+        service: OrchestratorService,
+        folders: FolderRepository,
+        descriptors: DescriptorRepository,
+    ) -> None:
+        # /lab/vm already exists DEPLOYED → cannot be redefined with a different
+        # base_vm without undeploying first (DEC-027)
+        folders.save(Folder(path="/lab"))
+        descriptors.save(
+            Descriptor(
+                path="/lab/vm",
+                hypervisor="mock",
+                base_vm="linux-base",
+                state=DescriptorState.DEPLOYED,
+                vm_id="mock-vm-99",
+            )
+        )
+        doc = DefinitionDocument(
+            descriptors={"shared_vm": self._vm_def()},  # this one works
+            folders={
+                "lab": FolderDef(
+                    descriptors={
+                        "vm": DescriptorDef(hypervisor="mock", base_vm="other-base")
+                    }
+                )
+            },
+        )
+        results = service.load(doc)
+        by_path = {r.path: r for r in results}
+        assert by_path["/shared_vm"].ok  # unrelated item still applied
+        assert not by_path["/lab/vm"].ok  # redefinition rejected
 
     def test_idempotent(self, service: OrchestratorService) -> None:
-        doc = ApplyDocument(folders=[Folder(path="/lab")])
-        service.apply(doc)
-        results = service.apply(doc)
+        doc = DefinitionDocument(folders={"lab": FolderDef()})
+        service.load(doc)
+        results = service.load(doc)
         assert results[0].ok and "no change" in results[0].message

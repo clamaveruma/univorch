@@ -1327,3 +1327,85 @@ tras el cierre de Sprint 1:
   siendo válidos. Cuando se renombre `apply → load` (plan aprobado, pendiente de implementar)
   se actualizarán esos documentos en bloque.
 - `docs/plan.md`: ya estaba al día (sin cambios).
+
+### Rediseño del YAML: relativo + envoltura + items mixtos con `/` final
+
+Cambio de modelo del documento YAML, profundo pero contenido. Resumen de las decisiones que se
+tomaron en el diálogo de hoy y se implementaron:
+
+- **Paths del YAML, estrictamente relativos.** El fichero ya no lleva paths absolutos; describe
+  una **estructura reutilizable** que se engancha en la carpeta destino al cargarla. Encaja con
+  DEC-027 (export/import portable) y prepara la herencia en cascada del Sprint 2 (DEC-026).
+- **Sintaxis "tipo `ls`":** envoltura fina `kind: definition` / `version: "1"` arriba; tras ella,
+  los items cuelgan **directamente** del nivel raíz del documento, **mezclados**: una clave
+  acabada en `/` es una carpeta; sin `/` es una VM. Mismo patrón a cualquier profundidad. Sin
+  secciones `folders:` / `descriptors:`.
+- **Regla "no se tocan las propiedades del destino":** la carpeta destino preexiste con sus
+  propias propiedades; el YAML solo coloca **cosas dentro** de ella. Por eso el nivel raíz del
+  documento **no** admite `description` ni reservadas de carpeta. RBAC-natural: tener permiso
+  para colocar dentro ≠ tener permiso para modificar. Para Sprint 2: los recursos de sistema
+  (hipervisores, plantillas globales) viven en una carpeta administrativa, no en `/` (que es
+  implícita).
+- **`apply` → `load(file, [destination])`:** acción explícita (cargar en una carpeta), por
+  simetría futura con `save` (extraer carpeta → fichero, aplazado a sprint posterior). Destino
+  opcional con default = pwd. Comprueba que la carpeta destino existe; si no, error.
+- **Comentarios — Modelo A:** el YAML es el "ingrediente"; la BD es la verdad operativa. Al
+  hacer `load` los comentarios se pierden. `description:` es el campo estructurado para texto
+  que debe persistir y reaparecer en un `save` futuro. Modelo B/C (preservar comentarios via
+  ruamel round-trip) descartado: en cuanto CLI/web tocan la BD, el fichero deja de ser la
+  fuente y no compensa la complejidad.
+- **JSON Schema escrito a mano** en `docs/schema/definition.schema.json` — Pydantic no
+  auto-genera la forma user-facing (`patternProperties` para `^[A-Za-z0-9_-]+/$` carpeta vs
+  `^[A-Za-z0-9_-]+$` descriptor) porque el `model_validator(mode="before")` traduce entre forma
+  externa e interna sin que JSON Schema lo vea. Se mantiene a mano (~75 líneas) con un **test
+  anti-drift** (`tests/integration/test_schema.py`) que valida con Pydantic Y con `jsonschema`
+  el mismo corpus de YAMLs (válidos e inválidos). Si los dos no coinciden, CI rojo.
+- **Cómo se usa el schema:** **NO** en runtime. Solo en (a) editor del usuario (extensión YAML
+  de Red Hat lee la directiva `# yaml-language-server:` y da autocompletado) y (b) el test
+  anti-drift. Pydantic sigue siendo el único validador en `load`.
+
+**Cambios de código:**
+- `models.py`: nuevos `DescriptorDef` / `FolderDef` (autorreferencial) / `DefinitionDocument`,
+  con `model_validator(mode="before")` que parte items mixtos por sufijo `/`. Pass-through si
+  el input ya viene normalizado (Python: `DefinitionDocument(folders={...})`). Validación de
+  nombres con el patrón de segmento existente. Las entidades persistidas (`Folder`,
+  `Descriptor`) **sin cambios** — siguen llevando path absoluto y son la forma de storage.
+- `parser.py`: `load_apply_document` → `parse_definition`; `load_apply_file` →
+  `parse_definition_file`. Renombre para no chocar con la acción `load`.
+- `service.py`: `apply(document)` → `load(document, destination="/")`. Walker recursivo
+  `_load_folder` que materializa folders padre-primero y luego sus descendientes. Valida la
+  existencia del destino antes de tocar nada. `ApplyResult` → `LoadResult`. `_apply_one` →
+  `_load_one`.
+- `commands.py`: bug arreglado en `CreateDescriptorCommand.validate` — no rechaza descriptores
+  en la raíz (parent vacío = raíz implícita, mismo patrón que `CreateFolderCommand`).
+- `interfaces/cli/app.py`: `do_apply` → `do_load`; parser `file` (Tab-complete) + `destination`
+  posicional opcional (default = pwd). Captura `OperationError` del service (destino no
+  existe) además de los errores de parseo.
+- `demo/setup.yml`: reescrito en el nuevo formato (relativo, mixto, con directiva
+  `# yaml-language-server` apuntando a `../docs/schema/definition.schema.json`).
+- `demo/README.md`: actualizado para `load` (sección 1) y la línea de bash mode.
+
+**Infra:**
+- `docs/schema/definition.schema.json` — schema 2020-12 con `patternProperties` + negative
+  lookahead para excluir `kind`/`version` (top) y `description` (dentro de carpeta) del match
+  del descriptor.
+- `pyproject.toml`: `jsonschema>=4.20` añadido a `[project.optional-dependencies].dev`.
+- `.devcontainer/devcontainer.json`: extensión `redhat.vscode-yaml` (lee la directiva
+  `# yaml-language-server:` para autocompletar/validar en VSCode).
+- `tests/integration/test_schema.py`: test anti-drift Pydantic ↔ JSON Schema.
+
+**Estado:** 160 tests en verde; service y modelos 100% / 84%; ruff y mypy limpios.
+
+### Pendientes anotados para más adelante (Sprint 2+)
+
+- **`save`**: comando inverso `save <dest_file> [origin]` que extrae el subárbol al destino y
+  lo serializa en formato relativo. Aplazado.
+- **Renombrar `apply` en `docs/architecture.md` y `docs/requirements.md`**: ahora son
+  inconsistentes con el código. Se actualiza cuando estabilice (Sprint 2).
+- **Doc del producto** (`docs/user-guide.md` o similar): introducir la regla "root es implícita
+  y no admite propiedades; los recursos del sistema viven en una carpeta administrativa". El
+  diario lo guarda; falta llevarlo a la doc de usuario cuando se cree.
+- **Palabras reservadas dentro de FolderDef (Sprint 2):** `import`, `define hypervisors`,
+  `define machine templates`, `based on`. Forman parte del modelo de herencia/derivación
+  (DEC-010/012/017/026). El esquema actual ya las rechazaría (`extra="forbid"`); habrá que
+  añadirlas como reservadas en el `_split_items` cuando toque.

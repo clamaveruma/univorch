@@ -12,12 +12,60 @@ create vs update, references) and RBAC belong to the apply/service layer
 import re
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 from uuid import uuid4
 
-from pydantic import AfterValidator, BaseModel, ConfigDict, Field
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
 
 _SEGMENT = re.compile(r"[A-Za-z0-9_-]+")  # provisional pattern, to be refined later
+
+
+def _validate_segment_keys(value: dict[str, Any]) -> dict[str, Any]:
+    """Reject dict keys that don't match the tree-segment pattern."""
+    for name in value:
+        if not _SEGMENT.fullmatch(name):
+            raise ValueError(f"invalid name {name!r}; must match {_SEGMENT.pattern}")
+    return value
+
+
+def _split_items(data: Any, *, reserved: set[str]) -> Any:
+    """Split a YAML dict body into reserved keys + ``folders`` + ``descriptors``.
+
+    Keys ending in '/' go into ``folders`` (name normalized without the slash);
+    every other non-reserved key goes into ``descriptors``. A None value means
+    "empty container" (e.g. ``lab/:`` with no body). The result is the shape
+    Pydantic then validates against the model's typed fields.
+
+    Pass-through: if ``data`` already has explicit ``folders`` or ``descriptors``
+    keys, it is taken as already normalized — useful for Python-side construction
+    (``DefinitionDocument(folders={...})``) and for re-validation cycles.
+    """
+    if data is None:
+        return {"folders": {}, "descriptors": {}}
+    if not isinstance(data, dict):
+        return data
+    if "folders" in data or "descriptors" in data:
+        return data  # already normalized; do not split a second time
+    result: dict[str, Any] = {}
+    folders: dict[str, Any] = {}
+    descriptors: dict[str, Any] = {}
+    for key, value in data.items():
+        if key in reserved:
+            result[key] = value
+        elif isinstance(key, str) and key.endswith("/"):
+            folders[key[:-1]] = value
+        else:
+            descriptors[key] = value
+    result["folders"] = folders
+    result["descriptors"] = descriptors
+    return result
 
 
 def _validate_path(path: str) -> str:
@@ -114,17 +162,69 @@ class Job(BaseModel):
     message: str | None = None
 
 
-class ApplyDocument(BaseModel):
-    """A batch of folders and descriptors to create/update (the ``apply`` input).
+class DescriptorDef(BaseModel):
+    """A VM definition inside a YAML — no path; the load destination plus the
+    nesting position give it its place in the tree."""
 
-    Flat in v1: every item carries its full path. Nested definitions with cascade
-    inheritance (a folder's children inheriting its properties) are a Sprint 2
-    refinement.
+    model_config = ConfigDict(extra="forbid")
+
+    description: str | None = None
+    hypervisor: str
+    base_vm: str
+    cpu: int | None = None
+    memory_mb: int | None = None
+    disk_gb: int | None = None
+
+
+class FolderDef(BaseModel):
+    """A folder inside a YAML. Mixed items: keys ending in ``/`` are subfolders,
+    others are VMs. The model_validator splits them into ``folders`` and
+    ``descriptors`` internally; ``description`` is the only reserved key here.
     """
 
-    model_config = ConfigDict(extra="forbid")  # reject unknown fields (typos)
+    model_config = ConfigDict(extra="forbid")
 
-    kind: Literal["apply"] = "apply"
+    description: str | None = None
+    folders: dict[str, "FolderDef"] = Field(default_factory=dict)
+    descriptors: dict[str, DescriptorDef] = Field(default_factory=dict)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _split(cls, data: Any) -> Any:
+        return _split_items(data, reserved={"description"})
+
+    @field_validator("folders", "descriptors")
+    @classmethod
+    def _check_names(cls, value: dict[str, Any]) -> dict[str, Any]:
+        return _validate_segment_keys(value)
+
+
+class DefinitionDocument(BaseModel):
+    """A YAML definition to be loaded into a destination folder.
+
+    The destination is given as an argument to ``service.load``; the document
+    itself never carries absolute paths. The destination's own properties are
+    not touched by loading — the document only describes what goes inside.
+    Reserved at the top level: ``kind`` and ``version``; everything else is an
+    item, split by the trailing ``/`` like inside a folder.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["definition"] = "definition"
     version: str = "1"
-    folders: list[Folder] = Field(default_factory=list)
-    descriptors: list[Descriptor] = Field(default_factory=list)
+    folders: dict[str, FolderDef] = Field(default_factory=dict)
+    descriptors: dict[str, DescriptorDef] = Field(default_factory=dict)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _split(cls, data: Any) -> Any:
+        return _split_items(data, reserved={"kind", "version"})
+
+    @field_validator("folders", "descriptors")
+    @classmethod
+    def _check_names(cls, value: dict[str, Any]) -> dict[str, Any]:
+        return _validate_segment_keys(value)
+
+
+FolderDef.model_rebuild()  # resolve the self-reference in folders: dict[str, FolderDef]

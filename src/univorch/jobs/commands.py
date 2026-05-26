@@ -253,8 +253,9 @@ class CreateDescriptorCommand(Command):
     def validate(self) -> list[str]:
         errors: list[str] = []
         parent = self.target.rsplit("/", 1)[0]
-        if not parent or not self._folders.exists(parent):
-            errors.append(f"parent folder does not exist: {parent or '/'}")
+        # an empty parent means the target sits at the root, which is implicit
+        if parent and not self._folders.exists(parent):
+            errors.append(f"parent folder does not exist: {parent}")
         existing = self._descriptors.get(self.target)
         if (
             existing is not None

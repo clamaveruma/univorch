@@ -1,44 +1,29 @@
+# yaml-language-server: $schema=../docs/schema/definition.schema.json
+#
 # UnivOrch demo — Sprint 1
-# Minimal lab setup for the professor demo.
-#
-# Apply this file with:
-#   univorch apply demo/setup.yml
-#
-# Sprint 1 note: all definitions are self-contained. Each descriptor carries
-# its full configuration inline. Cascade inheritance from parent folders
-# (hypervisor, base VM, IP pool) is added in Sprint 2.
+# Relative definition: load with `load demo/setup.yml [/destination]`.
+# The destination is the parent folder; defaults to the current folder (root).
+# Folders are keys ending in '/'; machines are keys without '/'.
 
-kind: apply
+kind: definition
 version: "1"
 
-folders:
-  - path: /lab
-    description: "Computer Science Lab"
-
-  - path: /lab/networks
+lab/:
+  description: "Computer Science Lab"
+  networks/:
     description: "Computer Networks — Fall 2026"
-
-descriptors:
-  - path: /lab/networks/student01
-    description: "Student 01 workstation"
-    hypervisor: mock       # which hypervisor to use (mock / vmware / proxmox)
-    base_vm: linux-base    # base VM to clone from (must exist in the hypervisor)
-    cpu: 2
-    memory_mb: 2048
-    disk_gb: 20
-
-  - path: /lab/networks/student02
-    description: "Student 02 workstation"
-    hypervisor: mock
-    base_vm: linux-base
-    cpu: 2
-    memory_mb: 2048
-    disk_gb: 20
-
-  - path: /lab/networks/student03
-    description: "Student 03 workstation"
-    hypervisor: mock
-    base_vm: linux-base
-    cpu: 2
-    memory_mb: 2048
-    disk_gb: 20
+    student01:
+      description: "Student 01 workstation"
+      hypervisor: mock
+      base_vm: linux-base
+      cpu: 2
+      memory_mb: 2048
+      disk_gb: 20
+    student02:
+      hypervisor: mock
+      base_vm: linux-base
+      cpu: 2
+    student03:
+      hypervisor: mock
+      base_vm: linux-base
+      cpu: 2

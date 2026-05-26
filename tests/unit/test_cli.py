@@ -8,7 +8,7 @@ from tinydb import TinyDB
 from tinydb.storages import MemoryStorage
 
 from univorch.interfaces.cli.app import UnivOrchShell, build_service
-from univorch.models import ApplyDocument, Descriptor, Folder
+from univorch.models import DefinitionDocument, DescriptorDef, FolderDef
 
 
 @pytest.fixture
@@ -56,7 +56,17 @@ class TestResolve:
 
 
 def _mkdir(shell: UnivOrchShell, *paths: str) -> None:
-    shell._service.apply(ApplyDocument(folders=[Folder(path=p) for p in paths]))
+    """Seed folders by absolute path via the service.load mechanism.
+
+    Each path is loaded as a leaf folder under its parent (which must already
+    exist or be the root). Paths must be listed parent-first.
+    """
+    for path in paths:
+        parent, name = path.rsplit("/", 1)
+        parent = parent or "/"
+        shell._service.load(
+            DefinitionDocument(folders={name: FolderDef()}), destination=parent
+        )
 
 
 class TestNavigation:
@@ -133,12 +143,16 @@ class TestTree:
 
 
 def _provision(shell: UnivOrchShell) -> None:
-    shell._service.apply(
-        ApplyDocument(
-            folders=[Folder(path="/lab")],
-            descriptors=[
-                Descriptor(path="/lab/vm", hypervisor="mock", base_vm="linux-base")
-            ],
+    """Seed /lab + /lab/vm via load (vm is provisioned, ready for deploy)."""
+    shell._service.load(
+        DefinitionDocument(
+            folders={
+                "lab": FolderDef(
+                    descriptors={
+                        "vm": DescriptorDef(hypervisor="mock", base_vm="linux-base")
+                    }
+                )
+            }
         )
     )
 
@@ -178,19 +192,41 @@ class TestMachineCommands:
         assert "deployed" not in out and "provisioned" not in out
 
 
-class TestApplyCommand:
-    def test_applies_a_yaml_file(self, shell: UnivOrchShell, tmp_path: Path) -> None:
+class TestLoadCommand:
+    _YAML = (
+        "kind: definition\n"
+        "lab/:\n"
+        "  vm:\n"
+        "    hypervisor: mock\n"
+        "    base_vm: linux-base\n"
+    )
+
+    def test_loads_at_root_by_default(
+        self, shell: UnivOrchShell, tmp_path: Path
+    ) -> None:
         f = tmp_path / "setup.yml"
-        f.write_text(
-            "kind: apply\n"
-            "folders:\n  - path: /lab\n"
-            "descriptors:\n"
-            "  - path: /lab/vm\n    hypervisor: mock\n    base_vm: linux-base\n"
-        )
-        out = _run(shell, f"apply {f}")
+        f.write_text(self._YAML)
+        out = _run(shell, f"load {f}")  # no destination → pwd = /
         assert "/lab" in out  # report mentions the created items
-        assert "vm" in _run(shell, "list /lab")  # tree was created
+        assert "vm" in _run(shell, "list /lab")  # tree got created
+
+    def test_loads_at_explicit_destination(
+        self, shell: UnivOrchShell, tmp_path: Path
+    ) -> None:
+        _mkdir(shell, "/area")  # destination must exist first
+        f = tmp_path / "setup.yml"
+        f.write_text(self._YAML)
+        _run(shell, f"load {f} /area")
+        assert "vm" in _run(shell, "list /area/lab")  # hung under /area
+
+    def test_destination_missing_errors(
+        self, shell: UnivOrchShell, tmp_path: Path
+    ) -> None:
+        f = tmp_path / "setup.yml"
+        f.write_text(self._YAML)
+        _run(shell, f"load {f} /nope")  # error to stderr
+        assert "lab" not in _run(shell, "list /")  # nothing created
 
     def test_missing_file_creates_nothing(self, shell: UnivOrchShell) -> None:
-        _run(shell, "apply /nope/missing.yml")  # error to stderr, no crash
+        _run(shell, "load /nope/missing.yml")  # error to stderr, no crash
         assert "lab" not in _run(shell, "list /")

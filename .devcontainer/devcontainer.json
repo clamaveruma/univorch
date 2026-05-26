@@ -27,6 +27,7 @@
         "ms-python.python",            // Python language support
         "charliermarsh.ruff",          // Ruff linter + formatter
         "ms-python.mypy-type-checker", // mypy type checking
+        "redhat.vscode-yaml",          // YAML language server (reads $schema directive)
         "anthropic.claude-code"        // Claude Code
       ],
       "settings": {

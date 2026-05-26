@@ -36,16 +36,20 @@ Open an interactive CLI session:
 
 You will see the UnivOrch prompt. Run these commands in order:
 
-### 1. Apply the example setup
+### 1. Load the example definition
 
 ```
-univorch> apply demo/setup.yml
+univorch /> load demo/setup.yml
 ```
 
-This creates two folders (`/lab`, `/lab/networks`) and three descriptors,
-each in `provisioned` state. A descriptor in `provisioned` means the
-definition exists in the orchestrator but no VM has been created yet in
-the hypervisor.
+`load` reads a YAML definition (folders and VMs to place, written in a
+relative tree shape with `/` for folders) and attaches it to a destination
+folder — the current one by default, so this loads at the root. You can
+also pass an explicit destination: `load demo/setup.yml /area`.
+
+This creates two folders (`/lab`, `/lab/networks`) and three VMs, each in
+`provisioned` state — the definition exists in the orchestrator but no VM
+has been created yet in the hypervisor.
 
 ### 2. Inspect the tree
 
@@ -74,7 +78,7 @@ univorch /lab/networks> deploy student01
 ```
 
 The orchestrator creates a Job, asks the mock connector to clone the
-`linux-base` template, and updates the descriptor state to `deployed`.
+`linux-base` template, and marks the VM as `deployed`.
 The mock simulates the clone in memory — instant, no real hardware needed.
 
 ### 5. Check the descriptor state
@@ -112,8 +116,8 @@ univorch /lab/networks> stop student01
 univorch /lab/networks> undeploy student01
 ```
 
-`undeploy` deletes the VM from the mock connector and returns the
-descriptor to `provisioned`. The definition remains — you can deploy again.
+`undeploy` deletes the VM from the mock connector and marks it as
+`provisioned` again. The definition remains — you can deploy again.
 
 ### 9. Batch: deploy all three students
 
@@ -139,7 +143,7 @@ univorch /lab/networks> exit
 All commands work without the REPL. Useful for shell scripts:
 
 ```bash
-./univorch.sh cli apply demo/setup.yml
+./univorch.sh cli load   demo/setup.yml
 ./univorch.sh cli deploy /lab/networks/student01
 ./univorch.sh cli status /lab/networks/student01
 ./univorch.sh cli start  /lab/networks/student01
