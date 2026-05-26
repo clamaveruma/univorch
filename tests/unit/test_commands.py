@@ -53,14 +53,14 @@ class TestDeployCommandValidate:
         self, descriptors: DescriptorRepository, connector: MockConnector
     ) -> None:
         cmd = DeployCommand("/lab/vm", descriptors, connector)
-        assert cmd.validate() == ["descriptor not found: /lab/vm"]
+        assert cmd.validate() == ["VM not found: /lab/vm"]
 
     def test_broken_descriptor(
         self, descriptors: DescriptorRepository, connector: MockConnector
     ) -> None:
         _save(descriptors, state=DescriptorState.BROKEN)
         cmd = DeployCommand("/lab/vm", descriptors, connector)
-        assert cmd.validate() == ["cannot deploy a broken descriptor: /lab/vm"]
+        assert cmd.validate() == ["cannot deploy a broken VM: /lab/vm"]
 
     def test_ok(
         self, descriptors: DescriptorRepository, connector: MockConnector

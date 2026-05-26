@@ -76,7 +76,7 @@ def _path_arg_parser(description: str, *, required: bool) -> cmd2.Cmd2ArgumentPa
 def _apply_arg_parser() -> cmd2.Cmd2ArgumentParser:
     """Build the parser for 'apply' (a filesystem path, Tab-completed)."""
     parser = cmd2.Cmd2ArgumentParser(
-        description="Apply a YAML file: create/update folders and descriptors from it."
+        description="Apply a YAML file: create or update folders and VMs from it."
     )
     parser.add_argument(
         "file", help="path to the YAML apply document", completer=cmd2.Cmd.path_complete
@@ -190,7 +190,8 @@ class UnivOrchShell(cmd2.Cmd):
 
     @cmd2.with_argparser(
         _path_arg_parser(
-            "Deploy a descriptor: clone its base VM (provisioned -> deployed).",
+            "Deploy a VM: clone its base image on the hypervisor "
+            "(provisioned -> deployed).",
             required=True,
         )
     )
@@ -199,20 +200,22 @@ class UnivOrchShell(cmd2.Cmd):
 
     @cmd2.with_argparser(
         _path_arg_parser(
-            "Undeploy a descriptor: delete its VM (-> provisioned).", required=True
+            "Undeploy a VM: delete it from the hypervisor (-> provisioned). "
+            "The definition stays.",
+            required=True,
         )
     )
     def do_undeploy(self, args: argparse.Namespace) -> None:
         self._machine(self._service.undeploy, args.path)
 
     @cmd2.with_argparser(
-        _path_arg_parser("Start (power on) a deployed descriptor's VM.", required=True)
+        _path_arg_parser("Start (power on) a deployed VM.", required=True)
     )
     def do_start(self, args: argparse.Namespace) -> None:
         self._machine(self._service.start, args.path)
 
     @cmd2.with_argparser(
-        _path_arg_parser("Stop (power off) a deployed descriptor's VM.", required=True)
+        _path_arg_parser("Stop (power off) a deployed VM.", required=True)
     )
     def do_stop(self, args: argparse.Namespace) -> None:
         self._machine(self._service.stop, args.path)
@@ -229,7 +232,7 @@ class UnivOrchShell(cmd2.Cmd):
 
     @cmd2.with_argparser(
         _path_arg_parser(
-            "Show a descriptor's state and, if deployed, its runtime state.",
+            "Show a VM's state and, if deployed, its runtime state on the hypervisor.",
             required=True,
         )
     )

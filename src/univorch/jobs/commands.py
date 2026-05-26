@@ -59,9 +59,9 @@ class DeployCommand(Command):
     def validate(self) -> list[str]:
         descriptor = self._descriptors.get(self.target)
         if descriptor is None:
-            return [f"descriptor not found: {self.target}"]
+            return [f"VM not found: {self.target}"]
         if descriptor.state == DescriptorState.BROKEN:
-            return [f"cannot deploy a broken descriptor: {self.target}"]
+            return [f"cannot deploy a broken VM: {self.target}"]
         return []
 
     @override
@@ -100,9 +100,9 @@ class UndeployCommand(Command):
     def validate(self) -> list[str]:
         descriptor = self._descriptors.get(self.target)
         if descriptor is None:
-            return [f"descriptor not found: {self.target}"]
+            return [f"VM not found: {self.target}"]
         if descriptor.state == DescriptorState.BROKEN:
-            return [f"cannot undeploy a broken descriptor: {self.target}"]
+            return [f"cannot undeploy a broken VM: {self.target}"]
         return []
 
     @override
@@ -141,9 +141,9 @@ class StartCommand(Command):
     def validate(self) -> list[str]:
         descriptor = self._descriptors.get(self.target)
         if descriptor is None:
-            return [f"descriptor not found: {self.target}"]
+            return [f"VM not found: {self.target}"]
         if descriptor.state != DescriptorState.DEPLOYED:
-            return [f"cannot start a descriptor that is not deployed: {self.target}"]
+            return [f"cannot start a VM that is not deployed: {self.target}"]
         return []
 
     @override
@@ -178,9 +178,9 @@ class StopCommand(Command):
     def validate(self) -> list[str]:
         descriptor = self._descriptors.get(self.target)
         if descriptor is None:
-            return [f"descriptor not found: {self.target}"]
+            return [f"VM not found: {self.target}"]
         if descriptor.state != DescriptorState.DEPLOYED:
-            return [f"cannot stop a descriptor that is not deployed: {self.target}"]
+            return [f"cannot stop a VM that is not deployed: {self.target}"]
         return []
 
     @override
@@ -261,9 +261,7 @@ class CreateDescriptorCommand(Command):
             and existing.state != DescriptorState.PROVISIONED
             and self._differs(existing)
         ):
-            errors.append(
-                f"cannot redefine a non-provisioned descriptor: {self.target}"
-            )
+            errors.append(f"cannot redefine a non-provisioned VM: {self.target}")
         return errors
 
     @override

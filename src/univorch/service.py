@@ -111,7 +111,7 @@ class OrchestratorService:
         """
         descriptor = self._descriptors.get(path)
         if descriptor is None:
-            raise OperationError([f"descriptor not found: {path}"])
+            raise OperationError([f"VM not found: {path}"])
         runtime: RuntimeState | None = None
         # runtime state only exists for a deployed VM — ask its hypervisor
         if descriptor.state == DescriptorState.DEPLOYED and descriptor.vm_id:
@@ -186,7 +186,7 @@ class OrchestratorService:
         """
         descriptor = self._descriptors.get(path)
         if descriptor is None:
-            raise OperationError([f"descriptor not found: {path}"])
+            raise OperationError([f"VM not found: {path}"])
         connector = self._connectors.get(descriptor.hypervisor)
         if connector is None:
             raise OperationError([f"unknown hypervisor: {descriptor.hypervisor}"])

@@ -1243,6 +1243,26 @@ argumentos, y un punto donde enganchar el completado de argumentos en el futuro.
 - 151 tests en verde (uno menos: se retiró el de completado); `app.py` 95% (solo `main()`),
   `service.py` 100%.
 
+### Terminología externa: "VM" en la CLI, "descriptor" solo en el código
+
+El usuario observa que `descriptor` es jerga interna; el personal que use la CLI piensa en VMs.
+Regla acordada (encaja con DEC-009: vocabulario por capa):
+- **Externo** (ayuda CLI, mensajes de error de cara al usuario, futura web): **`VM`** a secas.
+- **Interno** (clases, atributos, comentarios de código, `claude/`, `docs/`, memoria del TFG):
+  **`descriptor`** — modelo del dominio, analogía pedagógica del SO (DEC-005).
+- **Excepción** futura: comandos de creación/destrucción de la *definición* (cuando existan;
+  hoy van por `apply`) podrían usar "VM descriptor" o "definition" porque ahí el matiz importa.
+
+**Aplicado:**
+- Textos de ayuda de `deploy`/`undeploy`/`start`/`stop`/`status`/`apply` reescritos a "VM"
+  (incluyen "the definition stays" en `undeploy` para preservar el matiz). El docstring
+  pedagógico del módulo `commands.py` se queda con `descriptor`.
+- Mensajes user-facing del service (`OperationError`) y de `validate()` de los Commands:
+  `"descriptor not found"` → `"VM not found"`; `"broken descriptor"` → `"broken VM"`;
+  `"non-provisioned descriptor"` → `"non-provisioned VM"`; `"start/stop a descriptor that is not
+  deployed"` → `"... a VM that is not deployed"`.
+- Tests actualizados (2 aserciones en `test_commands.py`).
+
 ### Pendientes anotados (futuro)
 - Completado de Tab para **paths del árbol** en `cd`/`deploy`/`status`/… (navegar el árbol con Tab).
   Pieza propia, más trabajo (consulta el service). El argparse ya deja el gancho (`completer=`).
