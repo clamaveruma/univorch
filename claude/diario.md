@@ -1303,3 +1303,27 @@ Service: `descriptor_details(path)` o `list_tree_verbose(path)` que joinea con J
   descriptor + derivados de Jobs + futuros (autor de creación/despliegue, contador, IPs…).
 - `list --live` (runtime por VM, con streaming).
 - Descartado: `univorch --demo` (no necesario) y comando `legend` (la leyenda va en `help list`).
+
+### Revisión de documentación (cierre de sesión Sprint 1)
+
+Repaso completo de `docs/` y `claude/` para que el estado documental refleje el código real
+tras el cierre de Sprint 1:
+- `claude/proyecto.md`: estado actualizado (Fase 6 — Sprint 1 cerrado) y stack tecnológico
+  enumerado (estaba "por definir" desde el inicio).
+- `claude/desarrollo.md`: tabla de fases (5 ✅, 6 🔄); se retira el bloque "Fase 5 — Pendiente
+  de crear" (todo construido); estructura del código marcada con `*` lo aún no construido
+  (Resolver, web, conectores reales); checklist de Sprint 1 con `[x]`; flujo de demo actualizado
+  con prompt `univorch />`, `tree /` (en lugar del antiguo `list /` recursivo) y glifos; tabla
+  de comandos CLI con `ls` y `tree` añadidos.
+- `docs/diagrams.md`: actualizado al 2026-05-26. Componentes (sección 4) con CLI, Service,
+  Jobs, Parser, Repos+DB en verde sólido; Web y conectores reales en discontinuo. Código
+  (sección 5) dividido en **5.1 dominio + conectores** (añade `Job`, `JobStatus`,
+  `OperationType`, `ApplyDocument`) y **5.2 motor, persistencia, service, CLI** (añade
+  `Command` + 6 subclases, `JobEngine`, los tres repositorios, `OrchestratorService` con sus
+  DTOs `DescriptorStatus`/`TreeEntry`/`ApplyResult`/`OperationError`, y `UnivOrchShell` con
+  sus `do_*`).
+- `docs/{architecture,requirements,technologies,environment,vision}.md`: revisados, sin
+  cambios — los términos `apply` y `descriptor` son **lenguaje de diseño** (no UI), siguen
+  siendo válidos. Cuando se renombre `apply → load` (plan aprobado, pendiente de implementar)
+  se actualizarán esos documentos en bloque.
+- `docs/plan.md`: ya estaba al día (sin cambios).

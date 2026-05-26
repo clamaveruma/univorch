@@ -8,8 +8,11 @@ El objetivo es proporcionar una capa de abstracción que permita gestionar VMs d
 
 ## Estado actual
 
-- Fase: Inicio / Prueba de concepto
-- Stack tecnológico: por definir
+- Fase: 6 — Desarrollo iterativo. Sprint 1 (núcleo mínimo + CLI) **completado**;
+  Sprint 2 (herencia en cascada / Resolver + web GUI) pendiente. Detalle en `claude/diario.md`.
+- Stack tecnológico (Fase 4): Python 3.12 · uv · pytest + Hypothesis · Ruff + mypy ·
+  TinyDB (futuro MongoDB) · cmd2 (CLI) · NiceGUI (web, Sprint 2) · FastAPI + uvicorn + httpx
+  (REST, Sprint 2) · pyvmomi / proxmoxer (conectores reales, Sprint 3+). Ver `docs/technologies.md`.
 - Repositorio: clamaveruma/univorch
 
 ## Objetivos principales
@@ -21,4 +24,5 @@ El objetivo es proporcionar una capa de abstracción que permita gestionar VMs d
 
 ## Contexto y restricciones
 
-- Por definir en sesiones posteriores
+- Las decisiones de diseño se trazan en `claude/decisiones.md` (DEC-001 a DEC-035).
+- Marco de proceso en 7 fases: ver `docs/plan.md`.

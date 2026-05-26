@@ -14,97 +14,78 @@ y `decisiones.md` (decisiones técnicas). Actualizar cuando haya cambios de rumb
 | 2 — Análisis de requisitos | ✅ Completada | `docs/requirements.md` |
 | 3 — Diseño de arquitectura | ✅ Completada | `docs/architecture.md` |
 | 4 — Selección de tecnologías | ✅ Completada | `docs/technologies.md` |
-| 5 — Configuración del entorno | 🔄 En curso | ficheros de infra + `docs/environment.md` |
-| 6 — Desarrollo iterativo (TDD) | ⏳ Pendiente | software funcionando |
+| 5 — Configuración del entorno | ✅ Completada | infra + `docs/environment.md` |
+| 6 — Desarrollo iterativo (TDD) | 🔄 En curso | software funcionando — Sprint 1 cerrado |
 | 7 — Evaluación y memoria | ⏳ Pendiente | memoria del TFG |
 
 ---
 
-## Fase 5 — Pendiente de crear
+## Entornos de desarrollo soportados
 
-Estos ficheros están diseñados pero aún no existen en el repo. Crearlos todos antes de arrancar
-código de la Fase 6.
+El mismo `.devcontainer/devcontainer.json` funciona en:
 
-| Fichero | Propósito |
-|---|---|
-| `pyproject.toml` | Config unificada del proyecto (deps, herramientas) |
-| `Dockerfile` | Imagen de producción |
-| `docker-compose.yml` | Volumen TinyDB explícito, arranca el servicio |
-| `univorch.sh` | Script fino que envuelve compose (start/stop/restart/status) |
-| `.devcontainer/devcontainer.json` | Entorno de desarrollo reproducible |
-| `.github/workflows/ci.yml` | Pipeline CI: Ruff + mypy + pytest en cada push |
-| `docs/environment.md` | Entregable escrito de Fase 5 |
+- **VSCode + Dev Container local** (Docker en el PC).
+- **VSCode + Remote-SSH al servidor Linux propio + Dev Container en el servidor.** Opción
+  preferida cuando lleguemos a conectores reales (acceso directo a hipervisores
+  VMware/Proxmox en la misma red).
+- **GitHub Codespaces** (120 core-horas/mes en plan gratuito; bien para sesiones cortas).
+- VSCode local sin contenedor (requiere instalar dependencias a mano).
 
-**Decisiones de Fase 5 confirmadas:**
-- Estructura del código: `src/univorch/` (src-layout) ← **pendiente confirmación usuario**
-- Puerto web NiceGUI: `8080` configurable por env var `UNIVORCH_PORT` ← **pendiente confirmación usuario**
-- Python 3.12 en el contenedor
-- `uv` como gestor de dependencias (binario Rust, multi-stage Docker)
-- Imagen base devcontainer: `mcr.microsoft.com/devcontainers/python:3.12`
-- Imagen producción publicada en `ghcr.io/clamaveruma/univorch`
-
-**Opciones de entorno de desarrollo (todas compatibles con el mismo devcontainer.json):**
-- VSCode + Dev Container local (Docker en el PC)
-- VSCode + SSH al servidor Linux propio + Dev Container en el servidor (opción preferida para Fase 6
-  — sin límites de horas, acceso directo a hipervisores VMware/Proxmox en la misma red)
-- GitHub Codespaces (120 core-horas/mes en plan gratuito ≈ 2 h/día — válido para sesiones cortas
-  de documentación, no para desarrollo intensivo de Fase 6)
-- VSCode local sin contenedor (requiere instalar dependencias a mano)
+Imagen base del devcontainer: `mcr.microsoft.com/devcontainers/python:3.12`. La imagen
+de producción se publicará en `ghcr.io/clamaveruma/univorch`.
 
 ---
 
 ## Estructura del código
 
+Estructura **objetivo** (* = aún no construido). Lo que existe hoy refleja Sprint 1
+cerrado; los marcados `*` entran en sprints siguientes.
+
 ```
 src/
 └── univorch/
     ├── __init__.py
-    ├── config.py                  # configuración global, carga de env vars
-    ├── models.py                  # dataclasses: Folder, Descriptor, Job, Session
-    ├── resolver.py                # función pura: (ancestors, imports) → definición efectiva
-    │                              # dos modos: normal y anotado (DEC-026, DEC-027)
+    ├── __main__.py                # entry point del contenedor (sleep loop)
+    ├── models.py                  # Pydantic: Folder, Descriptor, Job, ApplyDocument, …
     ├── service.py                 # OrchestratorService — facade único (DEC-031)
+    ├── parser.py                  # ruamel.yaml + Pydantic
+    ├── resolver.py *              # función pura ancestors→definición efectiva (Sprint 2, DEC-026)
     ├── connectors/
-    │   ├── __init__.py
     │   ├── base.py                # ABC HypervisorConnector (DEC-029)
+    │   ├── types.py               # RuntimeState, VMInfo, CloneMode
     │   ├── mock.py                # MockConnector — in-process, estado en memoria
-    │   ├── vmware.py              # VMwareConnector — pyvmomi (extra opcional)
-    │   └── proxmox.py             # ProxmoxConnector — proxmoxer (extra opcional)
+    │   ├── vmware.py *            # VMwareConnector — pyvmomi (Sprint 3+)
+    │   └── proxmox.py *           # ProxmoxConnector — proxmoxer (Sprint 3+)
     ├── jobs/
-    │   ├── __init__.py
-    │   ├── engine.py              # motor de Jobs: ciclo de vida, locking (DEC-028)
-    │   └── commands.py            # Command pattern: DeployCommand, StartCommand, etc.
+    │   ├── engine.py              # motor de Jobs: ciclo de vida (DEC-028)
+    │   └── commands.py            # Command pattern: 6 commands de máquina + definición
     ├── persistence/
-    │   ├── __init__.py
-    │   ├── base.py                # interfaces ABC de los Repositories (DEC-030)
     │   └── tinydb/
-    │       ├── __init__.py
-    │       └── repositories.py    # implementaciones TinyDB
+    │       └── repositories.py    # FolderRepository, DescriptorRepository, JobRepository
     └── interfaces/
-        ├── __init__.py
         ├── cli/
-        │   ├── __init__.py
         │   └── app.py             # cmd2 — modo dual bash + REPL (DEC-018, DEC-031)
-        └── web/
-            ├── __init__.py
-            └── app.py             # NiceGUI — Sprint 2+ (DEC-018)
+        └── web/                   # NiceGUI — Sprint 2 (DEC-018)
+            └── app.py *
 ```
 
 ```
 tests/
 ├── unit/
-│   ├── test_resolver.py           # Hypothesis + pytest (función pura, caso ideal)
 │   ├── test_models.py
+│   ├── test_parser.py
 │   ├── test_commands.py
-│   └── test_mock_connector.py
+│   ├── test_connector_base.py
+│   ├── test_mock_connector.py
+│   ├── test_cli.py
+│   └── test_resolver.py *         # Hypothesis + property-based (Sprint 2)
 ├── integration/
-│   └── test_service.py            # OrchestratorService con TinyDB y mock
+│   └── test_service.py
 └── conftest.py                    # fixtures compartidos
 
 demo/
 ├── README.md                      # guía paso a paso para el profesor
-├── setup.yml                      # árbol de carpetas y descriptores de ejemplo
-└── templates.py                   # (o YAML) descripción de las VMs base del mock
+└── setup.yml                      # árbol de carpetas y descriptores de ejemplo
 ```
 
 ---
@@ -117,72 +98,64 @@ demo usando la CLI, y puede ver los conceptos clave en acción sin necesidad de 
 
 ### Qué entra en Sprint 1
 
-- [ ] Modelo de datos: `Folder`, `Descriptor`, `Job` (sin herencia completa todavía — YAMLs
-      autocontenidos en Sprint 1; Resolver completo en Sprint 2)
-- [ ] Repositorios TinyDB: `FolderRepository`, `DescriptorRepository`, `JobRepository`
-- [ ] `MockConnector` con `empty()`, `with_demo_templates()`, `with_templates()` y métodos de
-      inspección (`deployed_vms()`, `inject_drift()`, `make_unreachable()`)
-- [ ] Motor de Jobs básico: ciclo de vida `pending → running → completed/failed`, lock por
-      descriptor en BD
-- [ ] Commands: `DeployCommand`, `UndeployCommand`, `StartCommand`, `StopCommand`,
-      `GetStatusCommand`
-- [ ] `OrchestratorService`: `apply()`, `deploy()`, `start()`, `stop()`, `get_status()`,
-      `list_tree()`
-- [ ] Parser YAML con `ruamel.yaml` (preserva comentarios — DEC-027)
-- [ ] CLI cmd2 con comandos: `apply`, `deploy`, `undeploy`, `start`, `stop`, `status`, `list`
-- [ ] Autenticación básica: token de sesión en BD (SessionRepository)
-- [ ] Demo: carpeta `demo/` con YAMLs y README para el profesor
-- [ ] Docker: `Dockerfile` + `docker-compose.yml` + `univorch.sh start`
-- [ ] Tests: cobertura del Resolver, MockConnector y operaciones básicas del service
+- [x] Modelos Pydantic: `Folder`, `Descriptor`, `Job`, `OperationType`, `JobStatus`,
+      `ApplyDocument` (YAMLs autocontenidos; herencia/Resolver → Sprint 2).
+- [x] Repositorios TinyDB: `FolderRepository`, `DescriptorRepository`, `JobRepository`.
+- [x] `MockConnector` con `empty()` / `with_demo_templates()` / `with_templates()` y
+      `deployed_vms()` para tests. Simulación de fallos (M4) aplazada con `broken`.
+- [x] Motor de Jobs básico: `JobEngine.run(command)` ciclo `pending → running →
+      completed/failed`. Lock por descriptor pospuesto (sin concurrencia en v1).
+- [x] Commands (6): `DeployCommand`, `UndeployCommand`, `StartCommand`, `StopCommand`,
+      `CreateFolderCommand`, `CreateDescriptorCommand`. Patrón Command con `validate()` +
+      `execute()` (DEC-028).
+- [x] `OrchestratorService`: `apply()`, `deploy()`, `undeploy()`, `start()`, `stop()`,
+      `status()`, `list_tree(recursive)`, `folder_exists()`. Validación que rechaza en el
+      service (sin Job); motor solo ejecuta validados (DEC-027/032).
+- [x] Parser YAML con `ruamel.yaml` (`extra="forbid"` caza erratas; round-trip se aplaza
+      a Sprint 2 con el editor web).
+- [x] CLI cmd2 con argparse (`with_argparser`): `apply`, `deploy`, `undeploy`, `start`,
+      `stop`, `status`, `list`/`ls`, `tree`, `cd`, `pwd`. Glifos de estado, ayuda
+      autogenerada coloreada, terminología "VM" externa.
+- [x] Demo: `demo/setup.yml` + `demo/README.md`.
+- [x] Tests: 152 en verde, `service.py` 100%, `app.py` 95% (solo `main()`).
+- [ ] Autenticación + sesiones en BD → **aplazado a Sprint 2** con RBAC (no aporta sin
+      Resolver/permisos).
+- [ ] Docker compose + `univorch.sh` → infra de Fase 5; el demo se ejecuta hoy con
+      `uv run univorch` (proceso in-process). Daemon + REST entran en Sprint 2.
 
 ### Qué queda fuera de Sprint 1
 
 - Herencia en cascada completa (Resolver con imports y comodín `*`) → Sprint 2
 - Web GUI (NiceGUI) → Sprint 2
 - RBAC completo → Sprint 2
+- Daemon + REST (FastAPI / uvicorn / httpx) → Sprint 2
 - Conectores reales (VMware, Proxmox) → Sprint 3+
+- `broken` + simulación de fallos del mock (M4) → cuando se necesite (Sprint 2)
 - Capa docente (asignaturas/alumnos) → Sprint final
 - Pools de IPs → Sprint posterior
 - Gestión de usuarios vía web → Sprint posterior
 
-### Demo para el profesor — flujo previsto
+### Demo para el profesor — flujo (Sprint 1)
 
-El profesor ejecuta `./univorch.sh start` y abre el REPL con `./univorch.sh cli`:
+Hoy se ejecuta con `uv run univorch` (en producción será `./univorch.sh cli`). Los
+estados se ven en color (`□` dim · `■` default · `✗` rojo · `▲` amarillo) y las
+carpetas en azul con `/` al final estilo `ls -F`. Tab autocompleta el path del fichero
+en `apply`.
 
 ```
-univorch> apply demo/setup.yml
-# Crea /lab, /lab/networks y 3 descriptores en estado 'provisioned'
-
-univorch> list /
-# Muestra el árbol completo con estados
-
-univorch> cd /lab/networks
-univorch /lab/networks>
-
+univorch /> apply demo/setup.yml
+univorch /> tree /
+univorch /> cd /lab/networks
+univorch /lab/networks> list
 univorch /lab/networks> deploy student01
-# Mock clona desde 'linux-base'; descriptor pasa a 'deployed'
-
 univorch /lab/networks> status student01
-# State: deployed | Runtime: stopped
-
 univorch /lab/networks> start student01
-# Runtime: running
-
-univorch /lab/networks> status student01
-# State: deployed | Runtime: running
-
 univorch /lab/networks> stop student01
 univorch /lab/networks> undeploy student01
-# Descriptor vuelve a 'provisioned'
-
-univorch /lab/networks> list
-# Árbol de la carpeta actual con estados
-
-univorch /lab/networks> exit
+univorch /lab/networks> quit
 ```
 
-Los YAMLs de la `demo/` son el material didáctico: muestran la estructura declarativa y los
-comentarios preservados. Ver también `demo/README.md` para la guía completa del profesor.
+Ver `demo/README.md` para la guía completa del profesor.
 
 ---
 
@@ -219,15 +192,17 @@ schema para que el YAML sea realista y los tests de validación tengan algo que 
 
 | Comando | Argumentos | Descripción |
 |---|---|---|
-| `apply <file>` | path al fichero YAML | Crea/actualiza árbol desde documento |
-| `list [path]` | ruta (default: CWD) | Lista carpetas y descriptores con estado |
-| `deploy <path>` | ruta absoluta o relativa | Despliega un descriptor (clone en el conector) |
-| `undeploy <path>` | ruta absoluta o relativa | Elimina la VM; descriptor vuelve a `provisioned` |
-| `start <path>` | ruta absoluta o relativa | Arranca la VM |
-| `stop <path>` | ruta absoluta o relativa | Para la VM |
-| `status <path>` | ruta absoluta o relativa | Estado del descriptor + estado runtime del hipervisor |
-| `cd <path>` | ruta (solo REPL) | Cambia la carpeta de trabajo (CWD) |
-| `pwd` | — (solo REPL) | Muestra la carpeta de trabajo actual |
+| `apply <file>` | path al fichero YAML (Tab completa) | Crea/actualiza árbol desde documento |
+| `list [path]` / `ls [path]` | ruta (default: CWD) | Lista **un nivel** (hijos directos) con glifos de estado |
+| `tree [path]` | ruta (default: CWD) | Subárbol completo indentado |
+| `deploy <path>` | ruta absoluta o relativa | Despliega una VM (clone en el hipervisor) |
+| `undeploy <path>` | ruta absoluta o relativa | Elimina la VM (definición se conserva) |
+| `start <path>` | ruta absoluta o relativa | Arranca (power on) una VM desplegada |
+| `stop <path>` | ruta absoluta o relativa | Para (power off) una VM desplegada |
+| `status <path>` | ruta absoluta o relativa | Estado de la VM + estado runtime del hipervisor |
+| `cd [path]` | ruta absoluta/relativa (`..` permitido); sin arg = no-op | Cambia la carpeta de trabajo |
+| `pwd` | — | Muestra la carpeta de trabajo actual |
+| `help [cmd]` | — | Ayuda autogenerada por argparse, coloreada en TTY |
 
 **Resolución de rutas:** cualquier path que no empiece por `/` se resuelve relativo al CWD.
 Ejemplo: estando en `/lab/networks`, `deploy student01` es equivalente a

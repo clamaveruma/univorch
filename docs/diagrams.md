@@ -14,7 +14,9 @@
 > they are drawn as Mermaid flowcharts and class diagrams (with C4 stereotypes
 > like «Person» and «Container»), not Mermaid's experimental native C4 renderer.
 >
-> **Last updated:** 2026-05-24 — Sprint 1, connector contract + MockConnector + domain models.
+> **Last updated:** 2026-05-26 — Sprint 1 closed: connectors, persistence, Jobs
+> engine + Commands, `OrchestratorService` facade, YAML parser, and cmd2-based
+> CLI with argparse help. Web GUI and real hypervisor connectors still pending.
 
 ---
 
@@ -134,24 +136,25 @@ with `uv run` (no container).
 
 ## 4. Components (C4 level 3) — as-built
 
-Modules inside the orchestrator. Most of the engine is still pending; the
-connector subsystem and the domain models are the first implemented parts.
+Modules inside the orchestrator. After Sprint 1, the engine, persistence and the
+CLI are in place; the web GUI and the real hypervisor connectors are still pending.
 
-**Legend:** solid = implemented · dashed/grey = designed, not yet implemented.
+**Legend:** solid green = implemented · dashed/grey = designed, not yet implemented.
 
 ```mermaid
 flowchart TD
     subgraph Interfaces
-        CLI["CLI — cmd2"]:::pending
+        CLI["CLI — cmd2 + argparse"]:::done
         Web["Web GUI — NiceGUI"]:::pending
     end
 
-    Service["OrchestratorService (facade)"]:::pending
-    Jobs["Jobs engine + Commands"]:::pending
+    Service["OrchestratorService (facade)"]:::done
+    Parser["YAML parser — ruamel.yaml + Pydantic"]:::done
+    Jobs["Jobs engine + Commands"]:::done
 
     subgraph Persistence
-        Repos["Repositories"]:::pending
-        DB[("TinyDB — JSON file")]:::pending
+        Repos["Repositories<br/>Folder · Descriptor · Job"]:::done
+        DB[("TinyDB — JSON file")]:::done
     end
 
     subgraph Connectors
@@ -161,12 +164,15 @@ flowchart TD
         Proxmox["ProxmoxConnector"]:::pending
     end
 
-    Models["Models — Folder, Descriptor"]:::done
+    Models["Models — Folder, Descriptor,<br/>Job, ApplyDocument, …"]:::done
+    Resolver["Resolver (cascade inheritance)"]:::pending
 
     CLI --> Service
     Web --> Service
+    CLI --> Parser
     Service --> Jobs
     Service --> Repos
+    Service -.uses (Sprint 2).-> Resolver
     Jobs --> ABC
     Jobs --> Repos
     Repos --> DB
@@ -174,6 +180,7 @@ flowchart TD
     VMware -.implements.-> ABC
     Proxmox -.implements.-> ABC
     Service -.uses.-> Models
+    Parser -.produces.-> Models
     Repos -.persist.-> Models
 
     classDef done fill:#cde7cd,stroke:#2e7d32,color:#000;
@@ -184,12 +191,38 @@ flowchart TD
 
 ## 5. Code (C4 level 4) — as-built
 
-The classes that exist today, in `connectors/` and `models.py`. Fields typed
-`X | None` (`description`, `cpu`, `memory_mb`, `disk_gb`, `vm_id`) are optional
-and default to `None`.
+The classes that exist after Sprint 1. Optional fields (typed `X | None`,
+default `None`) are omitted from the diagrams to keep them readable. Two views,
+because one diagram with everything is unreadable: **5.1 Domain + Connectors**
+and **5.2 Engine, Persistence, Service, CLI**.
+
+### 5.1 Domain models & connectors
 
 ```mermaid
 classDiagram
+    class DescriptorState {
+        <<enumeration>>
+        PROVISIONED
+        DEPLOYED
+        BROKEN
+        UNREACHABLE
+    }
+    class JobStatus {
+        <<enumeration>>
+        PENDING
+        RUNNING
+        COMPLETED
+        FAILED
+    }
+    class OperationType {
+        <<enumeration>>
+        DEPLOY
+        UNDEPLOY
+        START
+        STOP
+        CREATE_FOLDER
+        CREATE_DESCRIPTOR
+    }
     class RuntimeState {
         <<enumeration>>
         RUNNING
@@ -197,22 +230,43 @@ classDiagram
         PAUSED
         UNKNOWN
     }
-
     class CloneMode {
         <<enumeration>>
         LINKED
         FULL
     }
 
+    class Folder {
+        +path TreePath
+    }
+    class Descriptor {
+        +path TreePath
+        +hypervisor str
+        +base_vm str
+        +state DescriptorState
+        +vm_id str
+    }
+    class Job {
+        +id str
+        +operation_type OperationType
+        +target str
+        +status JobStatus
+        +created_at datetime
+        +finished_at datetime
+        +message str
+    }
+    class ApplyDocument {
+        +kind: "apply"
+        +version str
+        +folders list~Folder~
+        +descriptors list~Descriptor~
+    }
+
     class VMInfo {
         +id str
         +name str
         +runtime_state RuntimeState
-        +cpu int
-        +memory_mb int
-        +disk_gb int
     }
-
     class HypervisorConnector {
         <<abstract>>
         +clone(source_id, name, mode) str
@@ -225,14 +279,12 @@ classDiagram
         +get_status(vm_id) RuntimeState
         +get_info(vm_id) VMInfo
     }
-
     class MockConnector {
         +empty() MockConnector
         +with_demo_templates() MockConnector
         +with_templates(templates) MockConnector
         +deployed_vms() list~VMInfo~
     }
-
     class _MockVM {
         +id str
         +name str
@@ -240,31 +292,11 @@ classDiagram
         +metadata dict
     }
 
-    class DescriptorState {
-        <<enumeration>>
-        PROVISIONED
-        DEPLOYED
-        BROKEN
-        UNREACHABLE
-    }
-
-    class Folder {
-        +path str
-        +description str
-    }
-
-    class Descriptor {
-        +path str
-        +description str
-        +hypervisor str
-        +base_vm str
-        +cpu int
-        +memory_mb int
-        +disk_gb int
-        +state DescriptorState
-        +vm_id str
-    }
-
+    Descriptor ..> DescriptorState
+    Job ..> JobStatus
+    Job ..> OperationType
+    ApplyDocument o-- Folder
+    ApplyDocument o-- Descriptor
     HypervisorConnector <|-- MockConnector
     MockConnector "1" o-- "*" _MockVM : manages
     HypervisorConnector ..> VMInfo : returns
@@ -272,7 +304,126 @@ classDiagram
     HypervisorConnector ..> CloneMode : uses
     VMInfo ..> RuntimeState
     _MockVM ..> RuntimeState
-    Descriptor ..> DescriptorState
+```
+
+### 5.2 Engine, persistence, service & CLI
+
+```mermaid
+classDiagram
+    class Command {
+        <<abstract>>
+        +operation_type OperationType
+        +target str
+        +validate() list~str~
+        +execute() str
+    }
+    class DeployCommand
+    class UndeployCommand
+    class StartCommand
+    class StopCommand
+    class CreateFolderCommand
+    class CreateDescriptorCommand
+
+    class JobEngine {
+        +run(command) Job
+    }
+
+    class FolderRepository {
+        +save(folder)
+        +get(path) Folder
+        +exists(path) bool
+        +subtree(prefix) list~Folder~
+        +delete(path)
+    }
+    class DescriptorRepository {
+        +save(descriptor)
+        +get(path) Descriptor
+        +exists(path) bool
+        +subtree(prefix) list~Descriptor~
+        +delete(path)
+    }
+    class JobRepository {
+        +save(job)
+        +get(id) Job
+        +find_by_target(target) list~Job~
+        +find_by_status(status) list~Job~
+    }
+
+    class OrchestratorService {
+        +deploy(path) Job
+        +undeploy(path) Job
+        +start(path) Job
+        +stop(path) Job
+        +status(path) DescriptorStatus
+        +list_tree(path, recursive) list~TreeEntry~
+        +folder_exists(path) bool
+        +apply(document) list~ApplyResult~
+    }
+    class OperationError {
+        +errors list~str~
+    }
+    class DescriptorStatus {
+        +path str
+        +state DescriptorState
+        +runtime_state RuntimeState
+        +vm_id str
+    }
+    class TreeEntry {
+        +path str
+        +kind: "folder" | "descriptor"
+        +state DescriptorState
+    }
+    class ApplyResult {
+        +path str
+        +ok bool
+        +message str
+    }
+
+    class UnivOrchShell {
+        <<cmd2.Cmd>>
+        +do_cd(args)
+        +do_pwd(args)
+        +do_list(args)
+        +do_ls(args)
+        +do_tree(args)
+        +do_deploy(args)
+        +do_undeploy(args)
+        +do_start(args)
+        +do_stop(args)
+        +do_status(args)
+        +do_apply(args)
+    }
+
+    Command <|-- DeployCommand
+    Command <|-- UndeployCommand
+    Command <|-- StartCommand
+    Command <|-- StopCommand
+    Command <|-- CreateFolderCommand
+    Command <|-- CreateDescriptorCommand
+
+    OrchestratorService --> JobEngine : owns
+    OrchestratorService --> FolderRepository
+    OrchestratorService --> DescriptorRepository
+    OrchestratorService --> JobRepository
+    OrchestratorService ..> OperationError : raises
+    OrchestratorService ..> DescriptorStatus : returns
+    OrchestratorService ..> TreeEntry : returns
+    OrchestratorService ..> ApplyResult : returns
+
+    JobEngine --> JobRepository
+    DeployCommand --> DescriptorRepository
+    DeployCommand --> HypervisorConnector
+    UndeployCommand --> DescriptorRepository
+    UndeployCommand --> HypervisorConnector
+    StartCommand --> DescriptorRepository
+    StartCommand --> HypervisorConnector
+    StopCommand --> DescriptorRepository
+    StopCommand --> HypervisorConnector
+    CreateFolderCommand --> FolderRepository
+    CreateDescriptorCommand --> DescriptorRepository
+    CreateDescriptorCommand --> FolderRepository
+
+    UnivOrchShell --> OrchestratorService
 ```
 
 ---

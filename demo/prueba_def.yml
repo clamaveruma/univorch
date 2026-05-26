@@ -1,0 +1,39 @@
+# Basic YAML Configuration
+# the root of this documents contains just /folders and machines
+subfolder_a/: #a folder.  Can have: imports, definitions, subfolders and machines
+  import: ALL
+
+  define hypervisors:
+    hyperv3:
+      based on: hyperv0
+
+    hyperv4:
+      type: vmware
+      adress: 192.168.2.2
+      usename: root
+      password: 1234
+
+  define machine templates:
+    template3:
+      based on: template0
+
+    VM_template1:
+      based on: template0
+      mem: 8Gb
+
+  subfolder_a_b/: #a folder.  Can have: imports, definitions, subfolders and machines
+    import: ALL
+
+subfolder_b/: #a folder.  Can have: imports, definitions, subfolders and machines
+  # empty folder
+  import: [template0, hyp*]
+
+mach1: #machine
+  hypervisor: hyp1
+  mem: 4Gb
+
+mach2: #machine
+  based on: VM_template1
+
+mach3: #machine
+  based on: VM_template1
