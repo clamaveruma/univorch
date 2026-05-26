@@ -3,7 +3,7 @@
 > Phase 2 deliverable: Requirements Analysis  
 > What the system does, from the user's point of view. Lightweight format.
 
-This document builds on `vision.md` (the problem) and the design decisions recorded in `claude/decisiones.md`. It describes the expected behaviour of version 1 (proof of concept) and is meant to be precise enough for the architecture phase, without going into implementation.
+This document builds on `vision.md` (the problem) and the design decisions recorded in `claude/decisiones.md`. The consolidated vocabulary (folder, descriptor, base VM, template, …) is in [docs/glossary.md](glossary.md). It describes the expected behaviour of version 1 (proof of concept) and is meant to be precise enough for the architecture phase, without going into implementation.
 
 ---
 

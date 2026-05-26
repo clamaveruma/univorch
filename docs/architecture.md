@@ -9,7 +9,7 @@
 
 UnivOrch is a Linux service written in Python that provides a unified abstraction layer for managing virtual machines across different hypervisors. This document describes the internal architecture of the system: how it is structured, how its components communicate, and the reasoning behind the key design decisions.
 
-The requirements that this architecture satisfies are defined in `docs/requirements.md`. Traceability to specific design decisions is provided via DEC-xxx references throughout the document.
+The requirements that this architecture satisfies are defined in `docs/requirements.md`. The consolidated vocabulary used throughout this document (folder, descriptor, base VM, template, definition, state, …) is in [docs/glossary.md](glossary.md). Traceability to specific design decisions is provided via DEC-xxx references throughout the document.
 
 ---
 
@@ -114,9 +114,15 @@ The `Resolver` supports two output modes:
 
 ## 5. The Declarative Model
 
-### 5.1 The apply/plan flow (DEC-027)
+### 5.1 The load/plan flow (DEC-027)
 
-All state changes enter the system through a single operation: `apply(document, session)`. A document is a YAML structure that may contain a folder definition, one or more descriptors, or both.
+> **Naming note (2026-05-26).** The single ingestion operation is implemented as
+> `load(document, destination)` taking a `DefinitionDocument`. The historical
+> decision label keeps the name *apply/plan flow* because the diary is not
+> rewritten; the rest of this document uses the current names. See the
+> [glossary](glossary.md) for the full vocabulary.
+
+All state changes enter the system through a single operation: `load(document, destination)`. The document is a relative YAML structure (folders and VMs to place, no absolute paths) that is loaded into a destination folder. The destination must exist; the load itself never modifies the destination's own properties — it only places children inside.
 
 The execution flow is:
 
@@ -148,15 +154,15 @@ flowchart LR
 | Machine operations | deploy, undeploy, start, stop | Connector → hypervisor; slow; acquire lock |
 | Definition operations | create/edit folder, edit descriptor | Write to repositories; fast; brief lock |
 
-Both categories use the same architecture and the same apply/plan flow. The validation content differs: machine operations check hypervisor reachability and IP availability; definition operations check tree consistency and permission scope.
+Both categories use the same architecture and the same load/plan flow. The validation content differs: machine operations check hypervisor reachability and IP availability; definition operations check tree consistency and permission scope.
 
 ### 5.3 Editing interfaces
 
-Three equivalent paths for modifying a definition, all using the same apply engine:
+Three equivalent paths for modifying a definition, all using the same load engine:
 
-1. **CLI `set`:** targeted update of a single field (`univorch set <path> <key>=<value>`). Uses `ruamel.yaml` to update the field in the stored YAML blob while preserving comments and formatting.
+1. **CLI `set`:** targeted update of a single field (`univorch set <path> <key>=<value>`). Future Sprint, post Resolver.
 2. **Web YAML editor:** split panel — editable YAML on the left, live-parsed tree on the right. Inherited properties shown in a distinct colour with their origin path. A "Check" button runs the plan (dry-run) before the user commits.
-3. **YAML upload/download:** full document upload processed by `apply`; download returns the locally written definition (not the resolved effective definition).
+3. **YAML upload/download:** full document upload processed by `load`; download (`save`, future) returns the locally written definition (not the resolved effective definition).
 
 ### 5.4 Export and round-trip fidelity
 
@@ -324,7 +330,7 @@ Session tokens are persisted in `SessionRepository` from v1 (not held in memory)
 
 ### 9.4 The teaching application as a facade client
 
-The teaching application (layer 2) is a client of `OrchestratorService`, not part of the core. It translates domain-specific operations ("deploy the OS lab for all students in this group") into sequences of generic core operations (create folders, apply descriptors, assign IPs). The core has no knowledge of subjects, students, or workstations.
+The teaching application (layer 2) is a client of `OrchestratorService`, not part of the core. It translates domain-specific operations ("deploy the OS lab for all students in this group") into sequences of generic core operations (create folders, create descriptors, assign IPs, deploy). The core has no knowledge of subjects, students, or workstations.
 
 ---
 
@@ -379,11 +385,11 @@ The following capabilities are outside the scope of v1 but are natural extension
 
 ### 11.1 GitOps integration
 
-The descriptor tree YAML files can be stored in a git repository. A push hook triggers `apply` automatically. This turns git into the single source of truth and audit trail: every change is a commit with author and timestamp, and rollback is a `git revert`. The current export/import mechanism already implements most of the required plumbing.
+The descriptor tree YAML files can be stored in a git repository. A push hook triggers `load` automatically against the matching destination folders. This turns git into the single source of truth and audit trail: every change is a commit with author and timestamp, and rollback is a `git revert`. The current load/save mechanism already implements most of the required plumbing.
 
 ### 11.2 Reconciliation loop
 
-A background controller periodically compares the desired state (descriptor) with the actual state (hypervisor) and corrects discrepancies automatically. This moves the system from reactive (apply-on-demand) to fully declarative (continuously convergent), following the model of Kubernetes controllers. The `Resolver` and the job engine already provide the necessary primitives.
+A background controller periodically compares the desired state (descriptor) with the actual state (hypervisor) and corrects discrepancies automatically. This moves the system from reactive (load-on-demand) to fully declarative (continuously convergent), following the model of Kubernetes controllers. The `Resolver` and the job engine already provide the necessary primitives.
 
 ### 11.3 Event sourcing
 

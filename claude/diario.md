@@ -1409,3 +1409,51 @@ tomaron en el diálogo de hoy y se implementaron:
   `define machine templates`, `based on`. Forman parte del modelo de herencia/derivación
   (DEC-010/012/017/026). El esquema actual ya las rechazaría (`extra="forbid"`); habrá que
   añadirlas como reservadas en el `_split_items` cuando toque.
+
+### Cierre de la pieza A — glosario + docs al día
+
+Tras la conversación sobre vocabulario (template vs base VM, descriptor vs VM, folder vs
+directory…) se cierra el housekeeping documental del rediseño del YAML:
+
+- **`docs/glossary.md`** (nuevo). Glosario en inglés (norma de `docs/`), agrupado por familia:
+  árbol, hipervisor, definiciones + resolver, estado (dos ejes), operaciones (Operation /
+  OperationType / Command / Job), acciones (load · save futuro · apply deprecado),
+  permisos (RBAC), y al final **la regla de las dos capas de vocabulario** ("VM" en lo
+  externo / "descriptor" en lo interno). Aclara también la distinción importante entre
+  **base VM** (la modelo en el hipervisor, `base_vm` en código) y **template** (alias del
+  orquestador, Sprint 2, definido en `define machine templates:`); eran ambiguas y el usuario
+  pidió fijarlas. Cada entrada referencia la decisión técnica respaldatoria (DEC-XXX).
+- **`docs/architecture.md` actualizado.** Sección 5.1 ahora se llama "The load/plan flow" y
+  describe `load(document, destination)` (precondición de destino existente; el documento no
+  toca propiedades del destino). Se añade una **nota de naming** explicando que la decisión
+  histórica DEC-027 conserva su nombre original ("Declarative apply/plan flow") porque el
+  diario no se reescribe. Las referencias vivas a `apply` pasan a `load` (sección 5.3 de
+  interfaces de edición; sección de GitOps futuro; el "load-on-demand" del bucle de
+  reconciliación; el "apply descriptors" en la capa docente, pasado a "create descriptors"
+  por exactitud). Enlace al glosario al inicio.
+- **`docs/requirements.md`.** Solo una mención de "apply" como **verbo inglés natural**
+  ("Changes apply on the next recreation"), no como comando — se deja. Enlace al glosario
+  al inicio.
+- Sin cambios en `decisiones.md` (entradas históricas), `diario.md` (esta entrada nueva
+  excepto), `proyecto.md`/`desarrollo.md` (ya al día), ni código (la pieza es 100% doc).
+
+160 tests siguen verde tras los cambios. Memoria `spanish-chat-style.md` afinada con la
+convención de jerga ("usar palabra española + (English) entre comillas en la primera
+mención"); memoria nueva `code-walkthrough-style.md` con la regla de explicar siempre los
+cambios de código en prosa antes de que el usuario los lea.
+
+### Próximo: Sprint 2 — Resolver y herencia en cascada
+
+Scope refinado:
+- **Resolver** puro `(árbol, path) → definición efectiva` (modo normal solamente — el modo
+  anotado se aplaza).
+- **Palabras reservadas YAML en FolderDef:** `import`, `define hypervisors`,
+  `define machine templates`, `based on`.
+- `hypervisor` y `base_vm` **opcionales** en `DescriptorDef` (la comprobación se traslada al
+  service tras resolver).
+- Comando CLI nuevo **`inspect <path>`** (definición efectiva en texto).
+- Tests con Hypothesis (Resolver es función pura, caso ideal).
+
+Sprint 3 reducido a **contenedor descargable + Daemon REST + CLI cliente HTTP** (la web GUI
+y RBAC pasan a sprints posteriores). Sprint 4 = web GUI básica de **solo lectura**. Sprint
+5+ = web con acciones, RBAC, `rm`, `save`, conectores reales, capa docente.
