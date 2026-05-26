@@ -144,6 +144,14 @@ class OrchestratorService:
         ]
         return sorted(entries, key=lambda entry: entry.path)
 
+    def folder_exists(self, path: str) -> bool:
+        """True if ``path`` is the root or an existing folder (a read; no Job).
+
+        Used by the interfaces to validate navigation (``cd``/``list``) before
+        acting. The root ``/`` has no stored Folder record, so it is implicit.
+        """
+        return path == "/" or self._folders.exists(path)
+
     def apply(self, document: ApplyDocument) -> list[ApplyResult]:
         """Create/update the folders and descriptors in ``document``.
 

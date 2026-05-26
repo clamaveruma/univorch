@@ -39,22 +39,61 @@ class TestResolve:
         shell._cwd = "/lab"
         assert shell._resolve("") == "/lab"
 
+    def test_dotdot_goes_up(self, shell: UnivOrchShell) -> None:
+        shell._cwd = "/lab/networks"
+        assert shell._resolve("..") == "/lab"
+
+    def test_dotdot_combined(self, shell: UnivOrchShell) -> None:
+        shell._cwd = "/lab/networks"
+        assert shell._resolve("../other") == "/lab/other"
+
+    def test_dot_is_current(self, shell: UnivOrchShell) -> None:
+        shell._cwd = "/lab"
+        assert shell._resolve(".") == "/lab"
+
+    def test_dotdot_at_root_stays(self, shell: UnivOrchShell) -> None:
+        assert shell._resolve("..") == "/"
+
+
+def _mkdir(shell: UnivOrchShell, *paths: str) -> None:
+    shell._service.apply(ApplyDocument(folders=[Folder(path=p) for p in paths]))
+
 
 class TestNavigation:
     def test_cd_absolute_then_pwd(self, shell: UnivOrchShell) -> None:
+        _mkdir(shell, "/lab", "/lab/networks")
         shell.onecmd_plus_hooks("cd /lab/networks")
         assert shell._cwd == "/lab/networks"
         assert "/lab/networks" in _run(shell, "pwd")
 
     def test_cd_relative_chains(self, shell: UnivOrchShell) -> None:
+        _mkdir(shell, "/lab", "/lab/networks")
         shell.onecmd_plus_hooks("cd lab")
         shell.onecmd_plus_hooks("cd networks")
         assert shell._cwd == "/lab/networks"
 
-    def test_cd_no_arg_goes_to_root(self, shell: UnivOrchShell) -> None:
+    def test_cd_no_arg_stays(self, shell: UnivOrchShell) -> None:
+        _mkdir(shell, "/lab")
         shell.onecmd_plus_hooks("cd /lab")
         shell.onecmd_plus_hooks("cd")
-        assert shell._cwd == "/"
+        assert shell._cwd == "/lab"  # no-op
+
+    def test_cd_dotdot_goes_to_parent(self, shell: UnivOrchShell) -> None:
+        _mkdir(shell, "/lab", "/lab/networks")
+        shell.onecmd_plus_hooks("cd /lab/networks")
+        shell.onecmd_plus_hooks("cd ..")
+        assert shell._cwd == "/lab"
+
+    def test_cd_missing_folder_stays(self, shell: UnivOrchShell) -> None:
+        _mkdir(shell, "/lab")
+        shell.onecmd_plus_hooks("cd /lab")
+        shell.onecmd_plus_hooks("cd /nope")  # does not exist
+        assert shell._cwd == "/lab"  # unchanged
+
+    def test_cd_into_descriptor_stays(self, shell: UnivOrchShell) -> None:
+        _provision(shell)  # creates /lab folder + /lab/vm descriptor
+        shell.onecmd_plus_hooks("cd /lab/vm")  # a descriptor is not a folder
+        assert shell._cwd == "/"  # no move
 
 
 class TestList:

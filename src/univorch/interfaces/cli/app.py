@@ -12,6 +12,7 @@ CLI process therefore has its own mock state — fine within one REPL session
 """
 
 import os
+import posixpath
 import sys
 from collections.abc import Callable
 
@@ -62,18 +63,26 @@ class UnivOrchShell(cmd2.Cmd):
         return f"univorch {self._cwd}> "
 
     def _resolve(self, path: str) -> str:
-        """Turn a path argument into an absolute tree path, relative to the CWD."""
+        """Normalize a path argument to an absolute tree path.
+
+        Relative paths join onto the current folder; '.' and '..' are resolved
+        and the result never climbs above the root (``..`` at ``/`` stays ``/``).
+        """
         if not path:
             return self._cwd
-        if path.startswith("/"):
-            return path
-        base = "" if self._cwd == "/" else self._cwd  # avoid a leading "//"
-        return f"{base}/{path}"
+        combined = path if path.startswith("/") else posixpath.join(self._cwd, path)
+        return posixpath.normpath(combined)
 
     def do_cd(self, arg: str) -> None:
-        """Change the current folder (absolute or relative path; no arg = root)."""
+        """Change the current folder ('..' allowed; no arg does nothing)."""
         target = arg.strip()
-        self._cwd = self._resolve(target) if target else "/"
+        if not target:
+            return  # no-op; use 'pwd' to see the current folder
+        resolved = self._resolve(target)
+        if not self._service.folder_exists(resolved):
+            self.perror(f"cd: {resolved}: no such folder")
+            return
+        self._cwd = resolved
         self.prompt = self._prompt()
 
     def do_pwd(self, arg: str) -> None:
