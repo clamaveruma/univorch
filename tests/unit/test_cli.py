@@ -132,13 +132,6 @@ class TestTree:
         assert _run(shell, "tree /nope") == ""
 
 
-class TestApplyCompletion:
-    def test_completes_filesystem_paths(self, shell: UnivOrchShell) -> None:
-        # delegates to cmd2's path completion; 'demo/' should offer the demo files
-        results = shell.complete_apply("demo/", "apply demo/", 6, 11)
-        assert any("setup" in r for r in results)
-
-
 def _provision(shell: UnivOrchShell) -> None:
     shell._service.apply(
         ApplyDocument(

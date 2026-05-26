@@ -1222,9 +1222,30 @@ aclaraciones de entorno surgidas de la prueba:
 **Elementos de ejemplo del mock:** `with_demo_templates()` precarga dos plantillas (`linux-base`,
 `windows-base`) como origen de `clone`; el árbol empieza vacío (se siembra con `apply demo/setup.yml`).
 
+### Bloque C — ayuda estructurada con argparse (cmd2)
+
+El usuario observa que `help shell` (interno de cmd2) tiene ayuda rica y coloreada (Usage /
+Positional Arguments / Options) mientras la nuestra era un docstring de una línea. Se adopta el
+**Nivel 2**: cada comando se declara con **`@cmd2.with_argparser(parser)`** (cmd2 3.x,
+`Cmd2ArgumentParser`). Beneficios: ayuda autogenerada y coloreada como la interna, validación de
+argumentos, y un punto donde enganchar el completado de argumentos en el futuro.
+
+- Factoría `_path_arg_parser(description, required)` para los comandos de un solo `path`
+  (obligatorio en deploy/undeploy/start/stop/status; opcional en cd/list/ls/tree). `do_pwd` sin
+  argumentos; `apply` con `file` + `completer=cmd2.Cmd.path_complete` (sustituye al antiguo
+  `complete_apply`, ahora declarativo en el parser).
+- Las firmas `do_*` pasan de `arg: str` a `args: argparse.Namespace` (leen `args.path`/`args.file`).
+  Los tests, que conducen por cadenas (`onecmd_plus_hooks`), no cambian salvo quitar el test de
+  `complete_apply`.
+- **Leyenda de glifos en `help list`/`help ls`** (constante `_LIST_DESC` compartida): resuelve la
+  petición del usuario sin un comando `legend` aparte. La lógica de `list` se extrae a `_list` para
+  que `list` y `ls` la compartan (no se puede delegar entre dos `do_*` decorados).
+- 151 tests en verde (uno menos: se retiró el de completado); `app.py` 95% (solo `main()`),
+  `service.py` 100%.
+
 ### Pendientes anotados (futuro)
 - Completado de Tab para **paths del árbol** en `cd`/`deploy`/`status`/… (navegar el árbol con Tab).
-  Pieza propia, más trabajo (consulta el service).
-- Comodidad opcional `univorch --demo` que aplique `demo/setup.yml` al arrancar.
+  Pieza propia, más trabajo (consulta el service). El argparse ya deja el gancho (`completer=`).
+  **Fuera del TFG** (decisión del usuario).
 - `list --live` (runtime por VM, con streaming).
-- Comando `legend` que explique los glifos.
+- Descartado: `univorch --demo` (no necesario) y comando `legend` (la leyenda va en `help list`).

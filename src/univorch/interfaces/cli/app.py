@@ -5,12 +5,16 @@ A thin interface (DEC-031): each command translates user input into a call to th
 both the interactive REPL (a shell with a prompt and history) and bash mode (a
 single command passed as arguments).
 
+Each command declares an argparse parser via ``@cmd2.with_argparser``; cmd2 then
+parses the arguments and autogenerates structured, coloured help (``help <cmd>``).
+
 In Sprint 1 the CLI assembles the service itself, in its own process (the
 composition root): a disk-backed TinyDB plus the in-memory mock connector. Each
 CLI process therefore has its own mock state — fine within one REPL session
 (the demo), reset across separate invocations. A persistent daemon is Sprint 2.
 """
 
+import argparse
 import os
 import posixpath
 import sys
@@ -49,6 +53,36 @@ _STATE_GLYPH = {
 }
 _FOLDER_STYLE = "blue"  # folders shown in blue, like 'ls' dircolors
 
+# Shared by 'list' and 'ls'; the glyph legend lives in the help so users can find it.
+_LIST_DESC = (
+    "List one level of a folder, like ls. Folders show as 'name/' (blue); "
+    "descriptors show a state glyph:  □ provisioned   ■ deployed   "
+    "✗ broken   ▲ unreachable"
+)
+
+
+def _path_arg_parser(description: str, *, required: bool) -> cmd2.Cmd2ArgumentParser:
+    """Build a parser for a command that takes a single tree path."""
+    parser = cmd2.Cmd2ArgumentParser(description=description)
+    if required:
+        parser.add_argument("path", help="tree path (absolute or relative)")
+    else:
+        parser.add_argument(
+            "path", nargs="?", default="", help="tree path (default: current folder)"
+        )
+    return parser
+
+
+def _apply_arg_parser() -> cmd2.Cmd2ArgumentParser:
+    """Build the parser for 'apply' (a filesystem path, Tab-completed)."""
+    parser = cmd2.Cmd2ArgumentParser(
+        description="Apply a YAML file: create/update folders and descriptors from it."
+    )
+    parser.add_argument(
+        "file", help="path to the YAML apply document", completer=cmd2.Cmd.path_complete
+    )
+    return parser
+
 
 def build_service(db: TinyDB) -> OrchestratorService:
     """Wire the service from a TinyDB: the repositories + the mock connector."""
@@ -83,9 +117,14 @@ class UnivOrchShell(cmd2.Cmd):
         combined = path if path.startswith("/") else posixpath.join(self._cwd, path)
         return posixpath.normpath(combined)
 
-    def do_cd(self, arg: str) -> None:
-        """Change the current folder ('..' allowed; no arg does nothing)."""
-        target = arg.strip()
+    @cmd2.with_argparser(
+        _path_arg_parser(
+            "Change the current folder ('..' allowed; no arg does nothing).",
+            required=False,
+        )
+    )
+    def do_cd(self, args: argparse.Namespace) -> None:
+        target = args.path.strip()
         if not target:
             return  # no-op; use 'pwd' to see the current folder
         resolved = self._resolve(target)
@@ -95,13 +134,23 @@ class UnivOrchShell(cmd2.Cmd):
         self._cwd = resolved
         self.prompt = self._prompt()
 
-    def do_pwd(self, arg: str) -> None:
-        """Print the current folder."""
+    @cmd2.with_argparser(
+        cmd2.Cmd2ArgumentParser(description="Print the current folder.")
+    )
+    def do_pwd(self, args: argparse.Namespace) -> None:
         self.poutput(self._cwd)
 
-    def do_list(self, arg: str) -> None:
-        """List the current folder's contents, one level (like ls)."""
-        path = self._resolve(arg.strip())
+    @cmd2.with_argparser(_path_arg_parser(_LIST_DESC, required=False))
+    def do_list(self, args: argparse.Namespace) -> None:
+        self._list(args.path.strip())
+
+    @cmd2.with_argparser(_path_arg_parser(_LIST_DESC, required=False))
+    def do_ls(self, args: argparse.Namespace) -> None:
+        self._list(args.path.strip())
+
+    def _list(self, path_arg: str) -> None:
+        """List one level of a folder (shared by 'list' and 'ls')."""
+        path = self._resolve(path_arg)
         if not self._service.folder_exists(path):
             self.perror(f"list: {path}: no such folder")
             return
@@ -111,13 +160,14 @@ class UnivOrchShell(cmd2.Cmd):
             text, style = self._render_entry(entry)
             self.poutput(text, style=style)
 
-    def do_ls(self, arg: str) -> None:
-        """Alias for 'list'."""
-        self.do_list(arg)
-
-    def do_tree(self, arg: str) -> None:
-        """Print the whole subtree under a path (default: current folder)."""
-        path = self._resolve(arg.strip())
+    @cmd2.with_argparser(
+        _path_arg_parser(
+            "Print the whole subtree under a path (default: current folder).",
+            required=False,
+        )
+    )
+    def do_tree(self, args: argparse.Namespace) -> None:
+        path = self._resolve(args.path.strip())
         if not self._service.folder_exists(path):
             self.perror(f"tree: {path}: no such folder")
             return
@@ -126,12 +176,6 @@ class UnivOrchShell(cmd2.Cmd):
             indent = "  " * (entry.path.count("/") - root_depth - 1)
             text, style = self._render_entry(entry)
             self.poutput(indent + text, style=style)
-
-    def complete_apply(
-        self, text: str, line: str, begidx: int, endidx: int
-    ) -> list[str]:
-        """Tab-complete the YAML file argument against the filesystem."""
-        return self.path_complete(text, line, begidx, endidx)
 
     def _render_entry(self, entry: TreeEntry) -> tuple[str, str]:
         """Return the (text, Rich style) for one listing row.
@@ -144,21 +188,34 @@ class UnivOrchShell(cmd2.Cmd):
             return f"  {name}/", _FOLDER_STYLE
         return f"{_STATE_GLYPH[entry.state]} {name}", _STATE_STYLE[entry.state]
 
-    def do_deploy(self, arg: str) -> None:
-        """Deploy a descriptor: clone its base VM (provisioned -> deployed)."""
-        self._machine(self._service.deploy, arg)
+    @cmd2.with_argparser(
+        _path_arg_parser(
+            "Deploy a descriptor: clone its base VM (provisioned -> deployed).",
+            required=True,
+        )
+    )
+    def do_deploy(self, args: argparse.Namespace) -> None:
+        self._machine(self._service.deploy, args.path)
 
-    def do_undeploy(self, arg: str) -> None:
-        """Undeploy a descriptor: delete its VM (-> provisioned)."""
-        self._machine(self._service.undeploy, arg)
+    @cmd2.with_argparser(
+        _path_arg_parser(
+            "Undeploy a descriptor: delete its VM (-> provisioned).", required=True
+        )
+    )
+    def do_undeploy(self, args: argparse.Namespace) -> None:
+        self._machine(self._service.undeploy, args.path)
 
-    def do_start(self, arg: str) -> None:
-        """Start (power on) a deployed descriptor's VM."""
-        self._machine(self._service.start, arg)
+    @cmd2.with_argparser(
+        _path_arg_parser("Start (power on) a deployed descriptor's VM.", required=True)
+    )
+    def do_start(self, args: argparse.Namespace) -> None:
+        self._machine(self._service.start, args.path)
 
-    def do_stop(self, arg: str) -> None:
-        """Stop (power off) a deployed descriptor's VM."""
-        self._machine(self._service.stop, arg)
+    @cmd2.with_argparser(
+        _path_arg_parser("Stop (power off) a deployed descriptor's VM.", required=True)
+    )
+    def do_stop(self, args: argparse.Namespace) -> None:
+        self._machine(self._service.stop, args.path)
 
     def _machine(self, operation: Callable[[str], Job], arg: str) -> None:
         """Run a machine command; print the Job message (green/red) or the error."""
@@ -170,10 +227,15 @@ class UnivOrchShell(cmd2.Cmd):
         style = "green" if job.status == JobStatus.COMPLETED else "red"
         self.poutput(job.message or "", style=style)
 
-    def do_status(self, arg: str) -> None:
-        """Show a descriptor's state and, if deployed, its runtime state."""
+    @cmd2.with_argparser(
+        _path_arg_parser(
+            "Show a descriptor's state and, if deployed, its runtime state.",
+            required=True,
+        )
+    )
+    def do_status(self, args: argparse.Namespace) -> None:
         try:
-            info = self._service.status(self._resolve(arg.strip()))
+            info = self._service.status(self._resolve(args.path))
         except OperationError as error:
             self.perror("; ".join(error.errors))
             return
@@ -186,10 +248,10 @@ class UnivOrchShell(cmd2.Cmd):
             markup=True,
         )
 
-    def do_apply(self, arg: str) -> None:
-        """Apply a YAML file: create/update folders and descriptors from it."""
+    @cmd2.with_argparser(_apply_arg_parser())
+    def do_apply(self, args: argparse.Namespace) -> None:
         try:
-            document = load_apply_file(arg.strip())
+            document = load_apply_file(args.file)
         except (OSError, YAMLError, ValidationError) as error:
             self.perror(str(error))
             return
