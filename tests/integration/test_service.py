@@ -96,6 +96,19 @@ def test_unknown_hypervisor_rejected(
         service.deploy("/lab/vm")
 
 
+def test_deploy_descriptor_without_hypervisor_rejected(
+    service: OrchestratorService, descriptors: DescriptorRepository
+) -> None:
+    # transitional in Pieza 1.A: a descriptor with no effective hypervisor
+    # (e.g. it relied on a template and the Resolver isn't wired yet) gives a
+    # clear OperationError. Pieza 1.C will route through the Resolver.
+    descriptors.save(
+        Descriptor(path="/lab/vm", template="linux-vm")  # hypervisor=None, base_vm=None
+    )
+    with pytest.raises(OperationError, match="no effective hypervisor"):
+        service.deploy("/lab/vm")
+
+
 def test_broken_descriptor_rejected(
     service: OrchestratorService, descriptors: DescriptorRepository
 ) -> None:

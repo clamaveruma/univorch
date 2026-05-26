@@ -73,6 +73,12 @@ class DeployCommand(Command):
         assert descriptor is not None  # validate() guaranteed it exists
         if descriptor.state == DescriptorState.DEPLOYED:
             return "already deployed (no change)"  # idempotent no-op (DEC-035)
+        # base_vm is optional in the model (it may be inherited from a template
+        # in Pieza 1.C); until the Resolver wires in, demand it here explicitly
+        if descriptor.base_vm is None:
+            raise ValueError(
+                f"VM has no effective base_vm: {self.target} (resolver not yet wired)"
+            )
         # name = full path; real connectors will sanitise it to their own rules
         vm_id = self._connector.clone(descriptor.base_vm, descriptor.path)
         descriptor.state = DescriptorState.DEPLOYED

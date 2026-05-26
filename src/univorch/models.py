@@ -97,28 +97,74 @@ class DescriptorState(StrEnum):
     UNREACHABLE = "unreachable"
 
 
-class Folder(BaseModel):
-    """A node in the descriptor tree, addressed by its materialized path."""
+class HypervisorDef(BaseModel):
+    """A hypervisor declared with ``define hypervisors:`` inside a folder.
 
-    model_config = ConfigDict(extra="forbid")  # reject unknown fields (typos)
+    Used both by the YAML input (parsed by ``FolderDef``) and by the persisted
+    ``Folder`` record. In YAML, the key is the hypervisor's name (e.g.
+    ``mock``); the body lives in this model. ``connector_type`` is the
+    registered connector that talks to this hypervisor (today only ``mock``;
+    Sprint 3+ adds ``vmware`` and ``proxmox``).
+    """
 
-    path: TreePath
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
     description: str | None = None
+    connector_type: str = Field(alias="type")
 
 
-class Descriptor(BaseModel):
-    """A VM definition in the tree (analogous to a file descriptor in an OS).
+class VMTemplateDef(BaseModel):
+    """A VM template declared with ``define machine templates:`` in a folder.
 
-    Sprint 1 carries the configuration inline (``hypervisor``, ``base_vm``,
-    specs); Sprint 2 moves it to an inherited ``definition`` (DEC-026/034).
+    Same shape as a ``DescriptorDef`` minus the ability to reference another
+    template (Pieza 1.A; Pieza 4 will add ``based on:`` for derivation). Used
+    both by the YAML input and by the persisted ``Folder`` record.
+    """
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    description: str | None = None
+    hypervisor: str | None = Field(default=None, alias="use hypervisor")
+    base_vm: str | None = None
+    cpu: int | None = None
+    memory_mb: int | None = None
+    disk_gb: int | None = None
+
+
+class Folder(BaseModel):
+    """A node in the descriptor tree, addressed by its materialized path.
+
+    Sprint 2 (Pieza 1.A): a folder also carries declared resources
+    (hypervisors, VM templates) and an explicit ``imports`` list naming what it
+    pulls in from its parent — the basis of cascade inheritance (DEC-012,
+    DEC-026). Resolution itself happens elsewhere (Pieza 1.B).
     """
 
     model_config = ConfigDict(extra="forbid")  # reject unknown fields (typos)
 
     path: TreePath
     description: str | None = None
-    hypervisor: str
-    base_vm: str
+    imports: list[str] = Field(default_factory=list)
+    hypervisors: dict[str, HypervisorDef] = Field(default_factory=dict)
+    vm_templates: dict[str, VMTemplateDef] = Field(default_factory=dict)
+
+
+class Descriptor(BaseModel):
+    """A VM definition in the tree (analogous to a file descriptor in an OS).
+
+    Sprint 2 (Pieza 1.A): ``hypervisor`` and ``base_vm`` are now optional —
+    a descriptor may instead reference a template via ``template`` and let the
+    Resolver fill in the rest later (Pieza 1.B/1.C). Until then, deploy of a
+    template-based descriptor will fail (the connector lookup needs a name).
+    """
+
+    model_config = ConfigDict(extra="forbid")  # reject unknown fields (typos)
+
+    path: TreePath
+    description: str | None = None
+    hypervisor: str | None = None
+    base_vm: str | None = None
+    template: str | None = None
     cpu: int | None = None
     memory_mb: int | None = None
     disk_gb: int | None = None
@@ -164,13 +210,20 @@ class Job(BaseModel):
 
 class DescriptorDef(BaseModel):
     """A VM definition inside a YAML — no path; the load destination plus the
-    nesting position give it its place in the tree."""
+    nesting position give it its place in the tree.
 
-    model_config = ConfigDict(extra="forbid")
+    YAML uses ``use hypervisor:`` and ``use template:`` for references to
+    declared resources; both map to Python field names via Pydantic aliases.
+    ``hypervisor`` and ``base_vm`` are optional because they can come from a
+    template (Pieza 1.A; resolution in Pieza 1.B).
+    """
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     description: str | None = None
-    hypervisor: str
-    base_vm: str
+    hypervisor: str | None = Field(default=None, alias="use hypervisor")
+    base_vm: str | None = None
+    template: str | None = Field(default=None, alias="use template")
     cpu: int | None = None
     memory_mb: int | None = None
     disk_gb: int | None = None
@@ -179,21 +232,48 @@ class DescriptorDef(BaseModel):
 class FolderDef(BaseModel):
     """A folder inside a YAML. Mixed items: keys ending in ``/`` are subfolders,
     others are VMs. The model_validator splits them into ``folders`` and
-    ``descriptors`` internally; ``description`` is the only reserved key here.
+    ``descriptors`` internally.
+
+    Sprint 2 (Pieza 1.A): folders can declare resources (``define hypervisors:``,
+    ``define machine templates:``) and an explicit ``import:`` list. The YAML
+    keys with spaces are mapped to Python field names via Pydantic aliases.
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     description: str | None = None
+    imports: list[str] = Field(default_factory=list, alias="import")
+    hypervisors: dict[str, HypervisorDef] = Field(
+        default_factory=dict, alias="define hypervisors"
+    )
+    vm_templates: dict[str, VMTemplateDef] = Field(
+        default_factory=dict, alias="define machine templates"
+    )
     folders: dict[str, "FolderDef"] = Field(default_factory=dict)
     descriptors: dict[str, DescriptorDef] = Field(default_factory=dict)
 
     @model_validator(mode="before")
     @classmethod
     def _split(cls, data: Any) -> Any:
-        return _split_items(data, reserved={"description"})
+        return _split_items(
+            data,
+            reserved={
+                "description",
+                "import",
+                "define hypervisors",
+                "define machine templates",
+            },
+        )
 
-    @field_validator("folders", "descriptors")
+    @field_validator("imports", mode="before")
+    @classmethod
+    def _normalize_imports(cls, value: Any) -> Any:
+        """Accept ``import: ALL`` and single strings; normalize to a list."""
+        if isinstance(value, str):
+            return ["*"] if value == "ALL" else [value]
+        return value
+
+    @field_validator("folders", "descriptors", "hypervisors", "vm_templates")
     @classmethod
     def _check_names(cls, value: dict[str, Any]) -> dict[str, Any]:
         return _validate_segment_keys(value)
@@ -207,6 +287,11 @@ class DefinitionDocument(BaseModel):
     not touched by loading — the document only describes what goes inside.
     Reserved at the top level: ``kind`` and ``version``; everything else is an
     item, split by the trailing ``/`` like inside a folder.
+
+    Resources (``define hypervisors:``, ``define machine templates:``) and
+    ``import:`` are **rejected** at this level — they belong inside a folder
+    definition. The destination folder's own resources are not modifiable by a
+    load.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -219,6 +304,15 @@ class DefinitionDocument(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def _split(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            forbidden = {"import", "define hypervisors", "define machine templates"}
+            present = sorted(forbidden & set(data.keys()))
+            if present:
+                raise ValueError(
+                    f"{present} cannot appear at the top of the document; "
+                    "they belong inside a folder definition. Wrap them in a "
+                    "first-level folder (e.g. 'lab/:')."
+                )
         return _split_items(data, reserved={"kind", "version"})
 
     @field_validator("folders", "descriptors")

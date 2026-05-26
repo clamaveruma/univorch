@@ -15,10 +15,10 @@ version: "1"
 lab/:
   description: "Lab"
   vm:
-    hypervisor: mock
+    use hypervisor: mock
     base_vm: linux-base
 shared_vm:
-  hypervisor: mock
+  use hypervisor: mock
   base_vm: linux-base
 """
 
@@ -29,7 +29,76 @@ def test_parses_a_valid_document() -> None:
     assert list(doc.folders) == ["lab"]  # trailing / stripped from the key
     assert doc.folders["lab"].description == "Lab"
     assert "vm" in doc.folders["lab"].descriptors  # nested under the folder
-    assert doc.descriptors["shared_vm"].hypervisor == "mock"  # top-level VM
+    # 'use hypervisor:' (YAML alias) → 'hypervisor' (Python field) via Pydantic
+    assert doc.descriptors["shared_vm"].hypervisor == "mock"
+
+
+def test_parses_define_hypervisors() -> None:
+    yaml = (
+        "kind: definition\n"
+        "lab/:\n"
+        "  define hypervisors:\n"
+        "    mock:\n"
+        "      type: mock\n"
+        "      description: in-memory mock\n"
+    )
+    doc = parse_definition(yaml)
+    assert "mock" in doc.folders["lab"].hypervisors
+    h = doc.folders["lab"].hypervisors["mock"]
+    assert h.connector_type == "mock"  # YAML 'type:' → Python 'connector_type'
+    assert h.description == "in-memory mock"
+
+
+def test_parses_define_machine_templates() -> None:
+    yaml = (
+        "kind: definition\n"
+        "lab/:\n"
+        "  define machine templates:\n"
+        "    linux-vm:\n"
+        "      use hypervisor: mock\n"
+        "      base_vm: linux-base\n"
+        "      cpu: 2\n"
+    )
+    doc = parse_definition(yaml)
+    t = doc.folders["lab"].vm_templates["linux-vm"]
+    assert t.hypervisor == "mock"
+    assert t.base_vm == "linux-base"
+    assert t.cpu == 2
+
+
+def test_import_ALL_normalizes_to_wildcard() -> None:
+    yaml = "kind: definition\nlab/:\n  import: ALL\n"
+    doc = parse_definition(yaml)
+    assert doc.folders["lab"].imports == ["*"]
+
+
+def test_import_list_kept_as_is() -> None:
+    yaml = "kind: definition\nlab/:\n  import: [a, b, hyperv-*]\n"
+    doc = parse_definition(yaml)
+    assert doc.folders["lab"].imports == ["a", "b", "hyperv-*"]
+
+
+def test_descriptor_with_only_template_is_valid() -> None:
+    yaml = "kind: definition\nvm:\n  use template: linux-vm\n"
+    doc = parse_definition(yaml)
+    d = doc.descriptors["vm"]
+    assert d.template == "linux-vm"
+    assert d.hypervisor is None
+    assert d.base_vm is None
+
+
+def test_rejects_top_level_resources() -> None:
+    # Resources and 'import' cannot live at the document root — they belong
+    # inside a folder.
+    yaml = "kind: definition\ndefine hypervisors:\n  mock: { type: mock }\n"
+    with pytest.raises(ValidationError):
+        parse_definition(yaml)
+
+
+def test_rejects_top_level_import() -> None:
+    yaml = "kind: definition\nimport: ALL\n"
+    with pytest.raises(ValidationError):
+        parse_definition(yaml)
 
 
 def test_rejects_wrong_kind() -> None:
@@ -37,9 +106,19 @@ def test_rejects_wrong_kind() -> None:
         parse_definition("kind: load\n")
 
 
-def test_rejects_descriptor_missing_hypervisor() -> None:
+def test_rejects_hypervisor_definition_missing_type() -> None:
+    # Pieza 1.A: descriptor's hypervisor/base_vm are optional (may be inherited
+    # from a template). What's still required: a *defined* hypervisor needs a
+    # 'type' (the connector type).
+    yaml = (
+        "kind: definition\n"
+        "lab/:\n"
+        "  define hypervisors:\n"
+        "    mock:\n"
+        "      description: 'no type'\n"
+    )
     with pytest.raises(ValidationError):
-        parse_definition("vm:\n  base_vm: linux-base\n")  # no hypervisor
+        parse_definition(yaml)
 
 
 def test_rejects_invalid_name() -> None:

@@ -122,8 +122,14 @@ class OrchestratorService:
         if descriptor is None:
             raise OperationError([f"VM not found: {path}"])
         runtime: RuntimeState | None = None
-        # runtime state only exists for a deployed VM — ask its hypervisor
-        if descriptor.state == DescriptorState.DEPLOYED and descriptor.vm_id:
+        # runtime state only exists for a deployed VM — ask its hypervisor; we
+        # also need a hypervisor name to look up the connector (None means the
+        # descriptor never had it resolved, shouldn't happen if it's DEPLOYED)
+        if (
+            descriptor.state == DescriptorState.DEPLOYED
+            and descriptor.vm_id
+            and descriptor.hypervisor
+        ):
             connector = self._connectors.get(descriptor.hypervisor)
             runtime = (
                 connector.get_status(descriptor.vm_id)
@@ -198,7 +204,15 @@ class OrchestratorService:
     ) -> list[LoadResult]:
         """Materialize one folder and its contents under ``base``."""
         path = posixpath.join(base, name)
-        folder = Folder(path=path, description=folder_def.description)
+        # carry across the folder's own resources and imports; folder defs and
+        # persisted folders mirror these fields exactly so a plain copy works
+        folder = Folder(
+            path=path,
+            description=folder_def.description,
+            imports=folder_def.imports,
+            hypervisors=folder_def.hypervisors,
+            vm_templates=folder_def.vm_templates,
+        )
         results = [self._load_one(CreateFolderCommand(folder, self._folders))]
         # recurse: subfolders first (so they exist when their items try to attach),
         # then this folder's own descriptors at the same level
@@ -227,6 +241,13 @@ class OrchestratorService:
         descriptor = self._descriptors.get(path)
         if descriptor is None:
             raise OperationError([f"VM not found: {path}"])
+        # in Pieza 1.A the Resolver is not wired in yet, so a descriptor that
+        # inherits its hypervisor from a template would arrive here with None;
+        # such cases get a clear error until Pieza 1.C resolves them
+        if descriptor.hypervisor is None:
+            raise OperationError(
+                [f"VM has no effective hypervisor: {path} (resolver not yet wired)"]
+            )
         connector = self._connectors.get(descriptor.hypervisor)
         if connector is None:
             raise OperationError([f"unknown hypervisor: {descriptor.hypervisor}"])

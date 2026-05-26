@@ -51,9 +51,15 @@ def test_minimal_document_passes_both(schema: dict[str, object]) -> None:
     DefinitionDocument.model_validate(data)
 
 
-def test_missing_required_field_fails_both(schema: dict[str, object]) -> None:
-    """A VM without ``hypervisor`` is rejected by both validators."""
-    bad = _load_yaml_text("kind: definition\nvm:\n  base_vm: linux-base\n")
+def test_hypervisor_def_missing_type_fails_both(schema: dict[str, object]) -> None:
+    """A 'define hypervisors:' entry without ``type`` is rejected by both."""
+    bad = _load_yaml_text(
+        "kind: definition\n"
+        "lab/:\n"
+        "  define hypervisors:\n"
+        "    mock:\n"
+        "      description: 'no type field'\n"
+    )
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(bad, schema)
     with pytest.raises(ValidationError):

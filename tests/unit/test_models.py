@@ -38,9 +38,13 @@ class TestDescriptor:
         )
         assert Descriptor.model_validate(d.model_dump()) == d
 
-    def test_missing_required_field_raises(self) -> None:
+    def test_unknown_field_rejected(self) -> None:
+        # hypervisor and base_vm are optional now (can be inherited from a
+        # template, Pieza 1.A onwards); what we still reject is typos
         with pytest.raises(ValidationError):
-            Descriptor.model_validate({"path": "/lab/vm", "hypervisor": "mock"})
+            Descriptor.model_validate(
+                {"path": "/lab/vm", "hypevisor": "mock"}  # typo
+            )
 
 
 class TestPathValidation:

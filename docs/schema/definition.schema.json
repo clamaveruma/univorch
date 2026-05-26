@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://univorch.example.com/schemas/definition.schema.json",
   "title": "UnivOrch definition document",
-  "description": "A relative tree of folders and VMs that the 'load' command attaches to a destination folder. Folders are keys ending in '/'; VMs are keys without '/'. The destination's own properties are never modified by load.",
+  "description": "A relative tree of folders and VMs that the 'load' command attaches to a destination folder. Folders are keys ending in '/'; VMs are keys without '/'. The destination's own properties are never modified by load. Resources (hypervisors, VM templates) and imports belong inside a folder definition, never at the document root.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
@@ -23,36 +23,119 @@
   "$defs": {
     "Folder": {
       "type": ["object", "null"],
-      "description": "A folder to create inside the destination. May contain nested folders (keys ending in '/') and VMs (keys without '/').",
+      "description": "A folder to create inside the destination. May contain its own description, declared resources (hypervisors, VM templates), an explicit import list, nested folders (keys ending in '/') and VMs (keys without '/').",
       "additionalProperties": false,
       "properties": {
         "description": {
           "type": "string",
           "description": "Free-text description of the folder."
+        },
+        "import": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": ["ALL"],
+              "description": "Special value 'ALL' imports everything visible at the parent level."
+            },
+            {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "List of resource names to import from the parent (supports '*' wildcards)."
+            }
+          ]
+        },
+        "define hypervisors": {
+          "type": "object",
+          "description": "Hypervisors declared in this folder, keyed by name.",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^[A-Za-z0-9_-]+$": { "$ref": "#/$defs/Hypervisor" }
+          }
+        },
+        "define machine templates": {
+          "type": "object",
+          "description": "VM templates declared in this folder, keyed by name.",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^[A-Za-z0-9_-]+$": { "$ref": "#/$defs/VMTemplate" }
+          }
         }
       },
       "patternProperties": {
         "^[A-Za-z0-9_-]+/$": { "$ref": "#/$defs/Folder" },
-        "^(?!description$)[A-Za-z0-9_-]+$": { "$ref": "#/$defs/Descriptor" }
+        "^(?!description$|import$|define hypervisors$|define machine templates$)[A-Za-z0-9_-]+$": { "$ref": "#/$defs/Descriptor" }
+      }
+    },
+    "Hypervisor": {
+      "type": "object",
+      "description": "A hypervisor declared inside a folder. Carries the connector type ('mock', 'vmware', 'proxmox') and free-text description; address and credentials come in future sprints.",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "Free-text description of the hypervisor."
+        },
+        "type": {
+          "type": "string",
+          "description": "Connector type (must be a registered connector)."
+        }
+      }
+    },
+    "VMTemplate": {
+      "type": "object",
+      "description": "A VM template declared inside a folder. Same shape as a Descriptor body but cannot itself reference another template (use 'based on:' in a future sprint for derivation).",
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "Free-text description of the template."
+        },
+        "use hypervisor": {
+          "type": "string",
+          "description": "Name of a declared hypervisor accessible from this folder."
+        },
+        "base_vm": {
+          "type": "string",
+          "description": "Name of the base VM on the hypervisor to clone from."
+        },
+        "cpu": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Number of virtual CPUs."
+        },
+        "memory_mb": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Memory in megabytes."
+        },
+        "disk_gb": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Disk size in gigabytes."
+        }
       }
     },
     "Descriptor": {
       "type": "object",
-      "description": "A VM to create. Requires the hypervisor it lives on and the base VM to clone from.",
+      "description": "A VM to create. May reference a template via 'use template:' and a hypervisor via 'use hypervisor:'. Fields are optional because they may be inherited from a template (the orchestrator validates the final, resolved shape).",
       "additionalProperties": false,
-      "required": ["hypervisor", "base_vm"],
       "properties": {
         "description": {
           "type": "string",
           "description": "Free-text description of the VM."
         },
-        "hypervisor": {
+        "use hypervisor": {
           "type": "string",
-          "description": "Name of the hypervisor where the VM lives (e.g., 'mock', 'vmware-prod')."
+          "description": "Name of a declared hypervisor accessible from this VM's folder."
         },
         "base_vm": {
           "type": "string",
           "description": "Name of the base VM on the hypervisor to clone from."
+        },
+        "use template": {
+          "type": "string",
+          "description": "Name of a VM template to inherit fields from."
         },
         "cpu": {
           "type": "integer",

@@ -1457,3 +1457,118 @@ Scope refinado:
 Sprint 3 reducido a **contenedor descargable + Daemon REST + CLI cliente HTTP** (la web GUI
 y RBAC pasan a sprints posteriores). Sprint 4 = web GUI básica de **solo lectura**. Sprint
 5+ = web con acciones, RBAC, `rm`, `save`, conectores reales, capa docente.
+
+### Sprint 2 — diseño del vocabulario YAML (largo diálogo, decisiones cerradas)
+
+Antes de tocar código, conversación larga sobre la sintaxis de la herencia. Conclusiones que se
+codifican en el modelo:
+
+- **`define X:` / `use X:` / `based on:`** como tríada explícita. `define` declara un recurso
+  (vive aquí desde ahora). `use` referencia uno ya declarado. `based on` deriva un recurso de
+  otro (Pieza 4). Mejor que `templates:` o `hypervisors:` simples — el verbo da significado
+  semántico.
+- **`define machine templates`** (no `templates`) y **`define hypervisors`** como nombres con
+  espacios. El usuario prefiere la forma verbosa por legibilidad. Se mapean a campos Python
+  vía `Field(alias=...)` de Pydantic.
+- **`use hypervisor:` (no `hypervisor:`)** en descriptores y plantillas para consistencia con
+  `use template:`. Cambio de vocabulario respecto a Sprint 1.
+- **Imports explícitos**, no implícitos: cada carpeta declara qué importa de su padre con
+  `import: ALL` o `import: [name, prefix*]`. Razón (aportada por el usuario): un admin que
+  define 100 plantillas no debe exponerlas todas; el profesor solo ve lo que importa.
+- **Cierre del cierre (closure-like) de las plantillas:** una plantilla resuelve sus
+  referencias internas (p.ej. `use hypervisor: mock`) **desde donde fue definida**, no desde
+  donde fue importada. Beneficio: el profesor puede importar `linux-vm` sin tener que
+  importar también el hipervisor; la plantilla resuelve su entorno léxico.
+- **Imports transitivos**: si importas una plantilla, NO necesitas importar también las cosas
+  que esa plantilla usa internamente. Las referencias internas resuelven contra el sitio donde
+  el recurso fue definido (closure).
+- **Resolución al vuelo, no al cargar:** el Resolver opera al acceder al descriptor (deploy,
+  status, inspect), no al cargar el YAML. La BD guarda **solo la definición local**; lo
+  resuelto se computa cada vez. Beneficio: si cambia una plantilla, todos los descriptores
+  que la usan heredan el cambio automáticamente en el próximo deploy. La BD es la única
+  fuente de verdad; lo derivado es deterministicamente reconstruible.
+- **Distinción "hipervisor (recurso)" vs "tipo de conector":** el nombre que el usuario
+  declara (`mock`, `hyperv1`, `hyperv-aulario`) vs el tipo de conector que lo gestiona
+  (`type: mock`, `type: vmware`). Coinciden por casualidad para "mock" en el demo, pero son
+  cosas distintas conceptualmente.
+- **Listas de colecciones — no aplica:** nuestro modelo no tiene listas de colecciones.
+  Listas son de strings (imports, managers futuro). Colecciones son dicts con nombre. La
+  fusión recursiva por clave queda bien definida (DEC-026); `ip_pool` será una excepción
+  (mapa que se reemplaza entero).
+- **Root sin recursos:** decisión final. Root es implícita, sin registro `Folder` en BD. No
+  admite `description`, `import`, ni `define X:`. Los recursos viven dentro de carpetas
+  concretas que el admin crea (típicamente `/lab/`, `/admin/` o similar). El demo de Pieza 1
+  pone hipervisor y plantilla en `/lab/` y `/lab/networks/` los importa.
+- **`load` solo coloca hijos, nunca modifica el destino**. Las propiedades de identidad
+  (description, import) y los recursos declarados (define X:) viven en una carpeta cuando se
+  crea por primera vez; loads posteriores en una carpeta ya existente añaden hijos pero no
+  modifican esos campos. Documentos con `define X:` o `import:` al nivel raíz se **rechazan
+  con error explícito**.
+- **Cuándo se resuelven los `use X:`:** todas las resoluciones (cascada + referencias) las
+  hace el Resolver en una sola pasada al acceder al descriptor. El Command recibe la VM
+  con valores concretos, ningún `use X:` pendiente.
+- **`inspect <path>` tendrá tres modos** (cuando llegue, varias piezas después de Pieza 1):
+  `--local` (lo escrito en el nodo), `--expanded` (con imports/herencia aplicada pero sin
+  seguir referencias) y `--resolved` (por defecto, todo resuelto). Funciona tanto sobre
+  carpetas como sobre descriptores. Modo "anotado" (procedencia por campo) aplazado.
+- **Referencias colgadas tras un cambio posterior:** pendiente futuro. Pieza 1 valida
+  *internamente* el documento que se carga; "rechazar cambios que orfanen descriptores
+  existentes" es una validación global aplazada.
+- **Naming en código:** `VMTemplateDef` (no `TemplateDef` — ambiguo) y `HypervisorDef` para
+  el YAML. La regla de las dos capas (def vs persistido) se mantiene: ambas clases sirven
+  para los dos contextos en este caso porque la forma es idéntica.
+
+### Pieza 1.A — Modelos + YAML para la herencia (sin Resolver todavía)
+
+Implementación de la primera sub-pieza de Sprint 2. **El YAML aprende el vocabulario nuevo;
+nada se resuelve aún.**
+
+**El qué:**
+- Dos clases nuevas: `HypervisorDef` (con `connector_type: str` alias `type`) y `VMTemplateDef`
+  (con `hypervisor` alias `use hypervisor`, `base_vm` y specs opcionales).
+- `FolderDef` recibe tres campos nuevos con aliases: `imports` alias `import`,
+  `hypervisors` alias `define hypervisors`, `vm_templates` alias `define machine templates`.
+- `DescriptorDef` recibe `template` alias `use template`; sus `hypervisor` (ahora alias
+  `use hypervisor`) y `base_vm` pasan a opcionales.
+- `Folder` y `Descriptor` persistidos espejean los mismos campos (sin aliases — TinyDB usa
+  nombres Python).
+- `DefinitionDocument` **rechaza recursos al nivel raíz** con mensaje claro (`define X:` o
+  `import:` arriba → error indicando "metédlos dentro de una carpeta").
+- `_split_items` aprende las reservadas nuevas en FolderDef.
+- `_normalize_imports` validator: `import: ALL` (string) y `import: linux-vm` (single) se
+  normalizan a lista (`["*"]` o `["linux-vm"]`).
+- Aliases con `populate_by_name=True`: Pydantic acepta tanto el alias (forma YAML) como el
+  nombre Python (forma de construcción en código y de carga desde TinyDB).
+- **Validaciones transitorias** en `service._machine_command` y `DeployCommand.execute`: si
+  un descriptor llega sin `hypervisor`/`base_vm` (porque dependía de una plantilla y el
+  Resolver no está cableado todavía), se devuelve `OperationError` con mensaje explícito
+  (`"VM has no effective hypervisor: ... (resolver not yet wired)"`). Estas líneas
+  desaparecen al aterrizar Pieza 1.C.
+
+**Coste y consecuencias:**
+- 168 tests verdes; ruff y mypy limpios.
+- JSON Schema (`docs/schema/definition.schema.json`) actualizado al vocabulario nuevo
+  (`$defs/Hypervisor`, `$defs/VMTemplate`, `Folder` con las nuevas propiedades, `Descriptor`
+  con `use hypervisor:`/`use template:` y sin `required`).
+- Demo (`demo/setup.yml`) reescrito en el formato nuevo: hipervisor + plantilla en `/lab/`
+  y los tres estudiantes en `/lab/networks/` con `use template: linux-vm`.
+- Test antiguo `test_rejects_descriptor_missing_hypervisor` queda obsoleto y se sustituye por
+  `test_rejects_hypervisor_definition_missing_type` (el `type` del hipervisor sigue siendo
+  obligatorio). Igual con sus equivalentes en `test_models.py` y `test_schema.py`.
+- Siete tests positivos nuevos en `test_parser.py` para el vocabulario: define hypervisors,
+  define machine templates, import normalization (ALL y lista), descriptor solo-con-template,
+  rechazo del top-level.
+
+**Estado real:** un descriptor que dependa de una plantilla (`use template:` sin `use hypervisor:`
+inline) se persiste correctamente pero **no se puede desplegar todavía**. Deploy devuelve
+`OperationError` claro. Los descriptores fully-inline (con `use hypervisor:` y `base_vm:`)
+siguen funcionando. Pieza 1.B trae el Resolver puro; Pieza 1.C lo cablea al service y
+desbloquea deploy.
+
+### Próximo
+- **Pieza 1.B — Resolver puro**: módulo nuevo `src/univorch/resolver.py` con la función
+  `(árbol, path) → definición efectiva` que respeta imports y sigue referencias closure-like.
+  Tests con Hypothesis para propiedades clave (override gana, closures, etc.).
+- **Pieza 1.C — Integración**: el service usa el Resolver; `CreateDescriptorCommand.validate`
+  comprueba que las referencias son accesibles; las validaciones transitorias de Pieza 1.A
+  desaparecen.

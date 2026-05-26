@@ -1,29 +1,47 @@
 # yaml-language-server: $schema=../docs/schema/definition.schema.json
 #
-# UnivOrch demo — Sprint 1
+# UnivOrch demo — Sprint 2 (Pieza 1.A onwards)
 # Relative definition: load with `load demo/setup.yml [/destination]`.
-# The destination is the parent folder; defaults to the current folder (root).
-# Folders are keys ending in '/'; machines are keys without '/'.
+#
+# Vocabulary:
+#   - `define hypervisors:`         declares a hypervisor by name
+#   - `define machine templates:`   declares a VM template by name
+#   - `import: [name, ...]`         brings declared resources down from the parent
+#   - `use hypervisor: name`        references a declared hypervisor
+#   - `use template: name`          references a declared template (the Resolver
+#                                   substitutes the template's fields at access)
+#
+# Notes:
+#   - Folder keys end in '/'; VM keys do not.
+#   - The destination's own properties are NOT modified by `load`. Resources and
+#     `import` live inside a folder, never at the document root.
+#   - Until the Resolver is wired (Pieza 1.C), deploy of a template-based VM
+#     fails with a clear error. Fully inline VMs (with explicit
+#     `use hypervisor:` and `base_vm:`) deploy in the meantime.
 
 kind: definition
 version: "1"
 
 lab/:
   description: "Computer Science Lab"
-  networks/:
-    description: "Computer Networks — Fall 2026"
-    student01:
-      description: "Student 01 workstation"
-      hypervisor: mock
+
+  define hypervisors:
+    mock:
+      type: mock
+      description: "In-memory mock hypervisor for the demo"
+
+  define machine templates:
+    linux-vm:
+      description: "Standard student Linux workstation"
+      use hypervisor: mock
       base_vm: linux-base
       cpu: 2
       memory_mb: 2048
       disk_gb: 20
-    student02:
-      hypervisor: mock
-      base_vm: linux-base
-      cpu: 2
-    student03:
-      hypervisor: mock
-      base_vm: linux-base
-      cpu: 2
+
+  networks/:
+    description: "Computer Networks — Fall 2026"
+    import: [linux-vm]
+    student01: { use template: linux-vm }
+    student02: { use template: linux-vm }
+    student03: { use template: linux-vm, cpu: 4 }
