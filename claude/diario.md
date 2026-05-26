@@ -1263,6 +1263,16 @@ Regla acordada (encaja con DEC-009: vocabulario por capa):
   deployed"` → `"... a VM that is not deployed"`.
 - Tests actualizados (2 aserciones en `test_commands.py`).
 
+### Color de `deployed` retirado: verde sugería "running" (runtime)
+
+Observación del usuario: el verde en `deployed` se lee como "encendido/corriendo", y eso es
+**runtime** — el eje que decidimos NO mostrar en `list` (sería la lectura masiva cara al hipervisor,
+DEC-032; el runtime sigue en `status`). El verde, aunque coherente con "estado bueno", crea
+expectativa errónea. Se cambia a **`default`** (color del terminal): el glifo `■` ya indica
+"existe"; el color queda para los estados excepcionales (rojo `broken`, amarillo `unreachable`).
+Tabla actualizada: `□` provisioned (dim) · `■` deployed (default) · `✗` broken (rojo) ·
+`▲` unreachable (amarillo).
+
 ### Pendientes anotados (futuro)
 - Completado de Tab para **paths del árbol** en `cd`/`deploy`/`status`/… (navegar el árbol con Tab).
   Pieza propia, más trabajo (consulta el service). El argparse ya deja el gancho (`completer=`).

@@ -36,9 +36,12 @@ from univorch.persistence.tinydb.repositories import (
 from univorch.service import OperationError, OrchestratorService, TreeEntry
 
 # Rich style per descriptor state (cmd2 3.x renders poutput with Rich)
+# 'deployed' uses the terminal's default colour on purpose: green would suggest
+# 'running' (runtime), but list/status only show the descriptor's own state — the
+# runtime state of the VM lives in the hypervisor and is reported separately.
 _STATE_STYLE = {
     DescriptorState.PROVISIONED: "dim",
-    DescriptorState.DEPLOYED: "green",
+    DescriptorState.DEPLOYED: "default",
     DescriptorState.BROKEN: "red",
     DescriptorState.UNREACHABLE: "yellow",
 }
