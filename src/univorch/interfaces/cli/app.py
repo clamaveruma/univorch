@@ -29,7 +29,7 @@ from univorch.persistence.tinydb.repositories import (
     FolderRepository,
     JobRepository,
 )
-from univorch.service import OperationError, OrchestratorService
+from univorch.service import OperationError, OrchestratorService, TreeEntry
 
 # Rich style per descriptor state (cmd2 3.x renders poutput with Rich)
 _STATE_STYLE = {
@@ -38,6 +38,16 @@ _STATE_STYLE = {
     DescriptorState.BROKEN: "red",
     DescriptorState.UNREACHABLE: "yellow",
 }
+
+# A fixed-width glyph per descriptor state, shown as the leading marker in listings.
+# Geometric shapes (single cell) so columns line up in any terminal.
+_STATE_GLYPH = {
+    DescriptorState.PROVISIONED: "□",  # empty box: no VM
+    DescriptorState.DEPLOYED: "■",  # filled box: the VM exists
+    DescriptorState.BROKEN: "✗",  # error
+    DescriptorState.UNREACHABLE: "▲",  # alert: hypervisor not reachable
+}
+_FOLDER_STYLE = "blue"  # folders shown in blue, like 'ls' dircolors
 
 
 def build_service(db: TinyDB) -> OrchestratorService:
@@ -90,10 +100,49 @@ class UnivOrchShell(cmd2.Cmd):
         self.poutput(self._cwd)
 
     def do_list(self, arg: str) -> None:
-        """List the folders and descriptors under a path (default: current folder)."""
-        for entry in self._service.list_tree(self._resolve(arg.strip())):
-            state = f"  [{entry.state}]" if entry.state else ""
-            self.poutput(f"{entry.path}  ({entry.kind}){state}")
+        """List the current folder's contents, one level (like ls)."""
+        path = self._resolve(arg.strip())
+        if not self._service.folder_exists(path):
+            self.perror(f"list: {path}: no such folder")
+            return
+        if path != "/":
+            self.poutput("  ../", style=_FOLDER_STYLE)  # row to go up a level
+        for entry in self._service.list_tree(path):
+            text, style = self._render_entry(entry)
+            self.poutput(text, style=style)
+
+    def do_ls(self, arg: str) -> None:
+        """Alias for 'list'."""
+        self.do_list(arg)
+
+    def do_tree(self, arg: str) -> None:
+        """Print the whole subtree under a path (default: current folder)."""
+        path = self._resolve(arg.strip())
+        if not self._service.folder_exists(path):
+            self.perror(f"tree: {path}: no such folder")
+            return
+        root_depth = 0 if path == "/" else path.count("/")
+        for entry in self._service.list_tree(path, recursive=True):
+            indent = "  " * (entry.path.count("/") - root_depth - 1)
+            text, style = self._render_entry(entry)
+            self.poutput(indent + text, style=style)
+
+    def complete_apply(
+        self, text: str, line: str, begidx: int, endidx: int
+    ) -> list[str]:
+        """Tab-complete the YAML file argument against the filesystem."""
+        return self.path_complete(text, line, begidx, endidx)
+
+    def _render_entry(self, entry: TreeEntry) -> tuple[str, str]:
+        """Return the (text, Rich style) for one listing row.
+
+        Folders get a trailing '/' and no glyph (ls -F style); descriptors get a
+        state glyph. Both indent the name to the same column so listings align.
+        """
+        name = posixpath.basename(entry.path)
+        if entry.kind == "folder" or entry.state is None:
+            return f"  {name}/", _FOLDER_STYLE
+        return f"{_STATE_GLYPH[entry.state]} {name}", _STATE_STYLE[entry.state]
 
     def do_deploy(self, arg: str) -> None:
         """Deploy a descriptor: clone its base VM (provisioned -> deployed)."""

@@ -6,6 +6,7 @@ request and rejects the invalid ones (raising ``OperationError``, no Job created
 then builds the Command and hands it to the Jobs engine.
 """
 
+import posixpath
 from typing import Literal
 
 from pydantic import BaseModel
@@ -127,21 +128,26 @@ class OrchestratorService:
             vm_id=descriptor.vm_id,
         )
 
-    def list_tree(self, path: str = "/") -> list[TreeEntry]:
-        """List the subtree rooted at ``path`` as one listing sorted by path.
+    def list_tree(self, path: str = "/", recursive: bool = False) -> list[TreeEntry]:
+        """List what lives under ``path``, sorted by path.
 
-        Folders and descriptors live in separate tables, so this reads each one's
-        subtree and merges them. Reads the DB only (no hypervisor calls) and
-        creates no Job.
+        Returns the descendants of ``path`` (not ``path`` itself). By default only
+        the direct children are returned (like ``ls``); with ``recursive=True`` the
+        whole subtree is returned (like ``tree``). Folders and descriptors live in
+        separate tables, so this reads each one's subtree and merges them. Reads the
+        DB only (no hypervisor calls) and creates no Job.
         """
-        entries: list[TreeEntry] = [
+        nodes: list[TreeEntry] = [
             TreeEntry(path=folder.path, kind="folder")
             for folder in self._folders.subtree(path)
         ]
-        entries += [
+        nodes += [
             TreeEntry(path=d.path, kind="descriptor", state=d.state)
             for d in self._descriptors.subtree(path)
         ]
+        entries = [n for n in nodes if n.path != path]  # exclude the listed folder
+        if not recursive:  # keep only direct children (one level down)
+            entries = [e for e in entries if posixpath.dirname(e.path) == path]
         return sorted(entries, key=lambda entry: entry.path)
 
     def folder_exists(self, path: str) -> bool:

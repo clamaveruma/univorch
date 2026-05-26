@@ -128,7 +128,7 @@ class TestStatus:
 
 
 class TestListTree:
-    def test_lists_subtree_sorted_with_states(
+    def test_recursive_lists_whole_subtree_sorted_with_states(
         self,
         service: OrchestratorService,
         folders: FolderRepository,
@@ -137,7 +137,7 @@ class TestListTree:
         folders.save(Folder(path="/lab"))
         folders.save(Folder(path="/lab/networks"))
         _provisioned(descriptors, path="/lab/networks/vm")
-        entries = service.list_tree("/")
+        entries = service.list_tree("/", recursive=True)
         assert [e.path for e in entries] == [
             "/lab",
             "/lab/networks",
@@ -149,12 +149,29 @@ class TestListTree:
         assert by_path["/lab/networks/vm"].kind == "descriptor"
         assert by_path["/lab/networks/vm"].state == DescriptorState.PROVISIONED
 
+    def test_default_lists_direct_children_only(
+        self,
+        service: OrchestratorService,
+        folders: FolderRepository,
+        descriptors: DescriptorRepository,
+    ) -> None:
+        folders.save(Folder(path="/lab"))
+        folders.save(Folder(path="/lab/networks"))  # a folder one level down
+        _provisioned(descriptors, path="/lab/vm")  # a descriptor one level down
+        _provisioned(descriptors, path="/lab/networks/deep")  # two levels down
+        # only the direct children of /lab, never the deeper /lab/networks/deep
+        assert sorted(e.path for e in service.list_tree("/lab")) == [
+            "/lab/networks",
+            "/lab/vm",
+        ]
+
     def test_scopes_to_subtree(
         self, service: OrchestratorService, folders: FolderRepository
     ) -> None:
         folders.save(Folder(path="/lab"))
-        folders.save(Folder(path="/other"))
-        assert [e.path for e in service.list_tree("/lab")] == ["/lab"]
+        folders.save(Folder(path="/lab/x"))
+        folders.save(Folder(path="/other"))  # a sibling subtree, must be excluded
+        assert [e.path for e in service.list_tree("/lab")] == ["/lab/x"]
 
 
 class TestApply:

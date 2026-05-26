@@ -1174,3 +1174,57 @@ web GUI (NiceGUI), RBAC, conectores reales, capa docente, `broken` + simulación
 
 ### Próximo
 - Probar la demo end-to-end (REPL interactivo + modo bash) y guiar al usuario.
+
+---
+
+## 2026-05-26
+
+### Prueba del REPL y mejoras de usabilidad de la CLI (Bloques A y B)
+
+El usuario prueba el REPL interactivo (`uv run univorch`) y detecta varias cosas a pulir. Antes,
+aclaraciones de entorno surgidas de la prueba:
+- **`uv run` vs `univorch` a secas:** `univorch` vive en `.venv/bin`; basta con el venv activado
+  (`source .venv/bin/activate`) o `uv run univorch` (robusto: sincroniza el venv y ejecuta sin
+  activarlo). `uv` es herramienta de **desarrollo**; en producción se entra con `./univorch.sh cli`
+  (docker exec), sin uv. La activación del venv es mecanismo estándar de Python, no de uv: un script
+  con `./` corre en un subshell y no modifica el shell padre → la activación exige `source`.
+- **`univorch` vs `univorch.sh`:** el primero es el comando de la app (entry point); el segundo es el
+  wrapper bash de `docker compose` (producción). `uv run univorch.sh` no tiene sentido.
+
+**Bloque A — navegación correcta (commit `550e286`)**
+- `_resolve` reescrito con `posixpath`: soporta `..`, `.` y combinaciones (`cd ../otro`); `normpath`
+  no deja subir por encima de la raíz (`..` en `/` se queda en `/`). Beneficia a todos los comandos.
+- `service.folder_exists(path)`: lectura nueva (la raíz `/` es implícita, sin registro). La CLI no
+  toca el repo (DEC-031).
+- `do_cd` valida que el destino sea **carpeta existente** (error en rojo si no; tampoco entra en un
+  descriptor — como `cd` a un fichero en Unix). **`cd` sin argumento = no-op** (no hay "home"; para
+  ver dónde estás está `pwd`).
+
+**Bloque B — listados estilo Linux (commit de esta sesión)**
+- **`list`/`ls` muestran un solo nivel** (hijos directos), como `ls`. En el service,
+  `list_tree(path, recursive=False)` por defecto; devuelve los **descendientes** de `path` (no
+  `path` mismo). `recursive=True` da el subárbol completo. Cambió el default → tests del service
+  actualizados.
+- **`ls`** alias de `list`. **`tree [path]`** nuevo: subárbol completo indentado (default = pwd).
+- **`list`/`tree` dan error** si la carpeta no existe (coherente con `cd`).
+- **Glifos de estado del descriptor (estilo B, geométrico, ancho fijo):** `□` provisioned (dim),
+  `■` deployed (verde), `✗` broken (rojo), `▲` unreachable (amarillo). Carpetas estilo `ls -F`:
+  `nombre/` en azul, **sin glifo**; fila `../` al inicio salvo en la raíz. Nombres en *basename*.
+- **Decisión de diseño (dos ejes, DEC-022/032):** `list` solo muestra el **eje del descriptor**
+  (BD, barato). `running`/`stopped` es el **eje runtime** (hipervisor) y consultarlo por cada VM es
+  la "lectura masiva cara" (bloqueo de cabeza de línea / streaming, aplazado). Se queda en `status`;
+  futuro `list --live`. Por eso el triángulo queda libre para `unreachable` sin ambigüedad con play.
+- **Completado de Tab en `apply`** sobre ficheros del sistema (`complete_apply` → `path_complete`
+  de cmd2), como hace el comando `shell`/`!`.
+- **`demo/README.md`** actualizado: sección 2 usa `tree /` (antes `list /`) y explica los glifos.
+- 152 tests en verde; `app.py` 95% (solo `main()`), `service.py` 100%.
+
+**Elementos de ejemplo del mock:** `with_demo_templates()` precarga dos plantillas (`linux-base`,
+`windows-base`) como origen de `clone`; el árbol empieza vacío (se siembra con `apply demo/setup.yml`).
+
+### Pendientes anotados (futuro)
+- Completado de Tab para **paths del árbol** en `cd`/`deploy`/`status`/… (navegar el árbol con Tab).
+  Pieza propia, más trabajo (consulta el service).
+- Comodidad opcional `univorch --demo` que aplique `demo/setup.yml` al arrancar.
+- `list --live` (runtime por VM, con streaming).
+- Comando `legend` que explique los glifos.

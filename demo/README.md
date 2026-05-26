@@ -50,11 +50,12 @@ the hypervisor.
 ### 2. Inspect the tree
 
 ```
-univorch> list /
+univorch> tree /
 ```
 
-You should see the folder tree with all three descriptors and their
-current state (`provisioned`).
+`tree` shows the whole subtree: the two folders and the three descriptors,
+each with a state glyph (`□` provisioned, `■` deployed, `✗` broken,
+`▲` unreachable). `list` shows only one level, like `ls`.
 
 ### 3. Navigate into the subject folder
 

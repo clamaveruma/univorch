@@ -97,14 +97,46 @@ class TestNavigation:
 
 
 class TestList:
-    def test_lists_subtree(self, shell: UnivOrchShell) -> None:
-        shell._service.apply(
-            ApplyDocument(folders=[Folder(path="/lab"), Folder(path="/lab/networks")])
-        )
+    def test_lists_direct_children_only(self, shell: UnivOrchShell) -> None:
+        _mkdir(shell, "/lab", "/lab/networks")
         out = _run(shell, "list /")
-        assert "/lab" in out
-        assert "/lab/networks" in out
-        assert "folder" in out
+        assert "lab/" in out  # direct child, ls -F style
+        assert "networks" not in out  # one level only
+
+    def test_parent_row_except_at_root(self, shell: UnivOrchShell) -> None:
+        _mkdir(shell, "/lab")
+        assert "../" not in _run(shell, "list /")  # root has no parent row
+        assert "../" in _run(shell, "list /lab")
+
+    def test_descriptor_shows_state_glyph(self, shell: UnivOrchShell) -> None:
+        _provision(shell)  # /lab + /lab/vm (provisioned)
+        out = _run(shell, "list /lab")
+        assert "□ vm" in out  # provisioned glyph + basename
+
+    def test_ls_is_alias_for_list(self, shell: UnivOrchShell) -> None:
+        _mkdir(shell, "/lab")
+        assert "lab/" in _run(shell, "ls /")
+
+    def test_list_missing_folder_prints_nothing(self, shell: UnivOrchShell) -> None:
+        assert _run(shell, "list /nope") == ""  # error goes to stderr
+
+
+class TestTree:
+    def test_shows_full_subtree(self, shell: UnivOrchShell) -> None:
+        _provision(shell)  # /lab + /lab/vm
+        out = _run(shell, "tree /")
+        assert "lab/" in out
+        assert "vm" in out  # descendant shown, not just direct children
+
+    def test_missing_folder_prints_nothing(self, shell: UnivOrchShell) -> None:
+        assert _run(shell, "tree /nope") == ""
+
+
+class TestApplyCompletion:
+    def test_completes_filesystem_paths(self, shell: UnivOrchShell) -> None:
+        # delegates to cmd2's path completion; 'demo/' should offer the demo files
+        results = shell.complete_apply("demo/", "apply demo/", 6, 11)
+        assert any("setup" in r for r in results)
 
 
 def _provision(shell: UnivOrchShell) -> None:
@@ -164,8 +196,8 @@ class TestApplyCommand:
         )
         out = _run(shell, f"apply {f}")
         assert "/lab" in out  # report mentions the created items
-        assert "/lab/vm" in _run(shell, "list /")  # tree was created
+        assert "vm" in _run(shell, "list /lab")  # tree was created
 
     def test_missing_file_creates_nothing(self, shell: UnivOrchShell) -> None:
         _run(shell, "apply /nope/missing.yml")  # error to stderr, no crash
-        assert "/lab" not in _run(shell, "list /")
+        assert "lab" not in _run(shell, "list /")
