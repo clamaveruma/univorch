@@ -1273,9 +1273,33 @@ expectativa errónea. Se cambia a **`default`** (color del terminal): el glifo `
 Tabla actualizada: `□` provisioned (dim) · `■` deployed (default) · `✗` broken (rojo) ·
 `▲` unreachable (amarillo).
 
+### Vista detallada de `list` (aplazada a futuro sprint)
+
+Discusión: el usuario propone un flag (sugirió `-a`) para `ls`/`list` que muestre información
+extendida por cada VM. Salvedad: en Linux `-a` es "mostrar ocultos"; el listado largo es **`-l`**.
+Cuando se retome, usar `-l` por coherencia con Linux. **Se queda como está**; se documenta para
+retomar más adelante.
+
+Campos contemplados, por fuente:
+- **Del descriptor** (gratis, ya en el modelo): description, hypervisor, base_vm, cpu/memory/disk,
+  vm_id, state.
+- **Derivable de Jobs** (pequeño esfuerzo, lookup en `JobRepository.find_by_target`):
+  created_at, deployed_at, last_action (operación + estado + cuándo — clave para diagnosticar
+  `broken`/`failed`).
+- **Del hipervisor** (runtime, caro): IPs, uso CPU/mem/disco, uptime → irá con `list --live`
+  futuro (streaming, no en `-l`).
+- **Sprints futuros** (la información no existe aún): quién creó el descriptor, quién desplegó
+  la VM, número de despliegues (RBAC + auditoría); IPs asignadas (DEC-025); snapshots; definición
+  efectiva tras herencia + procedencia por campo (Sprint 2 Resolver).
+
+Diseño propuesto: tabla Rich vía `cmd2.poutput` (alinea columnas; en tests sale plano).
+Service: `descriptor_details(path)` o `list_tree_verbose(path)` que joinea con Jobs.
+
 ### Pendientes anotados (futuro)
 - Completado de Tab para **paths del árbol** en `cd`/`deploy`/`status`/… (navegar el árbol con Tab).
   Pieza propia, más trabajo (consulta el service). El argparse ya deja el gancho (`completer=`).
   **Fuera del TFG** (decisión del usuario).
+- **`ls -l` / listado largo** (ver bloque de arriba): aplazado a futuro sprint con campos del
+  descriptor + derivados de Jobs + futuros (autor de creación/despliegue, contador, IPs…).
 - `list --live` (runtime por VM, con streaming).
 - Descartado: `univorch --demo` (no necesario) y comando `legend` (la leyenda va en `help list`).
