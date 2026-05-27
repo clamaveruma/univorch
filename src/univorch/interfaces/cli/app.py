@@ -119,9 +119,9 @@ def _load_arg_parser() -> cmd2.Cmd2ArgumentParser:
     return parser
 
 
-def _display(value: object | None) -> str:
-    """Format a single field value for inspect output. None → '(unset)'."""
-    return "(unset)" if value is None else str(value)
+def _folder_label(path: str) -> str:
+    """Render a folder path with the trailing '/' that YAML uses (except root)."""
+    return path if path == "/" else f"{path}/"
 
 
 def _inspect_arg_parser() -> cmd2.Cmd2ArgumentParser:
@@ -163,7 +163,7 @@ class UnivOrchShell(cmd2.Cmd):
         self.prompt = self._prompt()
 
     def _prompt(self) -> str:
-        return f"univorch {self._cwd}> "
+        return f"univorch {_folder_label(self._cwd)}> "
 
     def _resolve(self, path: str) -> str:
         """Normalize a path argument to an absolute tree path.
@@ -197,7 +197,7 @@ class UnivOrchShell(cmd2.Cmd):
         cmd2.Cmd2ArgumentParser(description="Print the current folder.")
     )
     def do_pwd(self, args: argparse.Namespace) -> None:
-        self.poutput(self._cwd)
+        self.poutput(_folder_label(self._cwd))
 
     @cmd2.with_argparser(_path_arg_parser(_LIST_DESC, required=False))
     def do_list(self, args: argparse.Namespace) -> None:
@@ -341,46 +341,55 @@ class UnivOrchShell(cmd2.Cmd):
             self._render_folder(entity)
 
     def _render_descriptor(self, d: Descriptor) -> None:
-        """Pretty-print a Descriptor as labelled key/value rows."""
+        """Pretty-print a Descriptor with YAML-like labels; skip unset fields."""
         self.poutput(f"{d.path}   (descriptor)")
+        # YAML aliases for the user-facing labels (definition fields)
         rows: list[tuple[str, object | None]] = [
             ("description", d.description),
-            ("hypervisor", d.hypervisor),
+            ("use hypervisor", d.hypervisor),
             ("base_vm", d.base_vm),
-            ("template", d.template),
+            ("use template", d.template),
             ("cpu", d.cpu),
             ("memory_mb", d.memory_mb),
             ("disk_gb", d.disk_gb),
-            ("state", d.state.value),
-            ("vm_id", d.vm_id),
         ]
-        for name, value in rows:
-            self.poutput(f"  {name + ':':14} {_display(value)}")
+        for label, value in rows:
+            if value is not None:
+                self.poutput(f"  {label + ':':18} {value}")
+        # runtime info: state is always set; vm_id only when deployed
+        self.poutput(f"  {'state:':18} {d.state.value}")
+        if d.vm_id is not None:
+            self.poutput(f"  {'vm_id:':18} {d.vm_id}")
 
     def _render_folder(self, f: Folder) -> None:
-        """Pretty-print a Folder, including its nested resources."""
-        self.poutput(f"{f.path}   (folder)")
-        self.poutput(f"  {'description:':22} {_display(f.description)}")
-        imports = ", ".join(f.imports) if f.imports else "(none)"
-        self.poutput(f"  {'imports:':22} {imports}")
-        self.poutput(f"  {'hypervisors:':22}{' (none)' if not f.hypervisors else ''}")
-        for name, hyp in f.hypervisors.items():
-            self.poutput(f"    {name}:")
-            self.poutput(f"      type:               {_display(hyp.connector_type)}")
-            self.poutput(f"      description:        {_display(hyp.description)}")
-        templates_label = "vm_templates:"
-        self.poutput(f"  {templates_label:22}{' (none)' if not f.vm_templates else ''}")
-        for name, tpl in f.vm_templates.items():
-            self.poutput(f"    {name}:")
-            for field in (
-                "description",
-                "hypervisor",
-                "base_vm",
-                "cpu",
-                "memory_mb",
-                "disk_gb",
-            ):
-                self.poutput(f"      {field + ':':19} {_display(getattr(tpl, field))}")
+        """Pretty-print a Folder with YAML-like labels; skip unset fields."""
+        self.poutput(f"{_folder_label(f.path)}   (folder)")
+        if f.description is not None:
+            self.poutput(f"  {'description:':26} {f.description}")
+        if f.imports:
+            self.poutput(f"  {'import:':26} {', '.join(f.imports)}")
+        if f.hypervisors:
+            self.poutput("  define hypervisors:")
+            for name, hyp in f.hypervisors.items():
+                self.poutput(f"    {name}:")
+                self.poutput(f"      {'type:':18} {hyp.connector_type}")
+                if hyp.description is not None:
+                    self.poutput(f"      {'description:':18} {hyp.description}")
+        if f.vm_templates:
+            self.poutput("  define machine templates:")
+            for name, tpl in f.vm_templates.items():
+                self.poutput(f"    {name}:")
+                tpl_rows: list[tuple[str, object | None]] = [
+                    ("description", tpl.description),
+                    ("use hypervisor", tpl.hypervisor),
+                    ("base_vm", tpl.base_vm),
+                    ("cpu", tpl.cpu),
+                    ("memory_mb", tpl.memory_mb),
+                    ("disk_gb", tpl.disk_gb),
+                ]
+                for label, value in tpl_rows:
+                    if value is not None:
+                        self.poutput(f"      {label + ':':18} {value}")
 
 
 def main() -> None:

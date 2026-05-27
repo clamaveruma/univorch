@@ -267,31 +267,34 @@ class TestInspectCommand:
     ) -> None:
         self._seed(shell, tmp_path)
         out = _run(shell, "inspect /lab/networks/student01")
-        # resolved: hypervisor and base_vm come from the template; cpu is local override
-        assert "hypervisor:    mock" in out
-        assert "base_vm:       linux-base" in out
-        assert "cpu:           4" in out
+        # resolved: YAML-style labels; values come from template (cpu is override)
+        assert "use hypervisor:    mock" in out
+        assert "base_vm:           linux-base" in out
+        assert "use template:      linux-vm" in out
+        assert "cpu:               4" in out
 
     def test_descriptor_local_does_not_resolve(
         self, shell: UnivOrchShell, tmp_path: Path
     ) -> None:
         self._seed(shell, tmp_path)
         out = _run(shell, "inspect /lab/networks/student01 --local")
-        # local: hypervisor and base_vm stay unset; cpu and template are local
-        assert "hypervisor:    (unset)" in out
-        assert "base_vm:       (unset)" in out
-        assert "template:      linux-vm" in out
-        assert "cpu:           4" in out
+        # local: only what's written at the node; unset fields are skipped entirely
+        assert "use hypervisor" not in out  # not written locally → hidden
+        assert "base_vm" not in out  # ditto
+        assert "use template:      linux-vm" in out
+        assert "cpu:               4" in out
 
     def test_folder(self, shell: UnivOrchShell, tmp_path: Path) -> None:
         self._seed(shell, tmp_path)
         out = _run(shell, "inspect /lab")
-        assert "(folder)" in out
-        assert "Computer Science" not in out  # demo description not in this YAML
-        assert "hypervisors:" in out
+        # folder name carries trailing '/'; YAML-style section labels
+        assert "/lab/   (folder)" in out
+        assert "define hypervisors:" in out
         assert "mock:" in out
-        assert "vm_templates:" in out
+        assert "define machine templates:" in out
         assert "linux-vm:" in out
+        # nested fields use YAML labels too
+        assert "use hypervisor:    mock" in out
 
     def test_missing_path_errors(self, shell: UnivOrchShell) -> None:
         assert _run(shell, "inspect /nope") == ""  # error goes to stderr
