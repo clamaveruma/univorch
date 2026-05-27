@@ -1565,10 +1565,51 @@ inline) se persiste correctamente pero **no se puede desplegar todavía**. Deplo
 siguen funcionando. Pieza 1.B trae el Resolver puro; Pieza 1.C lo cablea al service y
 desbloquea deploy.
 
+### Pieza 1.B — Resolver puro (cascade inheritance)
+
+Módulo nuevo `src/univorch/resolver.py`, ~70 líneas, sin estado y sin clases. Cuatro funciones:
+
+- **`resolve_descriptor(descriptor, folders_repo) -> Descriptor`** (pública). Si el descriptor
+  no tiene `template`, devuelve el input sin cambios. Si tiene, busca la plantilla con
+  `_find_template` y fusiona campos con `_merge_template`. Levanta `ValueError` con mensaje
+  claro si la plantilla no es accesible.
+- **`_find_template(name, start, folders_repo)`** — el walker. Sube ancestros desde `start`
+  (la carpeta del descriptor). En cada nivel: ¿la carpeta define la plantilla? Sí → devuelve.
+  No → ¿el `import:` de **esta** carpeta deja pasar el nombre desde el padre? Sí → sigue
+  subiendo. No → corta y devuelve None. Llegar a la raíz devuelve None (root sin recursos,
+  decisión cerrada en Pieza 1.A).
+- **`_merge_template(descriptor, template)`** — la regla "escalar local gana, hueco se rellena"
+  (DEC-026). Recorre los seis campos comunes (`description`, `hypervisor`, `base_vm`, `cpu`,
+  `memory_mb`, `disk_gb`); si el descriptor lo tiene non-None, no toca; si es None, lo coge
+  de la plantilla. Usa `model_copy(update=...)` de Pydantic — función pura, no muta el
+  descriptor original. El campo `template` se preserva en el resuelto (huella de origen,
+  útil para `inspect`/auditoría).
+- **`_import_allows(imports, name)`** — wildcard matching con `fnmatch.fnmatchcase`. `["*"]`
+  pasa todo (forma normalizada de `import: ALL`), `[]` no pasa nada, `["hyperv-*"]` matchea
+  por prefijo, etc.
+
+**Lo que NO está en Pieza 1.B:**
+- Validar que el nombre del hipervisor (local o heredado por plantilla) apunta a un hipervisor
+  declarado en algún sitio accesible. El service sigue mirando solo su registro de conectores.
+- Plantillas que derivan de plantillas (`based on:`) → Pieza 4.
+- Modo anotado del Resolver (procedencia por campo) → futuro, fuera de Sprint 2.
+
+**Tests (33 nuevos):**
+- Walker y merge directos: 14 tests cubriendo plantilla local, herencia con import explícito,
+  bloqueo por import vacío, `import: ALL`, comodín de prefijo, cadena de dos niveles,
+  plantilla no encontrada, carpeta inexistente, llegada a raíz sin encontrar.
+- Property-based con Hypothesis: tres propiedades sobre `_merge_template`. (1) Si un campo
+  está local non-None, gana siempre. (2) Si está None, lo rellena la plantilla. (3) El merge
+  es idempotente (`merge(merge(d,t), t) == merge(d,t)`). Hypothesis genera casos automáticos
+  con cualquier combinación de campos set/unset en descriptor y plantilla.
+
+**Estado:** 193 tests verde (160 anteriores + 33 nuevos), `resolver.py` al 100% de cobertura,
+ruff y mypy strict limpios. El Resolver está aislado — el service no lo llama aún. Deploy de
+un descriptor con `use template:` sigue fallando con "no effective hypervisor". Eso lo
+desbloquea Pieza 1.C.
+
 ### Próximo
-- **Pieza 1.B — Resolver puro**: módulo nuevo `src/univorch/resolver.py` con la función
-  `(árbol, path) → definición efectiva` que respeta imports y sigue referencias closure-like.
-  Tests con Hypothesis para propiedades clave (override gana, closures, etc.).
-- **Pieza 1.C — Integración**: el service usa el Resolver; `CreateDescriptorCommand.validate`
-  comprueba que las referencias son accesibles; las validaciones transitorias de Pieza 1.A
-  desaparecen.
+- **Pieza 1.C — Integración**: el service llama al Resolver en `_machine_command` y `status`;
+  `CreateDescriptorCommand.validate` comprueba que las plantillas referenciadas son
+  accesibles desde la posición del descriptor (validación al cargar, fail-fast);
+  las validaciones transitorias de Pieza 1.A (`"resolver not yet wired"`) desaparecen.
