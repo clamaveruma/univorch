@@ -191,6 +191,62 @@ class TestStatus:
         with pytest.raises(OperationError):
             service.status("/lab/nope")
 
+    def test_inspect_returns_resolved_descriptor_by_default(
+        self,
+        service: OrchestratorService,
+        folders: FolderRepository,
+        descriptors: DescriptorRepository,
+    ) -> None:
+        # Template defined in /lab; descriptor in /lab uses it (no import needed
+        # — local folder defines it).
+        folders.save(
+            Folder(
+                path="/lab",
+                vm_templates={
+                    "linux-vm": VMTemplateDef(hypervisor="mock", base_vm="linux-base")
+                },
+            )
+        )
+        descriptors.save(Descriptor(path="/lab/vm", template="linux-vm"))
+        result = service.inspect("/lab/vm")
+        assert isinstance(result, Descriptor)
+        assert result.hypervisor == "mock"  # filled by resolver
+        assert result.base_vm == "linux-base"
+
+    def test_inspect_local_does_not_resolve(
+        self,
+        service: OrchestratorService,
+        folders: FolderRepository,
+        descriptors: DescriptorRepository,
+    ) -> None:
+        folders.save(
+            Folder(
+                path="/lab",
+                vm_templates={
+                    "linux-vm": VMTemplateDef(hypervisor="mock", base_vm="linux-base")
+                },
+            )
+        )
+        descriptors.save(Descriptor(path="/lab/vm", template="linux-vm"))
+        result = service.inspect("/lab/vm", resolved=False)
+        assert isinstance(result, Descriptor)
+        assert result.hypervisor is None  # local: no resolution
+        assert result.base_vm is None
+
+    def test_inspect_folder(
+        self, service: OrchestratorService, folders: FolderRepository
+    ) -> None:
+        folders.save(Folder(path="/lab", description="The lab"))
+        result = service.inspect("/lab")
+        assert isinstance(result, Folder)
+        assert result.description == "The lab"
+
+    def test_inspect_unknown_path_raises(
+        self, service: OrchestratorService
+    ) -> None:
+        with pytest.raises(OperationError):
+            service.inspect("/nope")
+
     def test_status_tolerates_unresolvable_template(
         self,
         service: OrchestratorService,

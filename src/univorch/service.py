@@ -178,6 +178,31 @@ class OrchestratorService:
         """
         return path == "/" or self._folders.exists(path)
 
+    def inspect(self, path: str, *, resolved: bool = True) -> Descriptor | Folder:
+        """Return the entity at ``path`` (descriptor or folder).
+
+        For descriptors, ``resolved=True`` runs the cascade resolver so the
+        returned record has fields filled in via templates. Tolerant: if the
+        resolver fails (template not accessible) the local descriptor is
+        returned instead — inspect is a read and must not raise.
+
+        For folders, both modes return the persisted record (the cascade-aware
+        view for folders will arrive with the annotated mode, future sprint).
+        Raises ``OperationError`` if ``path`` is neither a descriptor nor a folder.
+        """
+        descriptor = self._descriptors.get(path)
+        if descriptor is not None:
+            if resolved:
+                try:
+                    return resolve_descriptor(descriptor, self._folders)
+                except ValueError:
+                    return descriptor  # tolerant: degraded info is still useful
+            return descriptor
+        folder = self._folders.get(path)
+        if folder is not None:
+            return folder
+        raise OperationError([f"not found: {path}"])
+
     def load(
         self, document: DefinitionDocument, destination: str = "/"
     ) -> list[LoadResult]:

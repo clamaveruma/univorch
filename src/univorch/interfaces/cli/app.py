@@ -26,7 +26,7 @@ from ruamel.yaml.error import YAMLError
 from tinydb import TinyDB
 
 from univorch.connectors.mock import MockConnector
-from univorch.models import DescriptorState, Job, JobStatus
+from univorch.models import Descriptor, DescriptorState, Folder, Job, JobStatus
 from univorch.parser import parse_definition_file
 from univorch.persistence.tinydb.repositories import (
     DescriptorRepository,
@@ -115,6 +115,30 @@ def _load_arg_parser() -> cmd2.Cmd2ArgumentParser:
         nargs="?",
         default="",
         help="tree folder to load into (default: current folder)",
+    )
+    return parser
+
+
+def _display(value: object | None) -> str:
+    """Format a single field value for inspect output. None → '(unset)'."""
+    return "(unset)" if value is None else str(value)
+
+
+def _inspect_arg_parser() -> cmd2.Cmd2ArgumentParser:
+    """Build the parser for 'inspect' (a tree path + the --local flag)."""
+    parser = cmd2.Cmd2ArgumentParser(
+        description=(
+            "Show the entity at a tree path (descriptor or folder). "
+            "By default, descriptors are shown with their template merged in; "
+            "with --local, only what's written at that node."
+        )
+    )
+    parser.add_argument("path", help="tree path (absolute or relative)")
+    parser.add_argument(
+        "-l",
+        "--local",
+        action="store_true",
+        help="show the local definition only, without resolving templates",
     )
     return parser
 
@@ -300,6 +324,63 @@ class UnivOrchShell(cmd2.Cmd):
         for result in results:
             style = "green" if result.ok else "red"
             self.poutput(f"{result.path}  {result.message}", style=style)
+
+    @cmd2.with_argparser(_inspect_arg_parser())
+    def do_inspect(self, args: argparse.Namespace) -> None:
+        path = self._resolve(args.path)
+        try:
+            entity = self._service.inspect(path, resolved=not args.local)
+        except OperationError as error:
+            self.perror("; ".join(error.errors))
+            return
+        # the simplified Pieza 2 splits rendering by kind; the future annotated
+        # mode will share the same dispatch and add colours + provenance
+        if isinstance(entity, Descriptor):
+            self._render_descriptor(entity)
+        else:
+            self._render_folder(entity)
+
+    def _render_descriptor(self, d: Descriptor) -> None:
+        """Pretty-print a Descriptor as labelled key/value rows."""
+        self.poutput(f"{d.path}   (descriptor)")
+        rows: list[tuple[str, object | None]] = [
+            ("description", d.description),
+            ("hypervisor", d.hypervisor),
+            ("base_vm", d.base_vm),
+            ("template", d.template),
+            ("cpu", d.cpu),
+            ("memory_mb", d.memory_mb),
+            ("disk_gb", d.disk_gb),
+            ("state", d.state.value),
+            ("vm_id", d.vm_id),
+        ]
+        for name, value in rows:
+            self.poutput(f"  {name + ':':14} {_display(value)}")
+
+    def _render_folder(self, f: Folder) -> None:
+        """Pretty-print a Folder, including its nested resources."""
+        self.poutput(f"{f.path}   (folder)")
+        self.poutput(f"  {'description:':22} {_display(f.description)}")
+        imports = ", ".join(f.imports) if f.imports else "(none)"
+        self.poutput(f"  {'imports:':22} {imports}")
+        self.poutput(f"  {'hypervisors:':22}{' (none)' if not f.hypervisors else ''}")
+        for name, hyp in f.hypervisors.items():
+            self.poutput(f"    {name}:")
+            self.poutput(f"      type:               {_display(hyp.connector_type)}")
+            self.poutput(f"      description:        {_display(hyp.description)}")
+        templates_label = "vm_templates:"
+        self.poutput(f"  {templates_label:22}{' (none)' if not f.vm_templates else ''}")
+        for name, tpl in f.vm_templates.items():
+            self.poutput(f"    {name}:")
+            for field in (
+                "description",
+                "hypervisor",
+                "base_vm",
+                "cpu",
+                "memory_mb",
+                "disk_gb",
+            ):
+                self.poutput(f"      {field + ':':19} {_display(getattr(tpl, field))}")
 
 
 def main() -> None:

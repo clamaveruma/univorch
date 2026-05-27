@@ -236,3 +236,62 @@ class TestLoadCommand:
     def test_missing_file_creates_nothing(self, shell: UnivOrchShell) -> None:
         _run(shell, "load /nope/missing.yml")  # error to stderr, no crash
         assert "lab" not in _run(shell, "list /")
+
+
+class TestInspectCommand:
+    _YAML = (
+        "kind: definition\n"
+        "lab/:\n"
+        "  define hypervisors:\n"
+        "    mock:\n"
+        "      type: mock\n"
+        "  define machine templates:\n"
+        "    linux-vm:\n"
+        "      use hypervisor: mock\n"
+        "      base_vm: linux-base\n"
+        "      cpu: 2\n"
+        "  networks/:\n"
+        "    import: [linux-vm]\n"
+        "    student01:\n"
+        "      use template: linux-vm\n"
+        "      cpu: 4\n"
+    )
+
+    def _seed(self, shell: UnivOrchShell, tmp_path: Path) -> None:
+        f = tmp_path / "s.yml"
+        f.write_text(self._YAML)
+        _run(shell, f"load {f}")
+
+    def test_descriptor_default_is_resolved(
+        self, shell: UnivOrchShell, tmp_path: Path
+    ) -> None:
+        self._seed(shell, tmp_path)
+        out = _run(shell, "inspect /lab/networks/student01")
+        # resolved: hypervisor and base_vm come from the template; cpu is local override
+        assert "hypervisor:    mock" in out
+        assert "base_vm:       linux-base" in out
+        assert "cpu:           4" in out
+
+    def test_descriptor_local_does_not_resolve(
+        self, shell: UnivOrchShell, tmp_path: Path
+    ) -> None:
+        self._seed(shell, tmp_path)
+        out = _run(shell, "inspect /lab/networks/student01 --local")
+        # local: hypervisor and base_vm stay unset; cpu and template are local
+        assert "hypervisor:    (unset)" in out
+        assert "base_vm:       (unset)" in out
+        assert "template:      linux-vm" in out
+        assert "cpu:           4" in out
+
+    def test_folder(self, shell: UnivOrchShell, tmp_path: Path) -> None:
+        self._seed(shell, tmp_path)
+        out = _run(shell, "inspect /lab")
+        assert "(folder)" in out
+        assert "Computer Science" not in out  # demo description not in this YAML
+        assert "hypervisors:" in out
+        assert "mock:" in out
+        assert "vm_templates:" in out
+        assert "linux-vm:" in out
+
+    def test_missing_path_errors(self, shell: UnivOrchShell) -> None:
+        assert _run(shell, "inspect /nope") == ""  # error goes to stderr

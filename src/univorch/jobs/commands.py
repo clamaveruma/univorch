@@ -292,9 +292,7 @@ class CreateDescriptorCommand(Command):
                 errors.append(str(resolver_error))
             else:
                 if resolved.hypervisor is None:
-                    errors.append(
-                        f"VM has no effective hypervisor: {self.target}"
-                    )
+                    errors.append(f"VM has no effective hypervisor: {self.target}")
                 if resolved.base_vm is None:
                     errors.append(f"VM has no effective base_vm: {self.target}")
         return errors
