@@ -50,32 +50,44 @@ def _deploy(repo: DescriptorRepository, connector: MockConnector) -> str:
 
 class TestDeployCommandValidate:
     def test_missing_descriptor(
-        self, descriptors: DescriptorRepository, connector: MockConnector
+        self,
+        descriptors: DescriptorRepository,
+        folders: FolderRepository,
+        connector: MockConnector,
     ) -> None:
-        cmd = DeployCommand("/lab/vm", descriptors, connector)
+        cmd = DeployCommand("/lab/vm", descriptors, folders, connector)
         assert cmd.validate() == ["VM not found: /lab/vm"]
 
     def test_broken_descriptor(
-        self, descriptors: DescriptorRepository, connector: MockConnector
+        self,
+        descriptors: DescriptorRepository,
+        folders: FolderRepository,
+        connector: MockConnector,
     ) -> None:
         _save(descriptors, state=DescriptorState.BROKEN)
-        cmd = DeployCommand("/lab/vm", descriptors, connector)
+        cmd = DeployCommand("/lab/vm", descriptors, folders, connector)
         assert cmd.validate() == ["cannot deploy a broken VM: /lab/vm"]
 
     def test_ok(
-        self, descriptors: DescriptorRepository, connector: MockConnector
+        self,
+        descriptors: DescriptorRepository,
+        folders: FolderRepository,
+        connector: MockConnector,
     ) -> None:
         _save(descriptors)
-        cmd = DeployCommand("/lab/vm", descriptors, connector)
+        cmd = DeployCommand("/lab/vm", descriptors, folders, connector)
         assert cmd.validate() == []
 
 
 class TestDeployCommandExecute:
     def test_deploys(
-        self, descriptors: DescriptorRepository, connector: MockConnector
+        self,
+        descriptors: DescriptorRepository,
+        folders: FolderRepository,
+        connector: MockConnector,
     ) -> None:
         _save(descriptors)
-        msg = DeployCommand("/lab/vm", descriptors, connector).execute()
+        msg = DeployCommand("/lab/vm", descriptors, folders, connector).execute()
         d = descriptors.get("/lab/vm")
         assert d is not None
         assert d.state == DescriptorState.DEPLOYED
@@ -83,36 +95,48 @@ class TestDeployCommandExecute:
         assert "deployed" in msg
 
     def test_idempotent_when_already_deployed(
-        self, descriptors: DescriptorRepository, connector: MockConnector
+        self,
+        descriptors: DescriptorRepository,
+        folders: FolderRepository,
+        connector: MockConnector,
     ) -> None:
         _save(descriptors)
-        cmd = DeployCommand("/lab/vm", descriptors, connector)
+        cmd = DeployCommand("/lab/vm", descriptors, folders, connector)
         cmd.execute()
         msg = cmd.execute()
         assert "no change" in msg
         assert len(connector.deployed_vms()) == 1  # not cloned twice
 
     def test_raises_when_invalid(
-        self, descriptors: DescriptorRepository, connector: MockConnector
+        self,
+        descriptors: DescriptorRepository,
+        folders: FolderRepository,
+        connector: MockConnector,
     ) -> None:
-        cmd = DeployCommand("/lab/vm", descriptors, connector)  # no descriptor
+        cmd = DeployCommand("/lab/vm", descriptors, folders, connector)  # no descriptor
         with pytest.raises(ValueError):
             cmd.execute()
 
     def test_names_the_vm_with_full_path(
-        self, descriptors: DescriptorRepository, connector: MockConnector
+        self,
+        descriptors: DescriptorRepository,
+        folders: FolderRepository,
+        connector: MockConnector,
     ) -> None:
         _save(descriptors)
-        DeployCommand("/lab/vm", descriptors, connector).execute()
+        DeployCommand("/lab/vm", descriptors, folders, connector).execute()
         assert connector.deployed_vms()[0].name == "/lab/vm"
 
 
 class TestUndeployCommand:
     def test_undeploys(
-        self, descriptors: DescriptorRepository, connector: MockConnector
+        self,
+        descriptors: DescriptorRepository,
+        folders: FolderRepository,
+        connector: MockConnector,
     ) -> None:
         _deploy(descriptors, connector)
-        msg = UndeployCommand("/lab/vm", descriptors, connector).execute()
+        msg = UndeployCommand("/lab/vm", descriptors, folders, connector).execute()
         d = descriptors.get("/lab/vm")
         assert d is not None
         assert d.state == DescriptorState.PROVISIONED
@@ -121,60 +145,80 @@ class TestUndeployCommand:
         assert "undeployed" in msg
 
     def test_idempotent_when_provisioned(
-        self, descriptors: DescriptorRepository, connector: MockConnector
+        self,
+        descriptors: DescriptorRepository,
+        folders: FolderRepository,
+        connector: MockConnector,
     ) -> None:
         _save(descriptors)  # provisioned by default
-        msg = UndeployCommand("/lab/vm", descriptors, connector).execute()
+        msg = UndeployCommand("/lab/vm", descriptors, folders, connector).execute()
         assert "no change" in msg
 
     def test_validate_rejects_broken(
-        self, descriptors: DescriptorRepository, connector: MockConnector
+        self,
+        descriptors: DescriptorRepository,
+        folders: FolderRepository,
+        connector: MockConnector,
     ) -> None:
         _save(descriptors, state=DescriptorState.BROKEN)
-        assert UndeployCommand("/lab/vm", descriptors, connector).validate() != []
+        cmd = UndeployCommand("/lab/vm", descriptors, folders, connector)
+        assert cmd.validate() != []
 
 
 class TestStartStopCommands:
     def test_start_runs_the_vm(
-        self, descriptors: DescriptorRepository, connector: MockConnector
+        self,
+        descriptors: DescriptorRepository,
+        folders: FolderRepository,
+        connector: MockConnector,
     ) -> None:
         vm_id = _deploy(descriptors, connector)
-        msg = StartCommand("/lab/vm", descriptors, connector).execute()
+        msg = StartCommand("/lab/vm", descriptors, folders, connector).execute()
         assert connector.get_status(vm_id) == RuntimeState.RUNNING
         assert "started" in msg
 
     def test_start_idempotent(
-        self, descriptors: DescriptorRepository, connector: MockConnector
+        self,
+        descriptors: DescriptorRepository,
+        folders: FolderRepository,
+        connector: MockConnector,
     ) -> None:
         _deploy(descriptors, connector)
-        StartCommand("/lab/vm", descriptors, connector).execute()
-        msg = StartCommand("/lab/vm", descriptors, connector).execute()
+        StartCommand("/lab/vm", descriptors, folders, connector).execute()
+        msg = StartCommand("/lab/vm", descriptors, folders, connector).execute()
         assert "no change" in msg
 
     def test_stop_stops_the_vm(
-        self, descriptors: DescriptorRepository, connector: MockConnector
+        self,
+        descriptors: DescriptorRepository,
+        folders: FolderRepository,
+        connector: MockConnector,
     ) -> None:
         vm_id = _deploy(descriptors, connector)
-        StartCommand("/lab/vm", descriptors, connector).execute()
-        msg = StopCommand("/lab/vm", descriptors, connector).execute()
+        StartCommand("/lab/vm", descriptors, folders, connector).execute()
+        msg = StopCommand("/lab/vm", descriptors, folders, connector).execute()
         assert connector.get_status(vm_id) == RuntimeState.STOPPED
         assert "stopped" in msg
 
     def test_stop_idempotent(
-        self, descriptors: DescriptorRepository, connector: MockConnector
+        self,
+        descriptors: DescriptorRepository,
+        folders: FolderRepository,
+        connector: MockConnector,
     ) -> None:
         _deploy(descriptors, connector)  # deployed; the VM is stopped after clone
-        msg = StopCommand("/lab/vm", descriptors, connector).execute()
+        msg = StopCommand("/lab/vm", descriptors, folders, connector).execute()
         assert "no change" in msg
 
 
 @pytest.mark.parametrize("command_cls", [UndeployCommand, StartCommand, StopCommand])
 def test_execute_raises_on_missing_descriptor(
     descriptors: DescriptorRepository,
+    folders: FolderRepository,
     connector: MockConnector,
     command_cls: type,
 ) -> None:
-    cmd = command_cls("/lab/vm", descriptors, connector)
+    cmd = command_cls("/lab/vm", descriptors, folders, connector)
     assert cmd.validate() != []
     with pytest.raises(ValueError):
         cmd.execute()
@@ -183,11 +227,12 @@ def test_execute_raises_on_missing_descriptor(
 @pytest.mark.parametrize("command_cls", [StartCommand, StopCommand])
 def test_start_stop_require_deployed(
     descriptors: DescriptorRepository,
+    folders: FolderRepository,
     connector: MockConnector,
     command_cls: type,
 ) -> None:
     _save(descriptors)  # provisioned, no VM
-    assert command_cls("/lab/vm", descriptors, connector).validate() != []
+    assert command_cls("/lab/vm", descriptors, folders, connector).validate() != []
 
 
 class TestCreateFolderCommand:

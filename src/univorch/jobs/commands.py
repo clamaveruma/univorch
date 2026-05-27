@@ -23,6 +23,7 @@ from univorch.persistence.tinydb.repositories import (
     DescriptorRepository,
     FolderRepository,
 )
+from univorch.resolver import resolve_descriptor
 
 
 class Command(ABC):
@@ -49,10 +50,12 @@ class DeployCommand(Command):
         self,
         path: str,
         descriptors_repo: DescriptorRepository,
+        folders_repo: FolderRepository,
         hypervisor_connector: HypervisorConnector,
     ) -> None:
         self.target = path
         self._descriptors = descriptors_repo
+        self._folders = folders_repo  # used by DeployCommand to resolve base_vm
         self._connector = hypervisor_connector
 
     @override
@@ -73,16 +76,20 @@ class DeployCommand(Command):
         assert descriptor is not None  # validate() guaranteed it exists
         if descriptor.state == DescriptorState.DEPLOYED:
             return "already deployed (no change)"  # idempotent no-op (DEC-035)
-        # base_vm is optional in the model (it may be inherited from a template
-        # in Pieza 1.C); until the Resolver wires in, demand it here explicitly
-        if descriptor.base_vm is None:
-            raise ValueError(
-                f"VM has no effective base_vm: {self.target} (resolver not yet wired)"
-            )
+        # Pieza 1.C: resolve template references to get the effective base_vm.
+        # CreateDescriptorCommand.validate already guarantees this resolves at
+        # load time; the defensive check below catches drift (e.g. a template
+        # was changed after load) so the failure is clear and never silent.
+        resolved = resolve_descriptor(descriptor, self._folders)
+        if resolved.base_vm is None:
+            raise ValueError(f"VM has no effective base_vm: {self.target}")
         # name = full path; real connectors will sanitise it to their own rules
-        vm_id = self._connector.clone(descriptor.base_vm, descriptor.path)
+        vm_id = self._connector.clone(resolved.base_vm, descriptor.path)
         descriptor.state = DescriptorState.DEPLOYED
         descriptor.vm_id = vm_id
+        # save only the runtime mutations; the local definition stays as the
+        # user wrote it (the resolver re-runs on every access, so the resolved
+        # values are never frozen into the persisted record)
         self._descriptors.save(descriptor)
         return f"deployed as {vm_id}"
 
@@ -96,10 +103,12 @@ class UndeployCommand(Command):
         self,
         path: str,
         descriptors_repo: DescriptorRepository,
+        folders_repo: FolderRepository,
         hypervisor_connector: HypervisorConnector,
     ) -> None:
         self.target = path
         self._descriptors = descriptors_repo
+        self._folders = folders_repo  # used by DeployCommand to resolve base_vm
         self._connector = hypervisor_connector
 
     @override
@@ -137,10 +146,12 @@ class StartCommand(Command):
         self,
         path: str,
         descriptors_repo: DescriptorRepository,
+        folders_repo: FolderRepository,
         hypervisor_connector: HypervisorConnector,
     ) -> None:
         self.target = path
         self._descriptors = descriptors_repo
+        self._folders = folders_repo  # used by DeployCommand to resolve base_vm
         self._connector = hypervisor_connector
 
     @override
@@ -174,10 +185,12 @@ class StopCommand(Command):
         self,
         path: str,
         descriptors_repo: DescriptorRepository,
+        folders_repo: FolderRepository,
         hypervisor_connector: HypervisorConnector,
     ) -> None:
         self.target = path
         self._descriptors = descriptors_repo
+        self._folders = folders_repo  # used by DeployCommand to resolve base_vm
         self._connector = hypervisor_connector
 
     @override
@@ -269,6 +282,21 @@ class CreateDescriptorCommand(Command):
             and self._differs(existing)
         ):
             errors.append(f"cannot redefine a non-provisioned VM: {self.target}")
+        # Pieza 1.C: fail-fast at load time if the descriptor's references don't
+        # resolve. Skipped when the structure is already broken — there's no
+        # point resolving against a parent we know doesn't exist.
+        if not errors:
+            try:
+                resolved = resolve_descriptor(self._descriptor, self._folders)
+            except ValueError as resolver_error:
+                errors.append(str(resolver_error))
+            else:
+                if resolved.hypervisor is None:
+                    errors.append(
+                        f"VM has no effective hypervisor: {self.target}"
+                    )
+                if resolved.base_vm is None:
+                    errors.append(f"VM has no effective base_vm: {self.target}")
         return errors
 
     @override

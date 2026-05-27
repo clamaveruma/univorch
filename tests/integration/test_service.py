@@ -14,6 +14,7 @@ from univorch.models import (
     Folder,
     FolderDef,
     JobStatus,
+    VMTemplateDef,
 )
 from univorch.persistence.tinydb.repositories import (
     DescriptorRepository,
@@ -96,17 +97,66 @@ def test_unknown_hypervisor_rejected(
         service.deploy("/lab/vm")
 
 
-def test_deploy_descriptor_without_hypervisor_rejected(
+def test_deploy_descriptor_without_any_hypervisor_rejected(
     service: OrchestratorService, descriptors: DescriptorRepository
 ) -> None:
-    # transitional in Pieza 1.A: a descriptor with no effective hypervisor
-    # (e.g. it relied on a template and the Resolver isn't wired yet) gives a
-    # clear OperationError. Pieza 1.C will route through the Resolver.
-    descriptors.save(
-        Descriptor(path="/lab/vm", template="linux-vm")  # hypervisor=None, base_vm=None
-    )
+    # No hypervisor inline AND no template → the Resolver has nothing to find,
+    # the service rejects the deploy with 'no effective hypervisor'.
+    descriptors.save(Descriptor(path="/lab/vm"))
     with pytest.raises(OperationError, match="no effective hypervisor"):
         service.deploy("/lab/vm")
+
+
+def test_deploy_descriptor_with_unresolvable_template_rejected(
+    service: OrchestratorService, descriptors: DescriptorRepository
+) -> None:
+    # Template name referenced but no folder defines it / no import lets it in.
+    descriptors.save(Descriptor(path="/lab/vm", template="missing"))
+    with pytest.raises(OperationError, match="template not accessible"):
+        service.deploy("/lab/vm")
+
+
+def test_template_based_descriptor_load_then_deploy(
+    service: OrchestratorService,
+    folders: FolderRepository,
+    descriptors: DescriptorRepository,
+) -> None:
+    """End-to-end: load a YAML with template+import, deploy resolves OK.
+
+    Mirrors the demo's shape: a folder defines a template, a subfolder imports
+    it, and a descriptor in the subfolder uses it. The Resolver (Pieza 1.C
+    wiring) makes deploy succeed: the resolved hypervisor 'mock' picks the
+    connector and the resolved base_vm 'linux-base' clones into a VM.
+    """
+    doc = DefinitionDocument(
+        folders={
+            "lab": FolderDef(
+                vm_templates={
+                    "linux-vm": VMTemplateDef(
+                        hypervisor="mock", base_vm="linux-base", cpu=2
+                    )
+                },
+                folders={
+                    "networks": FolderDef(
+                        imports=["linux-vm"],
+                        descriptors={"vm": DescriptorDef(template="linux-vm")},
+                    )
+                },
+            )
+        }
+    )
+    results = service.load(doc)
+    assert all(r.ok for r in results), [r.message for r in results if not r.ok]
+    # the persisted descriptor still has its local definition only
+    raw = descriptors.get("/lab/networks/vm")
+    assert raw is not None
+    assert raw.template == "linux-vm"
+    assert raw.hypervisor is None  # NOT frozen at load
+    # and deploy works because the Resolver fills in the gaps at access time
+    job = service.deploy("/lab/networks/vm")
+    assert job.status == JobStatus.COMPLETED
+    raw_after = descriptors.get("/lab/networks/vm")
+    assert raw_after is not None and raw_after.state == DescriptorState.DEPLOYED
 
 
 def test_broken_descriptor_rejected(
@@ -140,6 +190,27 @@ class TestStatus:
     def test_unknown_path_rejected(self, service: OrchestratorService) -> None:
         with pytest.raises(OperationError):
             service.status("/lab/nope")
+
+    def test_status_tolerates_unresolvable_template(
+        self,
+        service: OrchestratorService,
+        descriptors: DescriptorRepository,
+    ) -> None:
+        # Edge case: a descriptor 'deployed' in the DB (manually injected here)
+        # but its template no longer resolves. status must not raise; runtime
+        # stays None. State reporting is still authoritative.
+        descriptors.save(
+            Descriptor(
+                path="/lab/vm",
+                template="missing",
+                state=DescriptorState.DEPLOYED,
+                vm_id="mock-vm-X",
+            )
+        )
+        s = service.status("/lab/vm")
+        assert s.state == DescriptorState.DEPLOYED
+        assert s.runtime_state is None  # resolver failed, runtime stays None
+        assert s.vm_id == "mock-vm-X"
 
 
 class TestListTree:

@@ -1608,8 +1608,64 @@ ruff y mypy strict limpios. El Resolver está aislado — el service no lo llama
 un descriptor con `use template:` sigue fallando con "no effective hypervisor". Eso lo
 desbloquea Pieza 1.C.
 
+### Pieza 1.C — Integración del Resolver al service
+
+Cableado del Resolver. Los Commands de máquina pasan a poder operar sobre descriptores que
+heredan campos de una plantilla:
+
+- **`service._machine_command`**: tras leer el descriptor, llama a `resolve_descriptor` (Pieza
+  1.B). Si lanza `ValueError` → `OperationError`. Si tras resolver `hypervisor` sigue None →
+  `OperationError`. Solo entonces busca el conector (por `resolved.hypervisor`) y construye
+  el Command. Las dos comprobaciones transitorias de Pieza 1.A desaparecen.
+- **`service.status`**: resuelve antes de consultar runtime, pero **de forma tolerante** —
+  si el resolver lanza, `resolved = descriptor` (queda con `hypervisor=None`) y se reporta
+  `runtime=None`. Status es lectura informativa, nunca lanza por estado degradado.
+- **`CreateDescriptorCommand.validate`** (fail-fast al `load`): añade chequeo tras las
+  comprobaciones estructurales. `resolve_descriptor(self._descriptor, self._folders)`; si
+  lanza → mensaje de error; si pasa, exige que `resolved.hypervisor` y `resolved.base_vm`
+  sean non-None. Así un `load demo/setup.yml` con una plantilla rota se rechaza item por
+  item en rojo (best-effort, DEC-027) en lugar de fallar tarde al hacer `deploy`.
+- **Signatura de los Commands de máquina**: `DeployCommand`, `UndeployCommand`, `StartCommand`,
+  `StopCommand` ganan `folders_repo` en `__init__`. Solo `DeployCommand` lo usa (resuelve dentro
+  de `execute` para obtener el `base_vm` efectivo y pasarlo a `connector.clone`). Los otros
+  tres lo aceptan por uniformidad de signatura — el alias `MachineCommand` y `_machine_command`
+  siguen tratando los cuatro igual; la alternativa habría sido duplicar código por Command.
+  `DeployCommand.execute` ya no usa `descriptor.base_vm` directo: usa `resolve_descriptor(...)`,
+  y solo persiste el cambio de `state` y `vm_id` (la BD sigue guardando solo la definición
+  local; el resolved es transitorio, se reconstruye en cada acceso).
+
+**Tests:**
+- `test_commands.py`: las 18 signaturas de tests de Commands de máquina (y los dos
+  parametrizados) aceptan ahora la fixture `folders` y la pasan al constructor. Patrón
+  uniforme; cambios mecánicos vía replace_all.
+- `test_service.py`: el test transitorio `test_deploy_descriptor_without_hypervisor_rejected`
+  de Pieza 1.A se sustituye por dos tests más precisos
+  (`test_deploy_descriptor_without_any_hypervisor_rejected` para descriptor sin nada de nada,
+  y `test_deploy_descriptor_with_unresolvable_template_rejected` para plantilla inexistente).
+  Test nuevo `test_template_based_descriptor_load_then_deploy` end-to-end: construye un
+  `DefinitionDocument` con plantilla en `/lab/` + import en `/lab/networks/` + descriptor que
+  la usa, hace `load`+`deploy` y verifica que (a) el descriptor persistido tiene `hypervisor=None`
+  (BD guarda solo local), (b) deploy completa con `state=DEPLOYED` (el resolver llena los
+  huecos al vuelo). Test nuevo `test_status_tolerates_unresolvable_template` cubre la rama
+  tolerante de `status`.
+
+**Estado:** 196 tests verde, ruff y mypy strict limpios. Cobertura: `resolver.py` 100%,
+`service.py` 97%, `commands.py` 100%. **End-to-end con plantillas funciona**: `load demo/setup.yml`
++ `deploy student01` + `start` + `status` + `undeploy` corre sin errores.
+
+### Sprint 2 — Pieza 1 cerrada
+
+Las tres sub-piezas (1.A modelos, 1.B Resolver, 1.C integración) están en producción.
+La cascada de plantillas funciona; el demo del profesor con plantilla `linux-vm` compartida
+entre los tres estudiantes corre end-to-end. La cobertura es alta y los tests con Hypothesis
+cubren el merge de forma exhaustiva.
+
 ### Próximo
-- **Pieza 1.C — Integración**: el service llama al Resolver en `_machine_command` y `status`;
-  `CreateDescriptorCommand.validate` comprueba que las plantillas referenciadas son
-  accesibles desde la posición del descriptor (validación al cargar, fail-fast);
-  las validaciones transitorias de Pieza 1.A (`"resolver not yet wired"`) desaparecen.
+- **Pieza 2 — `inspect <path>`** (al menos `--local` y `--resolved`; `--expanded` cuando lo
+  retomemos).
+- **Pieza 3 — Hipervisores como recurso completo**: hoy `define hypervisors:` lleva solo
+  `type:` (acepta cualquier valor); validar que `type:` es un conector registrado, y permitir
+  hipervisores definidos en el árbol con address/credentials para los conectores reales.
+- **Pieza 4 — `based on:`** para derivación de plantillas y hipervisores.
+
+(Las prioridades dentro de Sprint 2 las decidimos juntos cuando arranquemos cada una.)

@@ -38,8 +38,11 @@ from univorch.persistence.tinydb.repositories import (
     FolderRepository,
     JobRepository,
 )
+from univorch.resolver import resolve_descriptor
 
-# the four machine commands share the same constructor (path, repo, connector)
+# the four machine commands share the same constructor (path, descriptors_repo,
+# folders_repo, connector) — DeployCommand uses folders_repo to resolve the
+# effective base_vm; the others accept it for signature uniformity (Pieza 1.C)
 type MachineCommand = type[DeployCommand | UndeployCommand | StartCommand | StopCommand]
 
 
@@ -122,20 +125,22 @@ class OrchestratorService:
         if descriptor is None:
             raise OperationError([f"VM not found: {path}"])
         runtime: RuntimeState | None = None
-        # runtime state only exists for a deployed VM — ask its hypervisor; we
-        # also need a hypervisor name to look up the connector (None means the
-        # descriptor never had it resolved, shouldn't happen if it's DEPLOYED)
-        if (
-            descriptor.state == DescriptorState.DEPLOYED
-            and descriptor.vm_id
-            and descriptor.hypervisor
-        ):
-            connector = self._connectors.get(descriptor.hypervisor)
-            runtime = (
-                connector.get_status(descriptor.vm_id)
-                if connector is not None
-                else RuntimeState.UNKNOWN
-            )
+        # runtime state only exists for a deployed VM — ask its hypervisor.
+        # Pieza 1.C: resolve template references to find the effective hypervisor;
+        # tolerant on failure (status is a read, must not raise) — if the
+        # resolver can't determine a hypervisor we leave runtime as None.
+        if descriptor.state == DescriptorState.DEPLOYED and descriptor.vm_id:
+            try:
+                resolved = resolve_descriptor(descriptor, self._folders)
+            except ValueError:
+                resolved = descriptor
+            if resolved.hypervisor:
+                connector = self._connectors.get(resolved.hypervisor)
+                runtime = (
+                    connector.get_status(descriptor.vm_id)
+                    if connector is not None
+                    else RuntimeState.UNKNOWN
+                )
         return DescriptorStatus(
             path=path,
             state=descriptor.state,
@@ -241,17 +246,21 @@ class OrchestratorService:
         descriptor = self._descriptors.get(path)
         if descriptor is None:
             raise OperationError([f"VM not found: {path}"])
-        # in Pieza 1.A the Resolver is not wired in yet, so a descriptor that
-        # inherits its hypervisor from a template would arrive here with None;
-        # such cases get a clear error until Pieza 1.C resolves them
-        if descriptor.hypervisor is None:
-            raise OperationError(
-                [f"VM has no effective hypervisor: {path} (resolver not yet wired)"]
-            )
-        connector = self._connectors.get(descriptor.hypervisor)
+        # Pieza 1.C: resolve template references before looking up the connector,
+        # so descriptors that inherit hypervisor from a template work end-to-end.
+        # A resolver failure (template not accessible) or a still-None hypervisor
+        # become OperationErrors with a clear message; the front-ends turn them
+        # into red lines without ever creating a Job (DEC-027).
+        try:
+            resolved = resolve_descriptor(descriptor, self._folders)
+        except ValueError as resolver_error:
+            raise OperationError([str(resolver_error)]) from resolver_error
+        if resolved.hypervisor is None:
+            raise OperationError([f"VM has no effective hypervisor: {path}"])
+        connector = self._connectors.get(resolved.hypervisor)
         if connector is None:
-            raise OperationError([f"unknown hypervisor: {descriptor.hypervisor}"])
-        return command_cls(path, self._descriptors, connector)
+            raise OperationError([f"unknown hypervisor: {resolved.hypervisor}"])
+        return command_cls(path, self._descriptors, self._folders, connector)
 
     def _run(self, command: Command) -> Job:
         """Run an already-built command.
