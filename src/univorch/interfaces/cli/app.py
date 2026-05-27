@@ -76,6 +76,26 @@ def _path_arg_parser(description: str, *, required: bool) -> cmd2.Cmd2ArgumentPa
     return parser
 
 
+def _tree_arg_parser() -> cmd2.Cmd2ArgumentParser:
+    """Build the parser for 'tree' (path + optional folders-only flag)."""
+    parser = cmd2.Cmd2ArgumentParser(
+        description="Print the whole subtree under a path (default: current folder)."
+    )
+    parser.add_argument(
+        "path",
+        nargs="?",
+        default="",
+        help="tree path (default: current folder)",
+    )
+    parser.add_argument(
+        "-d",
+        "--folders-only",
+        action="store_true",
+        help="show only folders, hide VMs (like Linux 'tree -d')",
+    )
+    return parser
+
+
 def _load_arg_parser() -> cmd2.Cmd2ArgumentParser:
     """Build the parser for 'load' (file path + optional destination)."""
     parser = cmd2.Cmd2ArgumentParser(
@@ -175,19 +195,17 @@ class UnivOrchShell(cmd2.Cmd):
             text, style = self._render_entry(entry)
             self.poutput(text, style=style)
 
-    @cmd2.with_argparser(
-        _path_arg_parser(
-            "Print the whole subtree under a path (default: current folder).",
-            required=False,
-        )
-    )
+    @cmd2.with_argparser(_tree_arg_parser())
     def do_tree(self, args: argparse.Namespace) -> None:
         path = self._resolve(args.path.strip())
         if not self._service.folder_exists(path):
             self.perror(f"tree: {path}: no such folder")
             return
         root_depth = 0 if path == "/" else path.count("/")
-        for entry in self._service.list_tree(path, recursive=True):
+        entries = self._service.list_tree(path, recursive=True)
+        if args.folders_only:
+            entries = [e for e in entries if e.kind == "folder"]
+        for entry in entries:
             indent = "  " * (entry.path.count("/") - root_depth - 1)
             text, style = self._render_entry(entry)
             self.poutput(indent + text, style=style)

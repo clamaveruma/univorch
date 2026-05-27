@@ -141,6 +141,12 @@ class TestTree:
     def test_missing_folder_prints_nothing(self, shell: UnivOrchShell) -> None:
         assert _run(shell, "tree /nope") == ""
 
+    def test_folders_only_hides_vms(self, shell: UnivOrchShell) -> None:
+        _provision(shell)  # /lab folder + /lab/vm descriptor
+        out = _run(shell, "tree -d /")
+        assert "lab/" in out  # folder still shown
+        assert "vm" not in out  # VM filtered out
+
 
 def _provision(shell: UnivOrchShell) -> None:
     """Seed /lab + /lab/vm via load (vm is provisioned, ready for deploy)."""
