@@ -113,6 +113,51 @@ for every field, both the value **and the node where it came from**. Drives
 the web editor that shows inherited fields in another colour with a tooltip
 to the source. Postponed past Sprint 2.
 
+### Common syntax for inheritable resources
+
+Every inheritable resource the user declares inside a folder follows the same
+three-piece shape. Today this covers hypervisors and machine templates;
+tomorrow datastores, IP pools, and more will plug into the same pattern
+(specific quirks will be noted as exceptions, e.g. IP pools may be assigned
+implicitly per folder rather than via `use`).
+
+**Declare it** with `define <plural>:` in the folder where the resource lives:
+
+```yaml
+lab/:
+  define hypervisors:
+    mock01: { type: mock }
+  define templates:
+    linux-vm: { use hypervisor: mock01, base_vm: linux-base, cpu: 2 }
+```
+
+**Import it** into a descendant folder that uses it:
+
+```yaml
+networks/:
+  import: [linux-vm]
+```
+
+**Reference it** with `use <singular>:` from a descriptor or another resource:
+
+```yaml
+student01: { use template: linux-vm }
+```
+
+**Closure (lexical environment).** A resource's internal references are
+resolved from the folder where the resource is defined, not from the folder
+where it is used. In the example above, `linux-vm` references `mock01`; that
+reference resolves against `/lab` (where `linux-vm` lives), so
+`/lab/networks` only needs to import `linux-vm`. It does not need to import
+`mock01` as well. This matches how a function carries its lexical environment
+in a language with closures.
+
+**Combination rule.** When the same resource name is defined at multiple
+levels, the cascade combination rule above applies (scalar replaces, list
+accumulates, map merges recursively, with declarable exceptions). Today no
+resource overrides itself in practice; the rule is in place for the future
+when it does.
+
 ---
 
 ## State

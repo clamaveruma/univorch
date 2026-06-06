@@ -52,7 +52,7 @@
             "^[A-Za-z0-9_-]+$": { "$ref": "#/$defs/Hypervisor" }
           }
         },
-        "define machine templates": {
+        "define templates": {
           "type": "object",
           "description": "VM templates declared in this folder, keyed by name.",
           "additionalProperties": false,
@@ -63,7 +63,7 @@
       },
       "patternProperties": {
         "^[A-Za-z0-9_-]+/$": { "$ref": "#/$defs/Folder" },
-        "^(?!description$|import$|define hypervisors$|define machine templates$)[A-Za-z0-9_-]+$": { "$ref": "#/$defs/Descriptor" }
+        "^(?!description$|import$|define hypervisors$|define templates$)[A-Za-z0-9_-]+$": { "$ref": "#/$defs/Descriptor" }
       }
     },
     "Hypervisor": {

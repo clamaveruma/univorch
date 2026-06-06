@@ -13,7 +13,7 @@ subfolder_a/: #a folder.  Can have: imports, definitions, subfolders and machine
       usename: root
       password: 1234
 
-  define machine templates:
+  define templates:
     template3:
       based on: template0
 

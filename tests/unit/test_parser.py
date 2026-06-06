@@ -53,7 +53,7 @@ def test_parses_define_machine_templates() -> None:
     yaml = (
         "kind: definition\n"
         "lab/:\n"
-        "  define machine templates:\n"
+        "  define templates:\n"
         "    linux-vm:\n"
         "      use hypervisor: mock\n"
         "      base_vm: linux-base\n"

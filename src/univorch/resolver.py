@@ -28,6 +28,7 @@ from __future__ import annotations
 import fnmatch
 import posixpath
 from collections.abc import Iterable
+from typing import Any
 
 from univorch.models import Descriptor, HypervisorDef, VMTemplateDef
 from univorch.persistence.tinydb.repositories import FolderRepository
@@ -46,8 +47,14 @@ _TEMPLATE_FIELDS: tuple[str, ...] = (
 
 def resolve_descriptor(
     descriptor: Descriptor, folders_repo: FolderRepository
-) -> Descriptor:
-    """Return ``descriptor`` with its template (if any) merged in.
+) -> tuple[Descriptor, str | None]:
+    """Return ``(resolved_descriptor, template_origin)``.
+
+    ``template_origin`` is the path of the folder where the descriptor's
+    template is defined, or ``None`` if the descriptor does not use a
+    template. Callers that need the origin (e.g. the service, to apply the
+    template's closure when resolving the hypervisor) read it; others can
+    discard it with ``resolved, _ = resolve_descriptor(...)``.
 
     Raises:
         ValueError: if the descriptor references a template that is not
@@ -55,14 +62,15 @@ def resolve_descriptor(
             no ancestor's ``import:`` filter lets it pass).
     """
     if descriptor.template is None:
-        return descriptor  # nothing to resolve; pass through
+        return descriptor, None  # nothing to resolve; pass through
     folder_path = posixpath.dirname(descriptor.path) or "/"
-    template = _find_template(descriptor.template, folder_path, folders_repo)
-    if template is None:
+    found = _find_template(descriptor.template, folder_path, folders_repo)
+    if found is None:
         raise ValueError(
             f"template not accessible from {descriptor.path}: {descriptor.template!r}"
         )
-    return _merge_template(descriptor, template)
+    template, template_origin = found
+    return _merge_template(descriptor, template), template_origin
 
 
 def _merge_template(descriptor: Descriptor, template: VMTemplateDef) -> Descriptor:
@@ -77,32 +85,6 @@ def _merge_template(descriptor: Descriptor, template: VMTemplateDef) -> Descript
     return descriptor.model_copy(update=updates)
 
 
-def _find_template(
-    name: str, start: str, folders_repo: FolderRepository
-) -> VMTemplateDef | None:
-    """Walk ancestors from ``start`` looking for the template ``name``.
-
-    Each level is checked in this order:
-      1. The folder defines ``name`` locally → return that template.
-      2. Otherwise, the folder's ``import:`` filter allows ``name`` to pass
-         from the parent → climb to the parent and repeat.
-      3. Otherwise the import chain breaks at this level → not found.
-    Returns ``None`` on a broken chain or when the walk reaches the (resource-
-    less) root without finding the name.
-    """
-    current = start
-    while current != "/":
-        folder = folders_repo.get(current)
-        if folder is None:
-            return None  # broken tree: parent should have been created at load
-        if name in folder.vm_templates:
-            return folder.vm_templates[name]
-        if not _import_allows(folder.imports, name):
-            return None  # this level does not import the name; chain stops
-        current = posixpath.dirname(current) or "/"
-    return None  # reached root; root has no Folder record and no resources
-
-
 def _import_allows(imports: Iterable[str], name: str) -> bool:
     """True if ``name`` passes the import filter of a folder.
 
@@ -113,25 +95,51 @@ def _import_allows(imports: Iterable[str], name: str) -> bool:
     return any(fnmatch.fnmatchcase(name, pattern) for pattern in imports)
 
 
-def _find_hypervisor(
-    name: str, start: str, folders_repo: FolderRepository
-) -> tuple[HypervisorDef, str] | None:
-    """Walk ancestors from ``start`` looking for hypervisor ``name``.
+def _find_resource(
+    name: str,
+    start: str,
+    folders_repo: FolderRepository,
+    attribute: str,
+) -> tuple[Any, str] | None:
+    """Walk ancestors from ``start`` looking for resource ``name`` in
+    ``folder.<attribute>``.
 
-    Same rules as ``_find_template``: each level either defines the name
-    locally, lets it pass via ``import:``, or breaks the chain. Returns the
-    HypervisorDef **and** the path of the folder that defined it — Pieza 3c
-    uses that path as the connection-pool key, so two hypervisors sharing a
-    name in different branches keep distinct live sessions.
+    The same rule applies to every inheritable resource (templates,
+    hypervisors; tomorrow datastores, IP pools…):
+      1. The folder defines ``name`` locally → return ``(resource, this_folder)``.
+      2. Otherwise, the folder's ``import:`` filter allows ``name`` to pass
+         from the parent → climb to the parent and repeat.
+      3. Otherwise the import chain breaks at this level → not found.
+
+    Returns ``None`` on a broken chain or when the walk reaches the (resource-
+    less) root without finding the name. The path of the defining folder is
+    part of the result so callers can either key a runtime cache on it
+    (hypervisor pool) or apply the resource's closure (template's lexical
+    environment).
     """
     current = start
     while current != "/":
         folder = folders_repo.get(current)
         if folder is None:
             return None  # broken tree: parent should have been created at load
-        if name in folder.hypervisors:
-            return folder.hypervisors[name], current
+        bucket: dict[str, Any] = getattr(folder, attribute)
+        if name in bucket:
+            return bucket[name], current
         if not _import_allows(folder.imports, name):
             return None  # this level does not import the name; chain stops
         current = posixpath.dirname(current) or "/"
     return None  # reached root; root has no Folder record and no resources
+
+
+def _find_template(
+    name: str, start: str, folders_repo: FolderRepository
+) -> tuple[VMTemplateDef, str] | None:
+    """Find a template by name. Returns ``(template, defining_folder_path)``."""
+    return _find_resource(name, start, folders_repo, "vm_templates")
+
+
+def _find_hypervisor(
+    name: str, start: str, folders_repo: FolderRepository
+) -> tuple[HypervisorDef, str] | None:
+    """Find a hypervisor by name. Returns ``(hypervisor, defining_folder_path)``."""
+    return _find_resource(name, start, folders_repo, "hypervisors")

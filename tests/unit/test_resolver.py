@@ -126,7 +126,9 @@ class TestFindTemplate:
         _put_template(folders, "/lab", "linux-vm", VMTemplateDef(hypervisor="mock"))
         result = _find_template("linux-vm", "/lab", folders)
         assert result is not None
-        assert result.hypervisor == "mock"
+        template, origin = result
+        assert template.hypervisor == "mock"
+        assert origin == "/lab"  # template's defining folder; closure key
 
     def test_template_in_parent_with_explicit_import(
         self, folders: FolderRepository
@@ -135,6 +137,8 @@ class TestFindTemplate:
         folders.save(Folder(path="/lab/networks", imports=["linux-vm"]))
         result = _find_template("linux-vm", "/lab/networks", folders)
         assert result is not None
+        _, origin = result
+        assert origin == "/lab"  # origin is where it was defined, not asked
 
     def test_template_in_parent_blocked_by_missing_import(
         self, folders: FolderRepository
@@ -268,7 +272,9 @@ class TestResolveDescriptor:
         self, folders: FolderRepository
     ) -> None:
         descriptor = Descriptor(path="/lab/vm", hypervisor="mock", base_vm="linux-base")
-        assert resolve_descriptor(descriptor, folders) == descriptor
+        resolved, origin = resolve_descriptor(descriptor, folders)
+        assert resolved == descriptor
+        assert origin is None  # no template used
 
     def test_descriptor_with_template_resolves(self, folders: FolderRepository) -> None:
         _put_template(
@@ -279,10 +285,11 @@ class TestResolveDescriptor:
         )
         folders.save(Folder(path="/lab/networks", imports=["linux-vm"]))
         descriptor = Descriptor(path="/lab/networks/vm", template="linux-vm")
-        result = resolve_descriptor(descriptor, folders)
-        assert result.hypervisor == "mock"
-        assert result.base_vm == "linux-base"
-        assert result.cpu == 2
+        resolved, origin = resolve_descriptor(descriptor, folders)
+        assert resolved.hypervisor == "mock"
+        assert resolved.base_vm == "linux-base"
+        assert resolved.cpu == 2
+        assert origin == "/lab"  # template was defined in /lab
 
     def test_descriptor_local_field_wins_after_resolve(
         self, folders: FolderRepository
@@ -291,9 +298,9 @@ class TestResolveDescriptor:
             folders, "/lab", "linux-vm", VMTemplateDef(hypervisor="mock", cpu=2)
         )
         descriptor = Descriptor(path="/lab/vm", template="linux-vm", cpu=4)
-        result = resolve_descriptor(descriptor, folders)
-        assert result.hypervisor == "mock"  # from template
-        assert result.cpu == 4  # local wins
+        resolved, _ = resolve_descriptor(descriptor, folders)
+        assert resolved.hypervisor == "mock"  # from template
+        assert resolved.cpu == 4  # local wins
 
     def test_unknown_template_raises(self, folders: FolderRepository) -> None:
         folders.save(Folder(path="/lab"))
@@ -306,8 +313,8 @@ class TestResolveDescriptor:
             folders, "/lab", "linux-vm", VMTemplateDef(hypervisor="mock", cpu=2)
         )
         descriptor = Descriptor(path="/lab/vm", template="linux-vm")
-        once = resolve_descriptor(descriptor, folders)
-        twice = resolve_descriptor(once, folders)
+        once, _ = resolve_descriptor(descriptor, folders)
+        twice, _ = resolve_descriptor(once, folders)
         assert once == twice
 
 

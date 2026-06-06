@@ -140,14 +140,18 @@ class OrchestratorService:
         # resolver can't determine a hypervisor we leave runtime as None.
         if descriptor.state == DescriptorState.DEPLOYED and descriptor.vm_id:
             try:
-                resolved = resolve_descriptor(descriptor, self._folders)
+                resolved, template_origin = resolve_descriptor(
+                    descriptor, self._folders
+                )
             except ValueError:
-                resolved = descriptor
+                resolved, template_origin = descriptor, None
             if resolved.hypervisor:
                 # status is a read — never raise on a misconfigured tree; report
                 # UNKNOWN runtime if we can't reach the hypervisor record.
                 try:
-                    connector = self._resolve_hypervisor(resolved)
+                    connector = self._resolve_hypervisor(
+                        descriptor, resolved, template_origin
+                    )
                 except OperationError:
                     runtime = RuntimeState.UNKNOWN
                 else:
@@ -205,7 +209,10 @@ class OrchestratorService:
         if descriptor is not None:
             if resolved:
                 try:
-                    return resolve_descriptor(descriptor, self._folders)
+                    resolved_descriptor, _ = resolve_descriptor(
+                        descriptor, self._folders
+                    )
+                    return resolved_descriptor
                 except ValueError:
                     return descriptor  # tolerant: degraded info is still useful
             return descriptor
@@ -273,22 +280,42 @@ class OrchestratorService:
             CreateDescriptorCommand(descriptor, self._descriptors, self._folders)
         )
 
-    def _resolve_hypervisor(self, resolved: Descriptor) -> HypervisorConnector:
+    def _resolve_hypervisor(
+        self,
+        original: Descriptor,
+        resolved: Descriptor,
+        template_origin: str | None,
+    ) -> HypervisorConnector:
         """Return a live connector for the hypervisor named in ``resolved``.
 
-        Walks the tree from the descriptor's folder, finds the ``HypervisorDef``
-        with that name, and returns a live session — from the connection pool if
-        one already exists, freshly minted otherwise. The pool key is the path
-        of the folder that declared the hypervisor (Pieza 3c).
+        Walks the tree to find the ``HypervisorDef`` with that name, and
+        returns a live session — from the connection pool if one already
+        exists, freshly minted otherwise. The pool key is the path of the
+        folder that declared the hypervisor (Pieza 3c).
+
+        Closure of templates (Sprint 2 Pieza 3 follow-up): if the hypervisor
+        field came from a template (the descriptor's local ``hypervisor`` was
+        None and a template was used), the walker starts from the folder
+        where the template is defined — its lexical environment — so the
+        descriptor's folder does not need to ``import:`` the hypervisor that
+        the template uses internally. If the hypervisor is set locally on
+        the descriptor (or no template was used), the walker starts from
+        the descriptor's own folder.
 
         Raises ``OperationError`` if the name is not accessible from the
-        descriptor's folder or its ``type:`` is not in the connector registry
-        (a misconfigured tree caught at use time, the only check we keep —
-        see DEC-027's fail-fast spirit).
+        chosen start folder or its ``type:`` is not in the connector
+        registry (a misconfigured tree caught at use time).
         """
         assert resolved.hypervisor is not None  # caller's responsibility
-        folder_path = posixpath.dirname(resolved.path) or "/"
-        found = _find_hypervisor(resolved.hypervisor, folder_path, self._folders)
+        came_from_template = original.hypervisor is None and template_origin is not None
+        start = (
+            template_origin
+            if came_from_template
+            else posixpath.dirname(resolved.path) or "/"
+        )
+        # narrow the type so mypy knows ``start`` is str past the guard above
+        assert start is not None
+        found = _find_hypervisor(resolved.hypervisor, start, self._folders)
         if found is None:
             raise OperationError(
                 [
@@ -325,12 +352,12 @@ class OrchestratorService:
         # become OperationErrors with a clear message; the front-ends turn them
         # into red lines without ever creating a Job (DEC-027).
         try:
-            resolved = resolve_descriptor(descriptor, self._folders)
+            resolved, template_origin = resolve_descriptor(descriptor, self._folders)
         except ValueError as resolver_error:
             raise OperationError([str(resolver_error)]) from resolver_error
         if resolved.hypervisor is None:
             raise OperationError([f"VM has no effective hypervisor: {path}"])
-        connector = self._resolve_hypervisor(resolved)
+        connector = self._resolve_hypervisor(descriptor, resolved, template_origin)
         return command_cls(path, self._descriptors, self._folders, connector)
 
     def _run(self, command: Command) -> Job:

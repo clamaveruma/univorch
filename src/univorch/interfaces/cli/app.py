@@ -376,7 +376,7 @@ class UnivOrchShell(cmd2.Cmd):
                 if hyp.description is not None:
                     self.poutput(f"      {'description:':18} {hyp.description}")
         if f.vm_templates:
-            self.poutput("  define machine templates:")
+            self.poutput("  define templates:")
             for name, tpl in f.vm_templates.items():
                 self.poutput(f"    {name}:")
                 tpl_rows: list[tuple[str, object | None]] = [

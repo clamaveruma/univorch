@@ -114,7 +114,7 @@ class HypervisorDef(BaseModel):
 
 
 class VMTemplateDef(BaseModel):
-    """A VM template declared with ``define machine templates:`` in a folder.
+    """A VM template declared with ``define templates:`` in a folder.
 
     Same shape as a ``DescriptorDef`` minus the ability to reference another
     template (Pieza 1.A; Pieza 4 will add ``based on:`` for derivation). Used
@@ -235,7 +235,7 @@ class FolderDef(BaseModel):
     ``descriptors`` internally.
 
     Sprint 2 (Pieza 1.A): folders can declare resources (``define hypervisors:``,
-    ``define machine templates:``) and an explicit ``import:`` list. The YAML
+    ``define templates:``) and an explicit ``import:`` list. The YAML
     keys with spaces are mapped to Python field names via Pydantic aliases.
     """
 
@@ -247,7 +247,7 @@ class FolderDef(BaseModel):
         default_factory=dict, alias="define hypervisors"
     )
     vm_templates: dict[str, VMTemplateDef] = Field(
-        default_factory=dict, alias="define machine templates"
+        default_factory=dict, alias="define templates"
     )
     folders: dict[str, "FolderDef"] = Field(default_factory=dict)
     descriptors: dict[str, DescriptorDef] = Field(default_factory=dict)
@@ -261,7 +261,7 @@ class FolderDef(BaseModel):
                 "description",
                 "import",
                 "define hypervisors",
-                "define machine templates",
+                "define templates",
             },
         )
 
@@ -288,7 +288,7 @@ class DefinitionDocument(BaseModel):
     Reserved at the top level: ``kind`` and ``version``; everything else is an
     item, split by the trailing ``/`` like inside a folder.
 
-    Resources (``define hypervisors:``, ``define machine templates:``) and
+    Resources (``define hypervisors:``, ``define templates:``) and
     ``import:`` are **rejected** at this level — they belong inside a folder
     definition. The destination folder's own resources are not modifiable by a
     load.
@@ -305,7 +305,7 @@ class DefinitionDocument(BaseModel):
     @classmethod
     def _split(cls, data: Any) -> Any:
         if isinstance(data, dict):
-            forbidden = {"import", "define hypervisors", "define machine templates"}
+            forbidden = {"import", "define hypervisors", "define templates"}
             present = sorted(forbidden & set(data.keys()))
             if present:
                 raise ValueError(

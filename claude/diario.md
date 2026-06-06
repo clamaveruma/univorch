@@ -1786,3 +1786,92 @@ Conversación con el usuario sobre prioridades. Acuerdo:
   (convertible a PDF con `pandoc`).
 - **Sprint 3.5 (opcional)** — bootstrap del contenedor con el demo
   precargado.
+
+### Sesión tarde — closure de plantillas + walker genérico + sintaxis unificada
+
+Continuación de la sesión. Al revisar el demo, el usuario detecta que
+`networks/` tenía que importar `mock` aunque solo usase la plantilla
+`linux-vm`. Eso encendió cuatro debates encadenados, todos resueltos:
+
+**Debate 1 — closure de plantillas (faltaba implementarlo).** El walker de
+`_resolve_hypervisor` arrancaba SIEMPRE en la carpeta del descriptor.
+Releyendo el diario del Sprint 2 (sesión de diseño 2026-05-27), habíamos
+acordado el modelo closure-like: "una plantilla resuelve sus referencias
+internas desde donde fue definida, no desde donde fue importada". No lo
+implementé en su momento. **Reconocido como error mío** y arreglado:
+
+- `resolve_descriptor` cambia firma: devuelve `(Descriptor, str | None)`
+  donde el segundo es el `template_origin` (path donde se encontró la
+  plantilla, `None` si no se usó plantilla).
+- `_find_template` y `_find_hypervisor` devuelven ambos `(resource, path)`
+  por uniformidad.
+- `_resolve_hypervisor` recibe además del `resolved` el descriptor
+  `original` y el `template_origin`. Heurística: si `original.hypervisor`
+  era `None` y `template_origin` no es `None`, el hipervisor viene de la
+  plantilla → walker arranca desde `template_origin` (entorno léxico de la
+  plantilla). Si era local → walker desde la carpeta del descriptor.
+- **Caso límite no cubierto:** descriptor con plantilla + override LOCAL
+  del hipervisor. Hoy nuestra heurística mira solo si el campo era None
+  pre-merge; si el override existía pre-merge, se trata como local. Esto
+  cubre el 99% real. El caso mixto requiere modo anotado del Resolver,
+  sigue aplazado.
+
+**Debate 2 — walker genérico.** El usuario nota que habrá más recursos
+heredables (datastores, IP pools…). La regla de búsqueda es la misma
+para todos; lo que cambia es el campo del Folder. Extraído
+`_find_resource(name, start, repo, attribute)`. `_find_template` y
+`_find_hypervisor` quedan como adaptadores de una línea. Datastores e
+IP pools futuros plug-and-play. Análisis de qué se podía unificar y qué
+no — los IP pools probablemente son asignación implícita por carpeta, no
+`use X: name`; los datastores quizá tengan referencia al hipervisor que
+los aloja. Salvedades anotadas en `glossary.md`.
+
+**Debate 3 — sintaxis YAML uniforme.** El usuario nota la asimetría
+`define machine templates:` (plural con "machine") vs `use template:`
+(singular sin "machine"). Y `define hypervisors:` vs `use hypervisor:`
+sí simétricos. **Regla cerrada: plural en `define`, singular en `use`**.
+Renombrado: `define machine templates:` → `define templates:`. El nombre
+interno Python (`vm_templates`) se queda — sigue la misma separación
+alias-YAML / nombre-Python que `connector_type`/`type`. Si en el futuro
+hay otros tipos de plantilla (red, snapshot…), se renombra entonces
+`define templates:` → `define vm_templates:`. **No diseñar para
+hipotéticos** (CLAUDE.md).
+
+**Debate 4 — `mock` → `mock01` en el demo.** Hoy en el demo `mock` era
+nombre del recurso Y nombre del tipo. Aunque conceptualmente son cosas
+distintas, el ojo los confunde. Renombrado a `mock01` para desambiguar.
+Regla pedagógica resultante: "los nombres de tipo los pone el código
+(`type: mock | vmware | proxmox`); los nombres de recurso los pone el
+usuario". Y aprovechando el closure, `networks/` solo importa
+`[linux-vm]` (no `mock01`).
+
+**Decisión de simplicidad — retirar `_validate_hypervisor_types`.** En la
+primera mitad de la sesión habíamos metido validación al cargar de que
+el `type:` de cada hipervisor estuviese en el registro. El usuario
+cuestionó la redundancia: si `_resolve_hypervisor` ya lo caza al usar,
+¿hace falta cazarlo también al cargar? Tres capas conceptuales: pasar
+clases por __init__ (DI estándar, no es validación), resolver en uso
+(lógica del servicio, no validación), validar al cargar (sí validación,
+duplicada). Se retira la del cargar — una sola capa, en el sitio donde
+el dato se necesita. Precio aceptado: YAMLs torcidos cargan ok y fallan
+al usar. Coherente con sencillez.
+
+**Documentación.** Sección nueva "Common syntax for inheritable
+resources" en `docs/glossary.md` con la regla `define X:` / `import:` /
+`use X:` + closure, ejemplos, y la nota de salvedades para recursos
+futuros (IP pools quizá implícitos, datastores quizá con
+contexto-hipervisor). Refinamiento de DEC-012 con la implementación del
+closure en `decisiones.md`. El manual de usuario propiamente dicho se
+escribirá en Sprint 3.4 (tutorial del profesor); por ahora el glosario
+es el sitio honesto.
+
+**Estado:** 214 tests verde (todos los que ya teníamos: los del walker
+genérico siguen pasando, los del Resolver adaptados a la firma de
+tupla, los tests de integración con la fixture pre-cargando
+`/lab` con `mock`). `service.py` 97%, `resolver.py` 100%. Demo
+end-to-end probada por tubería: `load demo/setup.yml` → `tree /` →
+`inspect /lab/networks/student03` (muestra herencia + override local
+de cpu=4) → ciclo `deploy/start/stop/undeploy`. El pool reutiliza la
+sesión mock para las cinco operaciones.
+
+**Próximo (mismo que antes):** Sprint 3.1, daemon REST.

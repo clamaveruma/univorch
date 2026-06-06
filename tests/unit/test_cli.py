@@ -255,7 +255,7 @@ class TestInspectCommand:
         "  define hypervisors:\n"
         "    mock:\n"
         "      type: mock\n"
-        "  define machine templates:\n"
+        "  define templates:\n"
         "    linux-vm:\n"
         "      use hypervisor: mock\n"
         "      base_vm: linux-base\n"
@@ -301,7 +301,7 @@ class TestInspectCommand:
         assert "/lab/   (folder)" in out
         assert "define hypervisors:" in out
         assert "mock:" in out
-        assert "define machine templates:" in out
+        assert "define templates:" in out
         assert "linux-vm:" in out
         # nested fields use YAML labels too
         assert "use hypervisor:    mock" in out

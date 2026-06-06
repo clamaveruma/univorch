@@ -80,7 +80,7 @@ class DeployCommand(Command):
         # CreateDescriptorCommand.validate already guarantees this resolves at
         # load time; the defensive check below catches drift (e.g. a template
         # was changed after load) so the failure is clear and never silent.
-        resolved = resolve_descriptor(descriptor, self._folders)
+        resolved, _ = resolve_descriptor(descriptor, self._folders)
         if resolved.base_vm is None:
             raise ValueError(f"VM has no effective base_vm: {self.target}")
         # name = full path; real connectors will sanitise it to their own rules
@@ -287,7 +287,7 @@ class CreateDescriptorCommand(Command):
         # point resolving against a parent we know doesn't exist.
         if not errors:
             try:
-                resolved = resolve_descriptor(self._descriptor, self._folders)
+                resolved, _ = resolve_descriptor(self._descriptor, self._folders)
             except ValueError as resolver_error:
                 errors.append(str(resolver_error))
             else:

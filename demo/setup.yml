@@ -5,7 +5,7 @@
 #
 # Vocabulary:
 #   - `define hypervisors:`         declares a hypervisor by name
-#   - `define machine templates:`   declares a VM template by name
+#   - `define templates:`   declares a VM template by name
 #   - `import: [name, ...]`         brings declared resources down from the parent
 #   - `use hypervisor: name`        references a declared hypervisor
 #   - `use template: name`          references a declared template (the Resolver
@@ -15,9 +15,11 @@
 #   - Folder keys end in '/'; VM keys do not.
 #   - The destination's own properties are NOT modified by `load`. Resources and
 #     `import` live inside a folder, never at the document root.
-#   - A subfolder must `import` every resource it (or anything inside it) needs:
-#     `networks/` imports both the template AND the hypervisor it points at,
-#     because deploying a VM looks both up by walking the tree.
+#   - A subfolder only imports what IT uses directly. A template carries its
+#     own lexical environment (closure): if `linux-vm` is defined in /lab and
+#     uses `mock01` internally, importing `linux-vm` into /lab/networks is
+#     enough — the hypervisor `mock01` is resolved from where the template
+#     lives, not from where it is used.
 
 kind: definition
 version: "1"
@@ -26,14 +28,14 @@ lab/:
   description: "Computer Science Lab"
 
   define hypervisors:
-    mock:
+    mock01:
       type: mock
       description: "In-memory mock hypervisor for the demo"
 
-  define machine templates:
+  define templates:
     linux-vm:
       description: "Standard student Linux workstation"
-      use hypervisor: mock
+      use hypervisor: mock01
       base_vm: linux-base
       cpu: 2
       memory_mb: 2048
@@ -41,7 +43,7 @@ lab/:
 
   networks/:
     description: "Computer Networks — Fall 2026"
-    import: [linux-vm, mock]
+    import: [linux-vm]
     student01: { use template: linux-vm }
     student02: { use template: linux-vm }
     student03: { use template: linux-vm, cpu: 4 }
