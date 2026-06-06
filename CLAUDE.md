@@ -4,6 +4,7 @@
 @claude/diario.md
 @claude/decisiones.md
 @claude/desarrollo.md
+@claude/ideas-pendientes.md
 
 ---
 
