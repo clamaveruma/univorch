@@ -34,7 +34,14 @@ recterm() {
             touch "$log"
             echo "recterm: grabando en $log (sal con 'recterm off' o Ctrl-D)."
             export RECTERM_LOG="$log"
-            exec script -fa "$log"
+            # Sin `exec` a propósito: si reemplazáramos el bash padre con
+            # script(1), al terminar la grabación no quedaría ningún shell
+            # vivo y la terminal de VSCode se cerraría. Llamando normal,
+            # cuando script termina volvemos al bash original — la terminal
+            # sigue viva. El coste es una capa extra en el árbol de procesos.
+            script -fa "$log"
+            unset RECTERM_LOG  # limpiar tras la sesión por si el usuario
+                               # reusa el shell (caso raro pero defensivo)
             ;;
         off)
             if [ -z "${RECTERM_LOG:-}" ]; then
