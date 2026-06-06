@@ -61,9 +61,6 @@ Uso:
   recterm off         para la grabación actual
   recterm status      muestra el estado
   recterm             muestra esta ayuda
-
-La grabación encadenada está bloqueada: 'recterm on' falla si ya
-hay una sesión activa para evitar logs duplicados.
 EOF
             ;;
         *)
