@@ -11,6 +11,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from univorch.connectors import CONNECTOR_TYPES
 from univorch.connectors.base import HypervisorConnector
 from univorch.connectors.types import RuntimeState
 from univorch.jobs.commands import (
@@ -38,7 +39,7 @@ from univorch.persistence.tinydb.repositories import (
     FolderRepository,
     JobRepository,
 )
-from univorch.resolver import resolve_descriptor
+from univorch.resolver import _find_hypervisor, resolve_descriptor
 
 # the four machine commands share the same constructor (path, descriptors_repo,
 # folders_repo, connector) — DeployCommand uses folders_repo to resolve the
@@ -86,9 +87,15 @@ class OrchestratorService:
     """Single facade over repositories, connectors and the Jobs engine.
 
     Folders and descriptors are identified by their ``path``: the full
-    materialized path in the tree (e.g. ``/lab/networks/student01``). A
-    ``hypervisor_connector`` is the live adapter that talks to a hypervisor;
-    ``hypervisor_connectors`` maps each hypervisor name to its connector (DEC-029).
+    materialized path in the tree (e.g. ``/lab/networks/student01``).
+
+    Hypervisors are NOT injected as live instances any more. The service
+    receives the **connector types registry** (``connector_types``) and
+    instantiates a live session on demand whenever a hypervisor declared in
+    the tree is first used. The live sessions live in ``_connection_pool``,
+    indexed by the path of the folder that declared each hypervisor — two
+    hypervisors with the same name in different branches keep distinct
+    sessions (Sprint 2 Pieza 3c; DEC-029).
     """
 
     def __init__(
@@ -96,11 +103,13 @@ class OrchestratorService:
         folders_repo: FolderRepository,
         descriptors_repo: DescriptorRepository,
         jobs_repo: JobRepository,
-        hypervisor_connectors: dict[str, HypervisorConnector],
+        connector_types: dict[str, type[HypervisorConnector]] = CONNECTOR_TYPES,
     ) -> None:
         self._folders = folders_repo
         self._descriptors = descriptors_repo
-        self._connectors = hypervisor_connectors
+        self._connector_types = connector_types
+        # live sessions keyed by the folder path where the hypervisor is declared
+        self._connection_pool: dict[str, HypervisorConnector] = {}
         self._engine = JobEngine(jobs_repo)
 
     def deploy(self, path: str) -> Job:
@@ -135,12 +144,14 @@ class OrchestratorService:
             except ValueError:
                 resolved = descriptor
             if resolved.hypervisor:
-                connector = self._connectors.get(resolved.hypervisor)
-                runtime = (
-                    connector.get_status(descriptor.vm_id)
-                    if connector is not None
-                    else RuntimeState.UNKNOWN
-                )
+                # status is a read — never raise on a misconfigured tree; report
+                # UNKNOWN runtime if we can't reach the hypervisor record.
+                try:
+                    connector = self._resolve_hypervisor(resolved)
+                except OperationError:
+                    runtime = RuntimeState.UNKNOWN
+                else:
+                    runtime = connector.get_status(descriptor.vm_id)
         return DescriptorStatus(
             path=path,
             state=descriptor.state,
@@ -262,6 +273,43 @@ class OrchestratorService:
             CreateDescriptorCommand(descriptor, self._descriptors, self._folders)
         )
 
+    def _resolve_hypervisor(self, resolved: Descriptor) -> HypervisorConnector:
+        """Return a live connector for the hypervisor named in ``resolved``.
+
+        Walks the tree from the descriptor's folder, finds the ``HypervisorDef``
+        with that name, and returns a live session — from the connection pool if
+        one already exists, freshly minted otherwise. The pool key is the path
+        of the folder that declared the hypervisor (Pieza 3c).
+
+        Raises ``OperationError`` if the name is not accessible from the
+        descriptor's folder or its ``type:`` is not in the connector registry
+        (a misconfigured tree caught at use time, the only check we keep —
+        see DEC-027's fail-fast spirit).
+        """
+        assert resolved.hypervisor is not None  # caller's responsibility
+        folder_path = posixpath.dirname(resolved.path) or "/"
+        found = _find_hypervisor(resolved.hypervisor, folder_path, self._folders)
+        if found is None:
+            raise OperationError(
+                [
+                    f"hypervisor not accessible from {resolved.path}: "
+                    f"{resolved.hypervisor!r}"
+                ]
+            )
+        hv_def, hv_path = found
+        if hv_def.connector_type not in self._connector_types:
+            raise OperationError(
+                [
+                    f"hypervisor {resolved.hypervisor!r} has unknown connector "
+                    f"type {hv_def.connector_type!r} "
+                    f"(available: {sorted(self._connector_types)})"
+                ]
+            )
+        if hv_path not in self._connection_pool:
+            cls = self._connector_types[hv_def.connector_type]
+            self._connection_pool[hv_path] = cls()  # spawn live session
+        return self._connection_pool[hv_path]
+
     def _machine_command(self, command_cls: MachineCommand, path: str) -> Command:
         """Build a machine command for ``path``.
 
@@ -282,9 +330,7 @@ class OrchestratorService:
             raise OperationError([str(resolver_error)]) from resolver_error
         if resolved.hypervisor is None:
             raise OperationError([f"VM has no effective hypervisor: {path}"])
-        connector = self._connectors.get(resolved.hypervisor)
-        if connector is None:
-            raise OperationError([f"unknown hypervisor: {resolved.hypervisor}"])
+        connector = self._resolve_hypervisor(resolved)
         return command_cls(path, self._descriptors, self._folders, connector)
 
     def _run(self, command: Command) -> Job:

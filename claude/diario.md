@@ -1669,3 +1669,120 @@ cubren el merge de forma exhaustiva.
 - **Pieza 4 — `based on:`** para derivación de plantillas y hipervisores.
 
 (Las prioridades dentro de Sprint 2 las decidimos juntos cuando arranquemos cada una.)
+
+---
+
+## 2026-06-06
+
+### Sprint 2 — Pieza 3 cerrada: registro de tipos + pool de sesiones vivas
+
+Reescritura del modelo de conectores. Antes el `OrchestratorService` recibía
+**instancias** de conector en un único dict (`{"mock": MockConnector instance}`) que
+mezclaba dos cosas conceptualmente distintas: nombres de hipervisor declarados por
+el usuario y tipos de conector que el código sabe instanciar. Por casualidad
+coincidían en la demo ("mock" como nombre Y como tipo) y arrastrábamos la confusión.
+
+Tras debate con el usuario, modelo limpio en dos capas:
+
+- **`CONNECTOR_TYPES`** (dict hardcoded en `src/univorch/connectors/__init__.py`):
+  registro de **tipos de conector** disponibles → clases. Añadir un conector =
+  un import + una entrada. Descubrimiento automático con entry points queda en
+  DEC-029 como futuro.
+- **`HypervisorDef`** dentro del árbol: el hipervisor como **recurso** declarado
+  por el usuario (con su `type:` y mañana address/credenciales). Ya estaba
+  persistido por `FolderRepository` desde Pieza 1.A — no hay duplicación.
+- **Pool de sesiones vivas** (atributo `self._connection_pool: dict[str,
+  HypervisorConnector]` del servicio): la sesión activa con cada hipervisor,
+  indexada por el **path del folder** que declaró el hipervisor en el árbol.
+  Dos hipervisores con el mismo nombre en ramas distintas (p.ej. dos `aulario`)
+  → dos sesiones distintas. **No es un Repository:** las sesiones llevan
+  conexiones TLS / sockets / estado en memoria; los recursos del SO no se
+  persisten, y persistir credenciales en TinyDB sería un problema de seguridad
+  (DEC-021). El nombre `HypervisorConnectionPool` se queda en el concepto; en
+  código es un `dict` simple — promover a clase si mañana hace falta lifecycle
+  (`close_all`, `invalidate`).
+
+**Cambio de firma del `OrchestratorService.__init__`:** de
+`hypervisor_connectors: dict[str, HypervisorConnector]` (instancias) a
+`connector_types: dict[str, type[HypervisorConnector]] = CONNECTOR_TYPES`
+(clases, con default desde el registro). La CLI deja de pasar nada — usa el
+default; los tests pasan explícito por aislamiento.
+
+**Método nuevo `_resolve_hypervisor(resolved) -> HypervisorConnector`:** walker
+`_find_hypervisor` → validación del `type` contra el registro → consulta del
+pool → instancia o devuelve la cacheada. Reemplaza el viejo `self._connectors.get(name)`
+en `_machine_command` y `status`.
+
+**Sencillez por encima de defensa en profundidad — `_validate_hypervisor_types`
+retirado.** Lo que metimos al principio de la sesión (validar tipos de conector
+al hacer `load`) se quita: era una segunda capa de comprobación redundante con
+la del `_resolve_hypervisor` en uso. Una sola capa, en el sitio donde el dato
+se necesita. Si un YAML torcido se carga, el `load` lo acepta y el primer
+deploy de la rama errónea falla con mensaje claro. Encaja con la regla del
+proyecto "código sencillo". Precio aceptado: en YAMLs grandes, una errata
+puede no detectarse hasta que alguien use ese hipervisor concreto.
+
+**`_find_hypervisor`** en `src/univorch/resolver.py`: gemelo de `_find_template`
+con la misma regla de walking + import filter. Devuelve `(HypervisorDef, path)` —
+el path donde se encontró es la clave del pool. Duplica ~12 líneas con
+`_find_template`; no se abstrae a un walker genérico — "tres similar líneas
+mejor que abstracción prematura" (CLAUDE.md). Si Pieza 4 (`based on:`) crece
+el patrón a 3-4 walkers, ahí toca refactor.
+
+**`MockConnector` con plantillas demo por defecto:** `MockConnector()` ya
+precarga `linux-base` y `windows-base` (constante `_DEMO_TEMPLATES`). Así el
+servicio puede hacer `CONNECTOR_TYPES["mock"]()` al vuelo sin saber nada de
+seeding. `empty()` pasa `()` explícito; `with_templates([...])` para tests con
+sets específicos; `with_demo_templates()` retirado (era alias del default).
+
+**Demo (`demo/setup.yml`) actualizado:** `networks/` ahora importa
+`[linux-vm, mock]` — la plantilla Y el hipervisor que la plantilla usa. Antes
+funcionaba "por casualidad" porque el servicio tenía el conector cableado
+fuera del árbol; ahora el YAML documenta el modelo entero. Comentario en
+cabecera explica que cada subfolder debe importar todo lo que usa.
+
+**Tests:** fixture `service` de `test_service.py` pre-carga `/lab` con
+`define hypervisors: mock` para que los tests existentes que cuelgan
+descriptores de `/lab/vm` sigan pasando sin tocarse. Helper `_provision` en
+`test_cli.py` análogo. Un test (`test_template_based_descriptor_load_then_deploy`)
+declara explícitamente `mock` en `/lab` y `networks/` lo importa — demuestra
+mejor el modelo real. **9 tests nuevos** en `TestFindHypervisor` paralelos a
+los de plantillas + uno específico (`test_same_name_in_different_branches_are_distinct`)
+que confirma que el pool podrá mantener sesiones separadas para hipervisores
+homónimos en ramas distintas.
+
+Estado: **214 tests verde** (213 después de retirar los 2 de validación al
+cargar + 9 de `_find_hypervisor` + 1 de plantillas demo + ajustes), ruff +
+mypy strict + pytest limpios. `service.py` 97%, `resolver.py` 100%,
+`mock.py` 100%. Demo end-to-end probada por tubería: `load` → `tree` →
+`status` → `deploy` → `start` → `status` → `stop` → `undeploy` corre sin
+errores y el pool reutiliza la misma sesión a lo largo de las cinco
+operaciones.
+
+### Decisiones de prioridad — TFG por encima del código
+
+Conversación con el usuario sobre prioridades. Acuerdo:
+- **El nivel del código actual + Sprint 4 es suficiente para el TFG.** Lo que
+  llevamos demuestra la capacidad de ingeniería (arquitectura, modelado,
+  testing, documentación, metodología); más amplitud no añade nota.
+- **Sprint 3 (contenedor descargable + daemon REST + tutorial PDF) es la
+  prioridad inmediata.** El profesor necesita poder probar el sistema.
+- **Sprint 4 (web GUI básica)** después, con NiceGUI + tema Material;
+  V0.app como inspiración visual, no como generador de código.
+- **VMware real queda como ampliación opcional** ("trabajo realizado en
+  paralelo / futuro inmediato" en la memoria si da tiempo antes del depósito;
+  sin compromiso de entrega).
+- **Pieza 4 de Sprint 2 (`based on:`) aplazada** hasta que el contenedor esté
+  en manos del profesor. Si no la hacemos antes del depósito, se documenta
+  como extensión natural en la memoria.
+
+### Próximo
+- **Sprint 3.1** — daemon REST con FastAPI + uvicorn (cambiar `CMD` del
+  Dockerfile para que el contenedor viva).
+- **Sprint 3.2** — CLI dual mode (in-process / cliente HTTP via httpx).
+- **Sprint 3.3** — publicación automática a ghcr.io vía nuevo workflow
+  `.github/workflows/publish.yml`.
+- **Sprint 3.4** — tutorial del profesor en `docs/tutorial-profesor.md`
+  (convertible a PDF con `pandoc`).
+- **Sprint 3.5 (opcional)** — bootstrap del contenedor con el demo
+  precargado.

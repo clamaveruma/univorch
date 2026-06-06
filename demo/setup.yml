@@ -15,9 +15,9 @@
 #   - Folder keys end in '/'; VM keys do not.
 #   - The destination's own properties are NOT modified by `load`. Resources and
 #     `import` live inside a folder, never at the document root.
-#   - Until the Resolver is wired (Pieza 1.C), deploy of a template-based VM
-#     fails with a clear error. Fully inline VMs (with explicit
-#     `use hypervisor:` and `base_vm:`) deploy in the meantime.
+#   - A subfolder must `import` every resource it (or anything inside it) needs:
+#     `networks/` imports both the template AND the hypervisor it points at,
+#     because deploying a VM looks both up by walking the tree.
 
 kind: definition
 version: "1"
@@ -41,7 +41,7 @@ lab/:
 
   networks/:
     description: "Computer Networks — Fall 2026"
-    import: [linux-vm]
+    import: [linux-vm, mock]
     student01: { use template: linux-vm }
     student02: { use template: linux-vm }
     student03: { use template: linux-vm, cpu: 4 }

@@ -8,7 +8,12 @@ from tinydb import TinyDB
 from tinydb.storages import MemoryStorage
 
 from univorch.interfaces.cli.app import UnivOrchShell, build_service
-from univorch.models import DefinitionDocument, DescriptorDef, FolderDef
+from univorch.models import (
+    DefinitionDocument,
+    DescriptorDef,
+    FolderDef,
+    HypervisorDef,
+)
 
 
 @pytest.fixture
@@ -149,14 +154,19 @@ class TestTree:
 
 
 def _provision(shell: UnivOrchShell) -> None:
-    """Seed /lab + /lab/vm via load (vm is provisioned, ready for deploy)."""
+    """Seed /lab + /lab/vm via load (vm is provisioned, ready for deploy).
+
+    /lab declares ``mock`` as a hypervisor so the service can resolve
+    ``use hypervisor: mock`` from the descriptor (Pieza 3c).
+    """
     shell._service.load(
         DefinitionDocument(
             folders={
                 "lab": FolderDef(
+                    hypervisors={"mock": HypervisorDef(connector_type="mock")},
                     descriptors={
                         "vm": DescriptorDef(hypervisor="mock", base_vm="linux-base")
-                    }
+                    },
                 )
             }
         )

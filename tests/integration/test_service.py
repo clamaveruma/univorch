@@ -13,6 +13,7 @@ from univorch.models import (
     DescriptorState,
     Folder,
     FolderDef,
+    HypervisorDef,
     JobStatus,
     VMTemplateDef,
 )
@@ -50,8 +51,17 @@ def service(
     descriptors: DescriptorRepository,
     jobs: JobRepository,
 ) -> OrchestratorService:
-    connectors = {"mock": MockConnector.with_templates(["linux-base"])}
-    return OrchestratorService(folders, descriptors, jobs, connectors)
+    # Pieza 3c: the service receives connector TYPES (classes), not instances.
+    # Pre-seed /lab with a `mock` hypervisor declared so the existing tests
+    # (which hang descriptors off /lab/vm with hypervisor='mock') still find a
+    # hypervisor in the tree via the resolver walker.
+    folders.save(
+        Folder(
+            path="/lab",
+            hypervisors={"mock": HypervisorDef(connector_type="mock")},
+        )
+    )
+    return OrchestratorService(folders, descriptors, jobs, {"mock": MockConnector})
 
 
 def _provisioned(repo: DescriptorRepository, **kwargs: object) -> None:
@@ -131,6 +141,7 @@ def test_template_based_descriptor_load_then_deploy(
     doc = DefinitionDocument(
         folders={
             "lab": FolderDef(
+                hypervisors={"mock": HypervisorDef(connector_type="mock")},
                 vm_templates={
                     "linux-vm": VMTemplateDef(
                         hypervisor="mock", base_vm="linux-base", cpu=2
@@ -138,7 +149,7 @@ def test_template_based_descriptor_load_then_deploy(
                 },
                 folders={
                     "networks": FolderDef(
-                        imports=["linux-vm"],
+                        imports=["linux-vm", "mock"],  # template AND hypervisor
                         descriptors={"vm": DescriptorDef(template="linux-vm")},
                     )
                 },
@@ -241,9 +252,7 @@ class TestStatus:
         assert isinstance(result, Folder)
         assert result.description == "The lab"
 
-    def test_inspect_unknown_path_raises(
-        self, service: OrchestratorService
-    ) -> None:
+    def test_inspect_unknown_path_raises(self, service: OrchestratorService) -> None:
         with pytest.raises(OperationError):
             service.inspect("/nope")
 
