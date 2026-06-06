@@ -12,10 +12,13 @@ class TestConstructors:
         with pytest.raises(ValueError):
             mock.clone("linux-base", "vm")
 
-    def test_with_demo_templates_can_clone_linux_base(self) -> None:
-        mock = MockConnector.with_demo_templates()
+    def test_default_preloads_demo_templates(self) -> None:
+        # The default constructor brings linux-base and windows-base — the service
+        # relies on this when it instantiates a mock on the fly (Pieza 3a).
+        mock = MockConnector()
         vm_id = mock.clone("linux-base", "student01")
         assert mock.get_status(vm_id) == RuntimeState.STOPPED
+        mock.clone("windows-base", "student02")  # the other one is there too
 
     def test_with_templates_uses_given_templates(self) -> None:
         mock = MockConnector.with_templates(["custom-base"])
@@ -25,36 +28,36 @@ class TestConstructors:
 
 class TestClone:
     def test_returns_deterministic_ids(self) -> None:
-        mock = MockConnector.with_demo_templates()
+        mock = MockConnector()
         assert mock.clone("linux-base", "a") == "mock-vm-1"
         assert mock.clone("linux-base", "b") == "mock-vm-2"
 
     def test_unknown_template_raises(self) -> None:
-        mock = MockConnector.with_demo_templates()
+        mock = MockConnector()
         with pytest.raises(ValueError):
             mock.clone("does-not-exist", "vm")
 
     def test_full_clone_not_supported(self) -> None:
-        mock = MockConnector.with_demo_templates()
+        mock = MockConnector()
         with pytest.raises(NotImplementedError):
             mock.clone("linux-base", "vm", mode=CloneMode.FULL)
 
     def test_cloned_vm_starts_stopped(self) -> None:
-        mock = MockConnector.with_demo_templates()
+        mock = MockConnector()
         vm_id = mock.clone("linux-base", "vm")
         assert mock.get_status(vm_id) == RuntimeState.STOPPED
 
 
 class TestGetStatus:
     def test_unknown_vm_raises(self) -> None:
-        mock = MockConnector.with_demo_templates()
+        mock = MockConnector()
         with pytest.raises(ValueError):
             mock.get_status("nope")
 
 
 class TestLifecycle:
     def _deployed(self) -> tuple[MockConnector, str]:
-        mock = MockConnector.with_demo_templates()
+        mock = MockConnector()
         return mock, mock.clone("linux-base", "vm")
 
     def test_start_powers_on(self) -> None:
@@ -116,26 +119,26 @@ class TestLifecycle:
             mock.resume(vm)
 
     def test_lifecycle_on_unknown_vm_raises(self) -> None:
-        mock = MockConnector.with_demo_templates()
+        mock = MockConnector()
         with pytest.raises(ValueError):
             mock.start("nope")
 
 
 class TestDelete:
     def test_removes_the_vm(self) -> None:
-        mock = MockConnector.with_demo_templates()
+        mock = MockConnector()
         vm = mock.clone("linux-base", "vm")
         mock.delete(vm)
         with pytest.raises(ValueError):
             mock.get_status(vm)
 
     def test_unknown_raises(self) -> None:
-        mock = MockConnector.with_demo_templates()
+        mock = MockConnector()
         with pytest.raises(ValueError):
             mock.delete("nope")
 
     def test_is_not_idempotent(self) -> None:
-        mock = MockConnector.with_demo_templates()
+        mock = MockConnector()
         vm = mock.clone("linux-base", "vm")
         mock.delete(vm)
         with pytest.raises(ValueError):
@@ -144,7 +147,7 @@ class TestDelete:
 
 class TestGetInfo:
     def test_returns_vm_fields(self) -> None:
-        mock = MockConnector.with_demo_templates()
+        mock = MockConnector()
         vm = mock.clone("linux-base", "student01")
         info = mock.get_info(vm)
         assert info.id == vm
@@ -153,18 +156,18 @@ class TestGetInfo:
         assert info.cpu is None
 
     def test_unknown_raises(self) -> None:
-        mock = MockConnector.with_demo_templates()
+        mock = MockConnector()
         with pytest.raises(ValueError):
             mock.get_info("nope")
 
 
 class TestDeployedVms:
     def test_empty_initially(self) -> None:
-        mock = MockConnector.with_demo_templates()
+        mock = MockConnector()
         assert mock.deployed_vms() == []
 
     def test_reflects_clone_and_delete(self) -> None:
-        mock = MockConnector.with_demo_templates()
+        mock = MockConnector()
         vm = mock.clone("linux-base", "vm")
         assert [info.id for info in mock.deployed_vms()] == [vm]
         mock.delete(vm)

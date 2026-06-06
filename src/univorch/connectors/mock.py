@@ -24,20 +24,26 @@ class _MockVM:
 
 
 class MockConnector(HypervisorConnector):
-    """Hypervisor connector that simulates VMs in memory."""
+    """Hypervisor connector that simulates VMs in memory.
 
-    def __init__(self, templates: Iterable[str] = ()) -> None:
+    The default constructor preloads the demo templates (``linux-base`` and
+    ``windows-base``) so that the service can instantiate a working mock on
+    the fly from a ``HypervisorDef`` without having to know about template
+    seeding (Pieza 3a). Tests that want a different set use ``with_templates``
+    or ``empty``.
+    """
+
+    _DEMO_TEMPLATES = ("linux-base", "windows-base")
+
+    def __init__(self, templates: Iterable[str] = _DEMO_TEMPLATES) -> None:
         self._templates: set[str] = set(templates)
         self._deployed: dict[str, _MockVM] = {}
         self._counter = 0
 
     @classmethod
     def empty(cls) -> Self:
-        return cls()
-
-    @classmethod
-    def with_demo_templates(cls) -> Self:
-        return cls(["linux-base", "windows-base"])
+        """A mock with no templates — clone will reject every source_id."""
+        return cls(())
 
     @classmethod
     def with_templates(cls, templates: Iterable[str]) -> Self:

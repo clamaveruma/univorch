@@ -25,7 +25,6 @@ from pydantic import ValidationError
 from ruamel.yaml.error import YAMLError
 from tinydb import TinyDB
 
-from univorch.connectors.mock import MockConnector
 from univorch.models import Descriptor, DescriptorState, Folder, Job, JobStatus
 from univorch.parser import parse_definition_file
 from univorch.persistence.tinydb.repositories import (
@@ -144,12 +143,13 @@ def _inspect_arg_parser() -> cmd2.Cmd2ArgumentParser:
 
 
 def build_service(db: TinyDB) -> OrchestratorService:
-    """Wire the service from a TinyDB: the repositories + the mock connector."""
+    """Wire the service from a TinyDB. Connector types come from the registry
+    default (``CONNECTOR_TYPES``); live sessions spin up on demand from the
+    hypervisors declared in the tree."""
     return OrchestratorService(
         FolderRepository(db),
         DescriptorRepository(db),
         JobRepository(db),
-        {"mock": MockConnector.with_demo_templates()},
     )
 
 

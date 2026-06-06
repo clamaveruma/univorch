@@ -14,9 +14,10 @@ from hypothesis import strategies as st
 from tinydb import TinyDB
 from tinydb.storages import MemoryStorage
 
-from univorch.models import Descriptor, Folder, VMTemplateDef
+from univorch.models import Descriptor, Folder, HypervisorDef, VMTemplateDef
 from univorch.persistence.tinydb.repositories import FolderRepository
 from univorch.resolver import (
+    _find_hypervisor,
     _find_template,
     _import_allows,
     _merge_template,
@@ -41,6 +42,23 @@ def _put_template(
         Folder(
             path=path,
             vm_templates={template_name: template},
+            imports=imports or [],
+        )
+    )
+
+
+def _put_hypervisor(
+    folders: FolderRepository,
+    path: str,
+    hypervisor_name: str,
+    hypervisor: HypervisorDef,
+    imports: list[str] | None = None,
+) -> None:
+    """Helper: save a folder with one hypervisor (and optional imports)."""
+    folders.save(
+        Folder(
+            path=path,
+            hypervisors={hypervisor_name: hypervisor},
             imports=imports or [],
         )
     )
@@ -161,6 +179,88 @@ class TestFindTemplate:
         folders.save(Folder(path="/lab", imports=["*"]))
         folders.save(Folder(path="/lab/inner", imports=["*"]))
         assert _find_template("missing", "/lab/inner", folders) is None
+
+
+class TestFindHypervisor:
+    """Walker for hypervisors: same rules as templates, but returns the path
+    of the folder that defined the hypervisor — the service uses that path as
+    the connection-pool key (Pieza 3c).
+    """
+
+    def test_hypervisor_defined_locally(self, folders: FolderRepository) -> None:
+        _put_hypervisor(folders, "/lab", "mock", HypervisorDef(connector_type="mock"))
+        result = _find_hypervisor("mock", "/lab", folders)
+        assert result is not None
+        hv, path = result
+        assert hv.connector_type == "mock"
+        assert path == "/lab"  # found here, this is the pool key
+
+    def test_hypervisor_in_parent_with_explicit_import(
+        self, folders: FolderRepository
+    ) -> None:
+        _put_hypervisor(folders, "/lab", "mock", HypervisorDef(connector_type="mock"))
+        folders.save(Folder(path="/lab/networks", imports=["mock"]))
+        result = _find_hypervisor("mock", "/lab/networks", folders)
+        assert result is not None
+        _, path = result
+        assert path == "/lab"  # the folder that *defined* it, not the one asking
+
+    def test_hypervisor_in_parent_blocked_by_missing_import(
+        self, folders: FolderRepository
+    ) -> None:
+        _put_hypervisor(folders, "/lab", "mock", HypervisorDef(connector_type="mock"))
+        folders.save(Folder(path="/lab/networks", imports=[]))
+        assert _find_hypervisor("mock", "/lab/networks", folders) is None
+
+    def test_hypervisor_in_parent_with_import_ALL(
+        self, folders: FolderRepository
+    ) -> None:
+        _put_hypervisor(folders, "/lab", "mock", HypervisorDef(connector_type="mock"))
+        folders.save(Folder(path="/lab/networks", imports=["*"]))
+        assert _find_hypervisor("mock", "/lab/networks", folders) is not None
+
+    def test_hypervisor_through_two_levels_with_imports(
+        self, folders: FolderRepository
+    ) -> None:
+        _put_hypervisor(folders, "/lab", "mock", HypervisorDef(connector_type="mock"))
+        folders.save(Folder(path="/lab/sub", imports=["*"]))
+        folders.save(Folder(path="/lab/sub/inner", imports=["mock"]))
+        result = _find_hypervisor("mock", "/lab/sub/inner", folders)
+        assert result is not None
+        _, path = result
+        assert path == "/lab"
+
+    def test_hypervisor_not_found_returns_none(self, folders: FolderRepository) -> None:
+        folders.save(Folder(path="/lab"))
+        assert _find_hypervisor("missing", "/lab", folders) is None
+
+    def test_unknown_parent_folder_returns_none(
+        self, folders: FolderRepository
+    ) -> None:
+        assert _find_hypervisor("anything", "/orphan/path", folders) is None
+
+    def test_reaches_root_without_finding(self, folders: FolderRepository) -> None:
+        folders.save(Folder(path="/lab", imports=["*"]))
+        folders.save(Folder(path="/lab/inner", imports=["*"]))
+        assert _find_hypervisor("missing", "/lab/inner", folders) is None
+
+    def test_same_name_in_different_branches_are_distinct(
+        self, folders: FolderRepository
+    ) -> None:
+        # Two hypervisors named 'aulario' in unrelated branches: each find
+        # returns its own folder's path, so the pool keys are distinct and
+        # the live sessions won't collide.
+        _put_hypervisor(
+            folders, "/lab", "aulario", HypervisorDef(connector_type="mock")
+        )
+        _put_hypervisor(
+            folders, "/research", "aulario", HypervisorDef(connector_type="mock")
+        )
+        left = _find_hypervisor("aulario", "/lab", folders)
+        right = _find_hypervisor("aulario", "/research", folders)
+        assert left is not None and right is not None
+        assert left[1] == "/lab"
+        assert right[1] == "/research"
 
 
 class TestResolveDescriptor:

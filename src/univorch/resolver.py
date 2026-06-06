@@ -29,7 +29,7 @@ import fnmatch
 import posixpath
 from collections.abc import Iterable
 
-from univorch.models import Descriptor, VMTemplateDef
+from univorch.models import Descriptor, HypervisorDef, VMTemplateDef
 from univorch.persistence.tinydb.repositories import FolderRepository
 
 # Fields shared between Descriptor and VMTemplateDef; only these participate in
@@ -111,3 +111,27 @@ def _import_allows(imports: Iterable[str], name: str) -> bool:
     An empty list matches nothing.
     """
     return any(fnmatch.fnmatchcase(name, pattern) for pattern in imports)
+
+
+def _find_hypervisor(
+    name: str, start: str, folders_repo: FolderRepository
+) -> tuple[HypervisorDef, str] | None:
+    """Walk ancestors from ``start`` looking for hypervisor ``name``.
+
+    Same rules as ``_find_template``: each level either defines the name
+    locally, lets it pass via ``import:``, or breaks the chain. Returns the
+    HypervisorDef **and** the path of the folder that defined it — Pieza 3c
+    uses that path as the connection-pool key, so two hypervisors sharing a
+    name in different branches keep distinct live sessions.
+    """
+    current = start
+    while current != "/":
+        folder = folders_repo.get(current)
+        if folder is None:
+            return None  # broken tree: parent should have been created at load
+        if name in folder.hypervisors:
+            return folder.hypervisors[name], current
+        if not _import_allows(folder.imports, name):
+            return None  # this level does not import the name; chain stops
+        current = posixpath.dirname(current) or "/"
+    return None  # reached root; root has no Folder record and no resources
