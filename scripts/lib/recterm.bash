@@ -1,10 +1,12 @@
 # recterm — record an interactive shell session via script(1) so the chat
 # agent (Claude Code) can see what's happening in the integrated terminal.
 #
-# Defines the function `recterm` and, at the bottom, an unconditional rule
-# that prepends `[REC]` to the prompt whenever we are inside a script(1)
-# session (detected via the SCRIPT environment variable that util-linux's
-# script(1) exports for the spawned shell).
+# Defines the function `recterm` and, at the bottom, prepends `[REC]` to the
+# prompt whenever we are inside a recterm-managed session. Detection uses our
+# own exported `RECTERM_LOG` variable: util-linux 2.41+ does NOT export any
+# marker of its own (older docs mentioned a `SCRIPT` var that newer versions
+# dropped), so we set our own marker before exec'ing script(1) — exported
+# variables survive `exec` and are inherited by the child shell script spawns.
 #
 # Usage:
 #   recterm              status + help
@@ -23,34 +25,35 @@ _RECTERM_DEFAULT_LOG="/tmp/univorch-session.log"
 recterm() {
     case "${1:-}" in
         on)
-            if [ -n "${SCRIPT:-}" ]; then
-                echo "recterm: ya estás grabando en $SCRIPT (SHLVL=$SHLVL)." >&2
+            if [ -n "${RECTERM_LOG:-}" ]; then
+                echo "recterm: ya estás grabando en $RECTERM_LOG (SHLVL=$SHLVL)." >&2
                 echo "         sal con 'recterm off' o 'exit' antes de empezar otra." >&2
                 return 1
             fi
             local log="${2:-$_RECTERM_DEFAULT_LOG}"
             touch "$log"
             echo "recterm: grabando en $log (sal con 'recterm off' o Ctrl-D)."
+            export RECTERM_LOG="$log"
             exec script -fa "$log"
             ;;
         off)
-            if [ -z "${SCRIPT:-}" ]; then
+            if [ -z "${RECTERM_LOG:-}" ]; then
                 echo "recterm: no estás en una sesión grabada." >&2
                 return 1
             fi
-            echo "recterm: parando grabación de $SCRIPT."
+            echo "recterm: parando grabación de $RECTERM_LOG."
             exit
             ;;
         status)
-            if [ -n "${SCRIPT:-}" ]; then
-                echo "recterm: grabando en $SCRIPT (SHLVL=$SHLVL)"
+            if [ -n "${RECTERM_LOG:-}" ]; then
+                echo "recterm: grabando en $RECTERM_LOG (SHLVL=$SHLVL)"
             else
                 echo "recterm: no grabando"
             fi
             ;;
         ""|help|-h|--help)
-            if [ -n "${SCRIPT:-}" ]; then
-                echo "Estado: grabando en $SCRIPT (SHLVL=$SHLVL)"
+            if [ -n "${RECTERM_LOG:-}" ]; then
+                echo "Estado: grabando en $RECTERM_LOG (SHLVL=$SHLVL)"
             else
                 echo "Estado: no grabando"
             fi
@@ -70,10 +73,9 @@ EOF
     esac
 }
 
-# Mark the prompt when we are inside a script(1) recording session.
-# util-linux's script(1) exports SCRIPT to the spawned shell with the log path.
-# Using `if` instead of `&&` because the latter returns false when SCRIPT is
+# Mark the prompt when we are inside a recterm-managed session.
+# Using `if` instead of `&&` because the latter returns false when the var is
 # unset — fine interactively, but it breaks `set -e` scripts that source us.
-if [ -n "${SCRIPT:-}" ]; then
+if [ -n "${RECTERM_LOG:-}" ]; then
     PS1="[REC] $PS1"
 fi
