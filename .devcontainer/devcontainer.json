@@ -16,9 +16,9 @@
     "ghcr.io/va-h/devcontainers-features/uv:1": {}
   },
 
-  // Runs once after the container is created: installs all dependencies
-  // (including the dev group) from uv.lock into the project's .venv.
-  "postCreateCommand": "uv sync --extra dev",
+  // Runs once after the container is created: installs Python dependencies
+  // and the project's dev tooling (recterm + venv auto-activation in bashrc).
+  "postCreateCommand": "uv sync --extra dev && bash scripts/install-dev-tools.sh",
 
   "customizations": {
     "vscode": {
