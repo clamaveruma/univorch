@@ -39,8 +39,8 @@
 \usepackage{booktabs}
 \usepackage{draftwatermark}
 \SetWatermarkText{DRAFT}
-\SetWatermarkScale{2}
-\SetWatermarkColor[gray]{0.9}
+\SetWatermarkScale{1.5}
+\SetWatermarkColor[gray]{0.88}
 \usepackage{tabularx}
 \usepackage{siunitx}
 \usepackage{amsmath,amssymb}
@@ -55,6 +55,10 @@
   sorting=nyt
 ]{biblatex}
 \addbibresource{references.bib}
+
+%───────── Localized titles (the English template ships a few
+%          headings hardcoded in Spanish; override here) ────────────
+\SetAcknowledgmentsName{Acknowledgments}
 
 % Listings config
 \lstset{
@@ -143,7 +147,7 @@
 
 %────────────────────── Bibliografía y contraportada ───────────────────
 \backmatter
-\printbibliography[title={Bibliografía}]
+\printbibliography[title={Bibliography}]
 \cleardoublepage
 \MakeUMABackCover
 

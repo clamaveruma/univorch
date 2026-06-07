@@ -6,97 +6,350 @@
 \chapter{Methodology}
 \label{ch:metodologia}
 
-% TODO: chapter intro, ~half a page.
-% "The project follows a phased process with iterative sprints, a
-% strict code-quality discipline, and an AI-assisted collaboration
-% model. This chapter describes the process framework, the
-% reproducible development environment, the continuous quality
-% practices, and the most relevant methodological choices for both
-% the development and the future maintainability of the system."
+This chapter describes the working method behind the proof of
+concept. It is not a generic overview of agile or test-driven
+development: the goal is to record the specific choices that were
+made and the reasons for them, so that any reader can reproduce the
+process or take it as a basis for future iterations.
 
+The method rests on four pillars. First, a phased process with a
+formal deliverable per phase, complemented by short iterations
+(sprints) inside the implementation phase. Second, a single
+reproducible development environment that works identically on a
+local machine, on a remote server and on cloud workspaces. Third, a
+strict code-quality discipline supported by continuous integration.
+Fourth, an explicit and traceable use of AI-assisted development.
+
+The four pillars are tied together by a set of versioned context
+files that act as the operational memory of the project: the
+chronological journal, the technical-decisions log, the pending-ideas
+backlog and the development guidelines. These files live in the
+\texttt{claude/} directory of the repository and are loaded by the
+AI assistant at the start of every session, but they also serve as
+the only written record of the rationale behind every design and
+code change.
+
+%==================================================================
 \section{Process framework: phases and sprints}
 \label{sec:proceso}
 
-% TODO: draft. Source: docs/plan.md.
-% - Seven phases: problem definition, requirements, architecture,
-%   technologies, environment, iterative development, evaluation and
-%   report.
-% - Each phase produces a formal deliverable (vision.md,
-%   requirements.md, architecture.md, technologies.md,
-%   environment.md, code).
-% - Inside iterative development, sprints with agreed scope and a
-%   formal close in the journal.
-% - Journal and decisions log as the traceability mechanism.
+The work is organized in seven phases, each with a specific
+deliverable. \Cref{tab:phases} lists them. The structure follows the
+classical engineering breakdown (problem definition, requirements,
+architecture, technology selection, environment, implementation,
+evaluation) and assigns each phase to a stable artefact in the
+repository. The first five phases are sequential because their
+outputs feed the next; the sixth phase contains internal iterations,
+and the seventh runs in parallel with the sixth from the moment the
+documentation work begins.
 
+\begin{table}[ht]
+  \centering
+  \small
+  \begin{tabular}{p{0.07\linewidth} p{0.30\linewidth} p{0.30\linewidth} p{0.20\linewidth}}
+    \toprule
+    \textbf{Phase} & \textbf{Activity} & \textbf{Deliverable} & \textbf{Status} \\
+    \midrule
+    1 & Problem definition          & \texttt{docs/vision.md}        & Completed \\
+    2 & Requirements analysis       & \texttt{docs/requirements.md}  & Completed \\
+    3 & Architecture design         & \texttt{docs/architecture.md} + \texttt{docs/diagrams.md} & Completed \\
+    4 & Technology selection        & \texttt{docs/technologies.md}  & Completed \\
+    5 & Environment configuration   & Working devcontainer + \texttt{docs/environment.md} & Completed \\
+    6 & Iterative development (TDD) & Working software (sprints 1--3) & In progress \\
+    7 & Evaluation and report       & This document                   & In progress \\
+    \bottomrule
+  \end{tabular}
+  \caption{The seven phases of the project and their deliverables.}
+  \label{tab:phases}
+\end{table}
+
+Inside Phase 6, the work is split into \emph{sprints} of two to
+three weeks each, with a clear scope agreed at the start and a
+formal close in the journal. Three sprints were completed during the
+development period:
+
+\begin{itemize}
+  \item \textbf{Sprint 1} (Minimum viable core, CLI). Delivered the
+        descriptor tree, the cascade-inheritance model, the
+        connector contract, the mock connector, the YAML loader, the
+        Job engine and a working CLI. Closed with a runnable demo
+        for the supervisor.
+  \item \textbf{Sprint 2} (Resolver and template closure). Delivered
+        the lexical-closure resolver, the connector type registry
+        and the live-session pool. Closed with the demo tree
+        deployable end-to-end without any inline hypervisor
+        information in the descriptors.
+  \item \textbf{Sprint 3} (REST daemon and packaged distribution).
+        Delivered the FastAPI daemon, the pure-HTTP CLI client, the
+        installable Docker image hosted in the GitHub Container
+        Registry, a single-line installer script and a tutorial for
+        the supervisor.
+\end{itemize}
+
+The journal (\texttt{claude/diario.md}) records every decision in
+chronological order; the technical-decisions log
+(\texttt{claude/decisiones.md}) keeps the numbered DEC entries; both
+are cross-referenced. The proof of concept reaches the end of
+Sprint~3 with 244 automated tests passing, 2{,}522 lines of source
+code under \texttt{src/univorch/} and 2{,}796 lines of tests under
+\texttt{tests/}. \Cref{ch:desarrollo} describes the delivered
+software in detail.
+
+%==================================================================
 \section{Reproducible development environment}
 \label{sec:entorno}
 
-% TODO: draft. Source: docs/environment.md.
-% - Shared devcontainer across machines and platforms (VSCode Dev
-%   Containers, Remote-SSH, Codespaces).
-% - The same devcontainer.json brings up local, remote server and
-%   cloud; the resulting environment is bit-for-bit equivalent.
-% - uv as the dependency and virtual-environment manager (Rust
-%   binary, single configuration in pyproject.toml).
-% - Development image (Microsoft Python + features) is different from
-%   the production image (multi-stage minimal).
-% - recterm tool so the AI-assisted session can observe the
-%   developer's terminal during debugging.
+The development environment is defined by a single
+\texttt{.devcontainer/devcontainer.json} file in the repository. The
+same file produces an identical environment in three setups:
 
+\begin{itemize}
+  \item Visual Studio Code with local Docker (the standard option).
+  \item Visual Studio Code with the \emph{Remote~--~SSH} extension
+        connected to a Linux server, with Docker running on the
+        server. This is the recommended option for Phase 6 because
+        the server has direct network access to the teaching VMware
+        and Proxmox hypervisors and lifts the hour limits of cloud
+        workspaces.
+  \item GitHub Codespaces in the browser. Useful for short sessions
+        or for working from a machine without Docker.
+\end{itemize}
+
+The base image of the devcontainer is the official Microsoft Python
+3.12 image. The container installs \texttt{uv}~\cite{uv-docs} as the
+package manager and synchronizes all development dependencies
+declared in \texttt{pyproject.toml} with the \texttt{dev} extra.
+Editor configuration, linter settings and useful VSCode extensions
+are also part of the file. A developer who clones the repository and
+opens it in VSCode is ready to work within minutes, without any
+manual installation.
+
+The development image and the production image are deliberately
+different. The development image is convenience-oriented (full
+toolchain, debugger, Claude Code extension). The production image is
+a multi-stage minimal build (Python 3.12 slim, the application code
+and \texttt{uv} from a layer cache) of around 200 megabytes. The
+production image is published in the GitHub Container Registry
+(\texttt{ghcr.io/clamaveruma/univorch}) on every tagged release.
+
+The repository follows a Python source layout with a single
+distribution package, \texttt{univorch}, and the test suite split in
+unit and integration tests:
+
+\begin{verbatim}
+univorch/
+  src/univorch/        application code
+  tests/unit/          isolated unit tests
+  tests/integration/   tests with TinyDB + MockConnector
+  demo/                YAML examples and demo guide
+  docs/                phase deliverables (English)
+  claude/              project memory and AI context (Spanish)
+  .devcontainer/       reproducible dev environment
+  .github/workflows/   CI/CD pipelines
+  Dockerfile           production image
+  docker-compose.yml   service composition
+  pyproject.toml       unified project configuration
+\end{verbatim}
+
+%==================================================================
 \section{Quality discipline}
 \label{sec:calidad}
 
-% TODO: draft. Source: docs/technologies.md sections 2 and 5, plus the
-% workflows in .github/workflows/.
-% - TDD from the first commit of the code base.
-% - Ruff as linter + formatter (replaces flake8 + isort + black).
-% - mypy in strict mode over src/univorch/.
-% - pytest + pytest-cov + Hypothesis (property-based testing for the
-%   resolver, which is a pure function).
-% - Target and achieved coverage at the end of the PoC (>=95% in the
-%   domain logic; 244 tests passing at the close of Sprint 3).
-% - Table of tests by type (unit, integration, property) and module.
+The codebase was developed under a strict test-driven discipline.
+Every public function has at least one test, every Command is tested
+with both an accepting and a rejecting case, and every Repository is
+tested against an in-memory TinyDB. The pure Resolver, being a
+function over plain data, is also exercised by property-based tests
+written with Hypothesis~\cite{hypothesis-docs}, which automatically
+generates trees of folders and descriptors and checks invariants
+such as ``a child folder cannot shadow a hypervisor that was never
+imported.''
 
+The four quality gates run on every commit. They are also enforced
+in continuous integration; a failed check blocks the build.
+
+\begin{description}
+  \item[Ruff~\cite{ruff-docs}] -- linter and formatter in a single
+        tool. Replaces \texttt{flake8}, \texttt{isort} and
+        \texttt{black}. Configured in strict mode for the application
+        source code.
+  \item[mypy --strict] -- static type checker. Validates abstract
+        base classes (used for the connector contract), Protocol
+        types (used for the orchestrator API) and Pydantic models.
+        The strict mode forces explicit annotations on every public
+        function.
+  \item[pytest + pytest-cov] -- test runner with branch coverage.
+        244 tests pass at the close of Sprint~3. Coverage exceeds
+        95\% in the central modules (resolver, service, commands,
+        repositories, connectors).
+  \item[Hypothesis] -- property-based testing on the Resolver and
+        the inheritance resolution logic.
+\end{description}
+
+\Cref{tab:test-distribution} summarizes the distribution of tests by
+type and module.
+
+\begin{table}[ht]
+  \centering
+  \small
+  \begin{tabular}{l r r}
+    \toprule
+    \textbf{Area} & \textbf{Tests} & \textbf{Style} \\
+    \midrule
+    Models (Pydantic)           & 28 & Unit \\
+    Resolver                    & 26 & Unit + property-based \\
+    Connectors (ABC + mock)     & 39 & Unit \\
+    Commands                    & 35 & Unit + integration \\
+    Job engine                  & 12 & Integration \\
+    Repositories                & 22 & Integration (in-memory TinyDB) \\
+    Service (facade)            & 39 & Integration \\
+    CLI                         & 30 & Unit + integration \\
+    REST daemon                 & 13 & Integration (ASGI test client) \\
+    \midrule
+    \textbf{Total}              & \textbf{244} & \\
+    \bottomrule
+  \end{tabular}
+  \caption{Distribution of automated tests at the close of Sprint~3.}
+  \label{tab:test-distribution}
+\end{table}
+
+The same checks run locally and in CI. The local invocation is a
+single command (\texttt{uv run pytest} for tests; \texttt{uv run
+ruff check}, \texttt{uv run ruff format} and \texttt{uv run mypy} for
+the others) and the CI runs exactly the same commands. There is no
+divergence between the developer's machine and the CI environment;
+the only difference is that CI runs in a clean container at every
+push, eliminating ``it works on my machine'' problems.
+
+%==================================================================
 \section{Continuous integration and delivery}
 \label{sec:cicd}
 
-% TODO: draft. Source: .github/workflows/ci.yml and publish.yml.
-% - CI on every push and PR to main: ruff + format + mypy + pytest.
-% - Publishing to ghcr.io triggered by semver tags: explicit user
-%   control over when a new version exists. Tags vX.Y.Z (immutable)
-%   and :latest (mutable). Versioning policy: 0.x while the API is
-%   unstable.
-% - Public image in the GitHub Container Registry, downloadable
-%   without login. The lecturer only needs Docker.
+Three GitHub Actions workflows automate the build and release
+processes. They are stored in \texttt{.github/workflows/} and are
+the single source of truth for what ``green'' means.
 
+\textbf{\texttt{ci.yml}} runs on every push and every pull request
+to \texttt{main}. It executes the four quality gates of
+\Cref{sec:calidad}: Ruff lint, Ruff format check, mypy strict and
+pytest. A failed gate is reported on GitHub and prevents the change
+from being marked as passing.
+
+\textbf{\texttt{publish.yml}} is triggered by an annotated Git tag
+of the form \texttt{vX.Y.Z}. It builds the multi-stage production
+image and publishes it to the GitHub Container Registry under two
+tags: an immutable \texttt{vX.Y.Z} (which never changes) and a
+mutable \texttt{latest} (which always points to the most recent
+release). The choice to use signed Git tags makes the publication
+explicit: only the maintainer creates a tag, and only that act
+produces a new image. While the API surface is unstable, the project
+stays in the \texttt{0.x} series.
+
+\textbf{\texttt{memoria.yml}} compiles the LaTeX sources of this
+report on every push to \texttt{main} that touches the
+\texttt{docs/memoria/} directory. It renders the Mermaid diagrams to
+PDF, compiles the document with XeLaTeX, uploads the PDF as an
+artefact and pushes a copy to a dedicated \texttt{pdf-preview}
+branch so that the supervisor always has a stable URL to the latest
+version.
+
+The end result is that the supervisor or any external reviewer can
+verify the state of the project at any moment without contacting
+the author: the public image is downloadable from \texttt{ghcr.io},
+the source code is on the \texttt{main} branch of GitHub, the
+quality gates are visible in the Actions tab, and the report
+preview is one click away.
+
+%==================================================================
 \section{AI-assisted development}
 \label{sec:ia}
 
-% TODO: draft. This section is original and worth defending.
-% - Assistant: Claude (Anthropic). Opus or Sonnet model depending on
-%   the phase (critical decisions vs iterative work).
-% - Persistent-context mechanism: claude/ files versioned in the
-%   repository. CLAUDE.md as the entry point with imports.
-% - Journal (chronological), decisions log (DEC-001 to DEC-036),
-%   pending-ideas bank, development context: separation of concerns
-%   so any new session can recover the full context.
-% - Working pattern: explain -> clarify -> confirm -> execute. The
-%   student keeps control and understands each decision.
-% - Boundary: the assistant writes the code, the student takes the
-%   decisions, and the responsibility for defending the report is
-%   the student's.
+This work was developed with the assistance of Claude (Anthropic),
+used through both the Claude Code command-line tool and the VSCode
+extension. We discuss this aspect explicitly because the use of an
+AI assistant influences how the proof of concept was built and
+because we believe a TFG that uses such a tool should describe how
+it does so.
 
+The model and effort level vary with the task. Quick, mechanical
+tasks (commits, file renames, documentation transcription) use a
+small and fast model. Routine coding work uses a mid-range model.
+Critical architectural decisions are taken with the most capable
+available model and the maximum effort setting. The mapping between
+phase and model is recorded in the project's \texttt{CLAUDE.md}
+file and is part of the methodology.
+
+The collaboration follows a fixed pattern: \emph{propose, clarify,
+confirm, execute}. The assistant proposes an approach in plain
+prose, the author asks clarifying questions or pushes back when the
+proposal is wrong, the author confirms the path forward, and only
+then the assistant writes code or modifies files. The author keeps
+final authority on every decision and is responsible for defending
+this report; the assistant acts as a structured collaborator, not as
+a black box. The journal records the entire reasoning of every
+non-trivial decision exactly as it was discussed, so that any
+section of the report can be traced back to its origin.
+
+The assistant has access to a persistent context made of versioned
+files. The entry point is \texttt{CLAUDE.md} in the repository root,
+which imports four files:
+
+\begin{itemize}
+  \item \texttt{claude/proyecto.md} -- one-page description of the
+        project, scope and constraints.
+  \item \texttt{claude/diario.md} -- chronological journal of every
+        decision in its context.
+  \item \texttt{claude/decisiones.md} -- numbered log of technical
+        decisions (DEC-001 to DEC-036 at the time of writing), each
+        with a back-reference to the journal entry where it was
+        taken.
+  \item \texttt{claude/desarrollo.md} -- development guidelines:
+        sprints, coding conventions, exception style, docstring
+        format, working agreement with the author.
+  \item \texttt{claude/ideas-pendientes.md} -- backlog of ideas
+        outside the current scope, classified by area (web GUI,
+        teaching layer, report material, UX).
+\end{itemize}
+
+The four files use Markdown and natural prose so they are equally
+usable by a human reader: a maintainer who picks up the project
+after this TFG ends can read \texttt{diario.md} as a project history
+and \texttt{decisiones.md} as a design rationale, without needing
+the AI assistant at all.
+
+%==================================================================
 \section{Traceability and knowledge management}
 \label{sec:trazabilidad}
 
-% TODO: draft. Source: claude/decisiones.md, claude/diario.md,
-% claude/ideas-pendientes.md.
-% - Chronological journal with every decision taken in its temporal
-%   context.
-% - Numbered technical-decisions log (DEC-001 to DEC-036) with mutual
-%   traceability and journal references.
-% - Pending-ideas bank, organised by area: near-term, web GUI,
-%   teaching layer, TFG report, UX...
-% - Controlled vocabulary in docs/glossary.md, single source of
-%   truth for the report's glossary and for the future administrator
-%   manual.
+The set of \texttt{claude/} files is also the traceability backbone
+of the project. Every numbered design decision in
+\texttt{decisiones.md} points to the journal entry where it was
+discussed; every journal entry references the decisions taken
+during that session. The result is that any architectural or
+implementation choice in the codebase can be traced back to its
+motivation in a few clicks.
+
+A controlled vocabulary is maintained in \texttt{docs/glossary.md}.
+This file is the single source of truth for the terminology used in
+the report, in the technical documentation and in the future
+administrator manual. The glossary distinguishes carefully between
+terms that look interchangeable but are not (e.g.\ ``descriptor''
+and ``virtual machine'' belong to two different layers of the
+vocabulary; the orchestrator manipulates descriptors, the user
+sees virtual machines), and records the language convention chosen
+for each: external vocabulary in user-facing components, internal
+vocabulary in the code and the technical documents. The glossary of
+this report is generated from the same source.
+
+The pending-ideas file (\texttt{claude/ideas-pendientes.md}) keeps
+proposals that are out of scope for the current sprint. It is
+revised at the start of every sprint to decide what enters next and
+what can be promoted to the report's future-work section. This
+prevents valuable ideas from being lost between sprints without
+mixing them with the active scope.
+
+Three external reviewers (a hypothetical maintainer, the supervisor
+and the tribunal) would all benefit from the same traceability:
+they can independently audit how a decision was reached without
+having to ask the author. We consider this an explicit deliverable
+of the methodology, not a side effect.
