@@ -192,31 +192,17 @@ roles, implementado con superusuario en v1". Argumenta la decisión
 
 ## 5. UX del daemon y del cliente (salido de pruebas manuales 2026-06-07)
 
-### 5.1 Default sensato para `UNIVORCH_DB_PATH`
+### 5.1 ✅ Default sensato para `UNIVORCH_DB_PATH` (cerrado 2026-06-07, b8d1b6c)
 
-Hoy el daemon usa `/data/univorch.json` como default — perfecto dentro del
-contenedor de producción (volumen Docker montado en `/data`), pero **revienta
-con `PermissionError`** si lanzas `univorchd` en el devcontainer o en el host
-sin Docker. Caer a `~/.local/share/univorch/db.json` (o `$XDG_DATA_HOME/...`)
-cuando `/data` no existe o no es escribible. Detectar y caer, no exigir que el
-usuario sepa pasar la variable.
+`_default_db_path()` cae a `$XDG_DATA_HOME/univorch/db.json` cuando `/data`
+no existe o no es escribible. Tests unitarios para los cuatro casos.
 
-### 5.2 Mensaje amigable cuando el cliente no encuentra al daemon
+### 5.2 ✅ Mensaje amigable cuando el cliente no encuentra al daemon (cerrado 2026-06-07, b8d1b6c)
 
-Hoy `univorch tree /` sin daemon sale con:
-
-```
-ConnectError: [Errno 111] Connection refused
-```
-
-Jerga de bajo nivel. Lo razonable: que `HttpServiceClient._handle` capture
-`httpx.ConnectError` y relance un `OperationError` con algo como:
-
-> Cannot reach the UnivOrch daemon at http://localhost:8080.
-> Is it running? Try: `univorchd` (or `./univorch.sh start` in production).
-
-Crucial para el tutorial del profesor: es el primer error que verá si se
-olvida de arrancar el contenedor.
+`HttpServiceClient._send` captura `httpx.ConnectError` y lo traduce a
+`OperationError` con mensaje accionable que menciona la URL y cómo
+arrancar el daemon. `httpx.RequestError` (timeout, network) traducido
+también con mensaje genérico de transporte.
 
 ### 5.3 `list --live` con streaming (ya estaba aplazado, lo confirmamos)
 
