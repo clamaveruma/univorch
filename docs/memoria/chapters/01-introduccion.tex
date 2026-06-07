@@ -5,46 +5,291 @@
 \chapter{Introduction}
 \label{ch:introduccion}
 
-% TODO: opening paragraph. About one page setting the scene: what
-% UnivOrch is, why it is built, what problem it solves. It must be
-% readable by a tribunal unfamiliar with the project and still convey
-% the motivation.
+This work presents \textbf{UnivOrch}, a proof of concept for a
+universal orchestrator of virtual machines aimed at teaching and
+research environments. The system sits between users and the
+underlying hypervisors and offers a single way to define, deploy and
+operate large sets of virtual machines (VMs), regardless of whether
+they run on VMware, Proxmox or a future platform. Its goal is not to
+replace the hypervisors but to remove the barrier they impose on
+non-expert users, in particular professors and students who only
+need a small subset of what a full virtualization platform exposes.
 
+The work is motivated by the day-to-day situation at the Computer
+Engineering School (E.T.S. de Ingeniería Informática) of the
+University of Málaga, where many courses depend on virtual labs and a
+small team of administrators carries the full operational load.
+Professors define the VMs that their subject needs and ask the
+administrator for one set per student; students cannot start or stop
+their own machines, and any platform change forces the administrator
+to rewrite the scripts that keep everything running. The TFG starts
+from two Python libraries written by the supervisor for this exact
+problem, \texttt{esxobjects} and \texttt{yamlinfr}, and generalizes
+them into an orchestrator that is no longer bound to VMware and that
+exposes a clean public interface for other tools to build upon.
+
+The contribution of this proof of concept is not the sum of any
+individual feature. Hierarchical organizations of users and resources
+already exist in OpenNebula, CloudStack and vCloud Director;
+declarative provisioning is the standard model behind Terraform and
+Ansible; abstraction layers over multiple hypervisors have been
+provided by libvirt for more than a decade. The original contribution
+of UnivOrch is the specific combination of three ideas in a single
+lightweight package: (1)~a tree of descriptors with cascade
+inheritance of properties by data type and a lexical-closure
+behaviour borrowed from programming-language scoping, applied to
+infrastructure definitions; (2)~a strict separation between a generic
+orchestration engine and a domain-specific application layer, so the
+same core can serve teaching, CTF competitions or research labs
+without changes; and (3)~a simplified mental model for the end user,
+where students see only ``their machines'' and never the underlying
+tree or the hypervisor itself.
+
+This chapter sets the stage. \Cref{sec:motivacion} describes the
+operational problem the system addresses and the context in which the
+TFG is carried out. \Cref{sec:objetivos} lists the objectives this
+proof of concept commits to. \Cref{sec:ajustes} discusses how the
+final scope differs from the original proposal and why these
+adjustments preserve the value of the work. \Cref{sec:estructura}
+guides the reader through the remaining chapters and appendices.
+
+%==================================================================
 \section{Motivation}
 \label{sec:motivacion}
 
-% TODO: draft based on the following ideas:
-% - The EI UMA teaching lab combines physical and virtual machines.
-% - Each course builds its own pyramid of VMs by hand: tedious and
-%   error-prone.
-% - Existing orchestrators (vSphere, vRA, OpenStack...) do not cover
-%   the teaching case of "one course, N students, one template, IPs
-%   from a pool, snapshots, recycling".
-% - The supervisor had been working with esxobjects and yamlinfr,
-%   which cover part of the problem but are bound to VMware.
-% - Build on that experience and generalise: a hypervisor-agnostic
-%   engine plus a teaching-specific layer.
+Practical laboratory work in higher education increasingly relies on
+virtualization. Reproducing a specific environment for every student
+of every course is hard to do on physical hardware, while a hypervisor
+can clone a base machine in seconds and discard it when the practice
+is over. The technical solution is therefore well understood, but the
+operational solution is not.
 
+In the current lab at the EI UMA, the administrator is the bottleneck.
+For every subject, the professor describes the VMs that their students
+will need, and the administrator manually deploys one identical set of
+VMs per student. The administrator also assigns IP addresses, keeps
+track of which student owns which machine, intervenes when a student
+loses their VM and reverts the environment after the course is over.
+Each new course adds linearly to this workload. When the underlying
+platform changes, in our case from a VMware version to the next, the
+custom scripts that automated parts of the process need to be
+rewritten from scratch.
+
+The supervisor of this work, Dr. Guillermo Pérez Trabado, had
+addressed parts of this problem with two Python libraries developed
+inside the department:
+
+\begin{itemize}
+  \item \texttt{esxobjects} provides a high-level interface to the
+        VMware vSphere SOAP API and hides much of its complexity from
+        the rest of the code.
+  \item \texttt{yamlinfr} reads a YAML description of a virtual
+        infrastructure and deploys it through \texttt{esxobjects},
+        with help from an external IP-Address-Management (IPAM)
+        service.
+\end{itemize}
+
+These libraries cover an important part of the problem but stop
+short in three ways. First, they are tied to VMware: the rest of the
+school cannot use them on the Proxmox cluster used by the
+infrastructure-of-systems courses. Second, they offer no abstraction
+above a single deployment: there is no concept of organizing tens or
+hundreds of VMs by subject, by group or by student, and no inheritance
+mechanism to reuse common definitions. Third, the administrator is
+still the operator: there is no service that professors can use on
+their own, and certainly no view that students can use to manage their
+own machines without help.
+
+UnivOrch is built on the experience of these two libraries but
+re-engineered around a different premise. The orchestrator is a long
+running service, not a script; it is agnostic of the hypervisor; it
+maintains its own model of the deployed infrastructure organized as a
+tree with inheritance; and it exposes a public REST interface that
+both human users (through a CLI today and a web application in the
+future) and machines (CI/CD pipelines, GitOps tools, the future
+teaching-specific layer) can call. The administrator declares the
+catalogue of hypervisors and templates once; from then on, professors
+and students operate through their own role-appropriate views,
+without contacting the administrator for every action.
+
+%==================================================================
 \section{Objectives}
 \label{sec:objetivos}
 
-% TODO: write as a numbered list of objectives.
-% O1. Design and implement the orchestrator core as a hypervisor-
-%     agnostic layer.
-% O2. Define a declarative model of the resources to deploy, with
-%     inheritance and template reuse.
-% O3. Establish a connector contract that lets new hypervisors
-%     (VMware, Proxmox) be added without touching the core.
-% O4. Expose a REST API as the public boundary of the service.
-% O5. Provide a command-line client and package the whole system as
-%     a single-line installable Docker container.
-% O6. Lay the groundwork (extension points and model) for the pieces
-%     that the TFG will deliver next: web interface, real connectors,
-%     teaching-specific application.
+The objectives of this proof of concept are the following.
 
+\begin{description}
+  \item[\textbf{O1.} Hypervisor-agnostic orchestrator core.] \mbox{}\\
+    Design and implement a service that manages a model of virtual
+    machines (descriptors) and folders, organized in a tree, with no
+    direct dependency on any specific hypervisor.
+  \item[\textbf{O2.} Declarative model with inheritance.] \mbox{}\\
+    Define a YAML-based language that allows administrators and
+    professors to describe complete groups of VMs as data, with
+    cascade inheritance of common properties and explicit imports for
+    templates and hypervisor resources.
+  \item[\textbf{O3.} Connector contract for new hypervisors.] \mbox{}\\
+    Establish an abstract interface between the core and the
+    hypervisor connectors so that new hypervisors can be plugged in
+    without modifying the orchestrator itself.
+  \item[\textbf{O4.} REST API as the public boundary.] \mbox{}\\
+    Expose all orchestration operations through a REST API documented
+    by an OpenAPI specification, suitable for integration with
+    external tools and pipelines.
+  \item[\textbf{O5.} Command-line client and single-line installation.] \mbox{}\\
+    Provide a CLI client that consumes the same REST API as any other
+    client, and package the daemon as a Docker image that can be
+    installed with a single command, including its persistent storage.
+  \item[\textbf{O6.} Engineering quality and discipline.] \mbox{}\\
+    Build the proof of concept under a strict test-driven development
+    process with high test coverage, static type checking and
+    continuous integration, so the code base is solid enough for the
+    department to keep extending after this work.
+  \item[\textbf{O7.} Groundwork for the pieces beyond this PoC.] \mbox{}\\
+    Leave designed (even where not fully implemented) the extension
+    points for the next deliverables: real connectors against the
+    teaching VMware cluster, a basic web interface and the
+    teaching-specific layer-2 application.
+\end{description}
+
+A second use of these objectives appears in
+\Cref{ch:conclusiones}, where each one is reviewed against what was
+actually delivered.
+
+%==================================================================
+\section{Adjustments from the original proposal}
+\label{sec:ajustes}
+
+The official project proposal (\emph{anteproyecto}) listed eight
+specific objectives, sketched as the natural breakdown of a complete
+orchestrator. The supervisor and the author agreed from the start
+that delivering all of them in 296 hours would not be realistic. The
+proposal itself acknowledged this and described the work as a
+\emph{proof of concept} whose purpose is to prove the design and
+leave a foundation for future extensions.
+
+\Cref{tab:adjustments} maps each objective of the proposal to its
+actual status at the end of this work. The adjustments fall into
+three broad categories:
+
+\begin{itemize}
+  \item \textbf{Delivered as planned.} The orchestrator engine, the
+        declarative model with inheritance, the connector contract,
+        the REST API, the CLI and the packaged distribution are all
+        in place and ready to use.
+  \item \textbf{Designed but deferred.} Several pieces have a closed
+        design and the extension points are wired, but the
+        implementation is left for the next iteration. The clearest
+        case is the role-based access control: the model is detailed
+        in the architecture documents and in DEC-011, DEC-021 and
+        DEC-026, but only the \emph{superuser} role is implemented in
+        code. A similar situation applies to the web interface and
+        to the teaching-specific layer-2 application: their design
+        is part of the architecture, but their construction is
+        scheduled for the next sprints.
+  \item \textbf{Blocked by external dependencies.} Real hypervisor
+        connectors require access to the VMware cluster of the
+        teaching laboratory. That access was not available during the
+        development period, so the implementation is replaced by a
+        mock connector that behaves identically from the point of
+        view of the orchestrator. The connector contract was
+        validated against the mock; integrating the real VMware
+        connector is the immediate next task once access is granted.
+\end{itemize}
+
+\begin{table}[ht]
+  \centering
+  \small
+  \begin{tabular}{p{0.45\linewidth} p{0.18\linewidth} p{0.30\linewidth}}
+    \toprule
+    \textbf{Objective from the proposal} & \textbf{Status} & \textbf{Note} \\
+    \midrule
+    Descriptor model with full life-cycle states &
+    Delivered &
+    Implemented as a two-axis state machine: descriptor state plus
+    runtime state queried on demand. \\
+    Linux service with central registry of descriptors &
+    Delivered &
+    REST daemon \texttt{univorchd} packaged as a Docker image. \\
+    Hierarchical tree with cascade inheritance and permissions &
+    Delivered (permissions designed) &
+    Tree, inheritance and template closure implemented; RBAC designed
+    but only the superuser role is wired in code. \\
+    Hypervisor connectors: mock, VMware, future Proxmox &
+    Partial &
+    Mock connector delivered. VMware and Proxmox connectors are
+    blocked by external access and scheduled as the immediate next
+    task. \\
+    Role-based access control with inheritance &
+    Designed, not built &
+    Full design closed (DEC-011, DEC-021, DEC-026). Implementation
+    deferred. \\
+    Teaching-specific deployment with IPAM &
+    Deferred &
+    Layer-2 application and IPAM integration documented and left as
+    future work. \\
+    REST API and web interface &
+    Partially delivered &
+    REST API delivered and used by the CLI. Web interface
+    (NiceGUI-based) deferred to the next sprint. \\
+    Coherence between descriptors and real VMs &
+    Delivered (on demand) &
+    Validation on load, drift detection on demand. A continuous
+    reconciliation loop is documented as future work. \\
+    \bottomrule
+  \end{tabular}
+  \caption{Mapping between the eight specific objectives of the
+    project proposal and their status in this proof of concept. None
+    of the items has been dropped from the design; the deferred ones
+    have the necessary extension points in place.}
+  \label{tab:adjustments}
+\end{table}
+
+In summary, the proof of concept covers the technical foundation end
+to end and leaves the remaining pieces with a clear path to follow.
+The design of the deferred items is not an afterthought: the
+architecture chapter documents the extension points (the connector
+abstract base class, the layer-2 boundary, the resolver of inherited
+permissions, the session and IP-pool repositories) that allow each
+deferred piece to be added without rewriting the core.
+
+%==================================================================
 \section{Report structure}
 \label{sec:estructura}
 
-% TODO: write a short paragraph describing each of the 5 chapters and
-% the 4 appendices. Pattern:
-% "Chapter \ref{ch:estado-arte} reviews the technical context...".
+The rest of this report is organized as follows.
+
+\Cref{ch:estado-arte} (\textbf{State of the art}) reviews the
+technical context: classic teaching virtual labs, current
+multi-hypervisor abstractions, declarative configuration systems,
+hierarchical access control and the specific case of container-based
+versus VM-based labs. It positions UnivOrch against the closest
+academic and industrial precedents and identifies the niche it
+occupies.
+
+\Cref{ch:metodologia} (\textbf{Methodology}) describes the working
+method: the seven-phase plan adapted from a SCRUM-like iterative
+process, the test-driven development cycle, the supporting tooling
+(devcontainer, continuous integration, code quality gates) and the
+use of AI-assisted development as a deliberate and traceable part of
+the workflow.
+
+\Cref{ch:desarrollo} (\textbf{Development, testing and results}) is
+the technical core of the report. It presents the requirements
+analysis, the architecture of the system in detail and the
+implementation work organized by layer, followed by the testing
+strategy and a functional demonstration end to end.
+
+\Cref{ch:conclusiones} (\textbf{Conclusions and future work}) reviews
+the objectives against the delivered system, summarizes the
+contributions and limitations, and outlines the natural extensions of
+the work.
+
+Five appendices complete the report. Appendix~\ref{ap:manual-admin}
+contains the administrator's manual. Appendix~\ref{ap:requirements}
+transcribes the detailed requirements analysis.
+Appendix~\ref{ap:decisiones} indexes the design decisions referenced
+throughout the text. Appendix~\ref{ap:cli-reference} provides a CLI reference.
+Finally, Appendix~\ref{ap:conclusiones-es} reproduces the conclusions
+in Spanish, as required by the regulations of the EI UMA when the
+report is written in English.
