@@ -18,6 +18,7 @@ import uvicorn
 from tinydb import TinyDB
 
 from univorch.interfaces.rest.app import create_app
+from univorch.interfaces.web.app import mount_web
 from univorch.persistence.tinydb.repositories import (
     DescriptorRepository,
     FolderRepository,
@@ -71,6 +72,7 @@ def main() -> None:
     port = int(os.environ.get("UNIVORCH_PORT", _DEFAULT_PORT))
     service = _build_service()
     app = create_app(service)
+    mount_web(app, service)
     uvicorn.run(app, host="0.0.0.0", port=port)
 
 
