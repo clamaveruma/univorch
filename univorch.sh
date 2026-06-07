@@ -1,10 +1,27 @@
 #!/usr/bin/env bash
 # Thin wrapper around docker compose for managing the UnivOrch service.
 # Usage: ./univorch.sh {start|stop|restart|status|logs|cli}
+#
+# Compose v1 vs v2: prefers the v2 plugin ('docker compose') when present,
+# falls back to the legacy v1 binary ('docker-compose'). v1 is still the
+# default on Debian/Ubuntu/Mint installs that come from the distro repo
+# instead of the official Docker one.
 
 set -euo pipefail
 
 COMPOSE_FILE="$(dirname "$(realpath "$0")")/docker-compose.yml"
+
+# Resolve the compose command into an array so we can expand it cleanly
+# (otherwise quoting 'docker compose' as one string breaks the argv split).
+if docker compose version >/dev/null 2>&1; then
+    COMPOSE=(docker compose)
+elif command -v docker-compose >/dev/null 2>&1; then
+    COMPOSE=(docker-compose)
+else
+    echo "Error: ni 'docker compose' (v2) ni 'docker-compose' (v1) están disponibles." >&2
+    echo "Instala el plugin: https://docs.docker.com/compose/install/" >&2
+    exit 1
+fi
 
 usage() {
     cat <<EOF
@@ -23,23 +40,23 @@ EOF
 
 case "${1:-}" in
     start)
-        docker compose -f "$COMPOSE_FILE" up -d
+        "${COMPOSE[@]}" -f "$COMPOSE_FILE" up -d
         echo "UnivOrch started."
         echo "REST API:   http://localhost:${UNIVORCH_PORT:-8080}/api/v1/"
         echo "Health:     http://localhost:${UNIVORCH_PORT:-8080}/api/v1/health"
         echo "Interactive CLI: ./univorch.sh cli"
         ;;
     stop)
-        docker compose -f "$COMPOSE_FILE" down
+        "${COMPOSE[@]}" -f "$COMPOSE_FILE" down
         ;;
     restart)
-        docker compose -f "$COMPOSE_FILE" restart
+        "${COMPOSE[@]}" -f "$COMPOSE_FILE" restart
         ;;
     status)
-        docker compose -f "$COMPOSE_FILE" ps
+        "${COMPOSE[@]}" -f "$COMPOSE_FILE" ps
         ;;
     logs)
-        docker compose -f "$COMPOSE_FILE" logs -f
+        "${COMPOSE[@]}" -f "$COMPOSE_FILE" logs -f
         ;;
     cli)
         # Open the CLI inside the running container. Two modes:

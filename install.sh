@@ -27,22 +27,49 @@ else
     BOLD=''; GREEN=''; YELLOW=''; RED=''; BLUE=''; RESET=''
 fi
 
-info()    { echo "${BLUE}[univorch]${RESET} $*"; }
-ok()      { echo "${GREEN}[univorch]${RESET} $*"; }
+# All log helpers write to stderr on purpose, so functions that return a
+# value via 'echo $value' don't get their output captured together with
+# the value in $(func). Standard Unix pattern.
+info()    { echo "${BLUE}[univorch]${RESET} $*"  >&2; }
+ok()      { echo "${GREEN}[univorch]${RESET} $*" >&2; }
 warn()    { echo "${YELLOW}[univorch]${RESET} $*" >&2; }
 fail()    { echo "${RED}[univorch]${RESET} $*" >&2; exit 1; }
 
 # --- Pre-flight checks ----------------------------------------------------
 
+# Compose command, resolved by check_docker(): either "docker compose"
+# (plugin v2, recommended) or "docker-compose" (legacy v1, still common
+# in distro packages like Ubuntu/Mint).
+COMPOSE_CMD=""
+
 check_docker() {
     if ! command -v docker >/dev/null 2>&1; then
         fail "Docker no está instalado. Instálalo desde https://docs.docker.com/get-docker/ y vuelve a ejecutar este instalador."
     fi
-    # 'docker compose' (plugin v2) preferred over 'docker-compose' (legacy v1).
-    if ! docker compose version >/dev/null 2>&1; then
-        fail "Docker está, pero 'docker compose' (v2) no responde. Asegúrate de tener el plugin instalado (paquete docker-compose-plugin o equivalente)."
+    # Prefer Compose v2 (plugin). Fall back to v1 (the standalone
+    # 'docker-compose' binary) so the installer works on distro-shipped
+    # Docker (the typical Ubuntu/Mint case where there is no
+    # docker-compose-plugin package).
+    if docker compose version >/dev/null 2>&1; then
+        COMPOSE_CMD="docker compose"
+        ok "Docker y 'docker compose' (v2) disponibles."
+    elif command -v docker-compose >/dev/null 2>&1; then
+        COMPOSE_CMD="docker-compose"
+        ok "Docker disponible. Usando 'docker-compose' v1 (legacy — funciona, pero plantéate migrar al plugin v2)."
+    else
+        cat <<EOF >&2
+${RED}[univorch]${RESET} Docker está, pero ni el plugin v2 ('docker compose') ni el binario legacy v1 ('docker-compose') responden.
+
+   Opción más limpia — instala el plugin v2 sin tocar repositorios del sistema:
+     mkdir -p ~/.docker/cli-plugins
+     curl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 -o ~/.docker/cli-plugins/docker-compose
+     chmod +x ~/.docker/cli-plugins/docker-compose
+
+   Y vuelve a ejecutar este instalador.
+
+EOF
+        exit 1
     fi
-    ok "Docker y docker compose disponibles."
 }
 
 check_docker_access() {
@@ -56,9 +83,14 @@ ${RED}[univorch]${RESET} No se puede hablar con el daemon de Docker.
    Causas típicas:
      - El daemon no está corriendo: 'sudo systemctl start docker'
      - Tu usuario no está en el grupo 'docker' y no estás usando 'sudo'.
-       Solución rápida (esta vez): ejecuta el instalador con 'sudo bash'.
-       Solución permanente: 'sudo usermod -aG docker \$USER' y vuelve a
-       iniciar sesión.
+
+   Solución rápida (esta vez) — el 'sudo' debe ir DELANTE del 'bash',
+   no del 'curl', porque cada lado del pipe tiene su propio proceso:
+     curl -sSL https://raw.githubusercontent.com/clamaveruma/univorch/main/install.sh | sudo bash
+
+   Solución permanente:
+     sudo usermod -aG docker \$USER
+   y vuelve a iniciar sesión.
 
 EOF
     exit 1
