@@ -9,7 +9,18 @@
 
 set -euo pipefail
 
-COMPOSE_FILE="$(dirname "$(realpath "$0")")/docker-compose.yml"
+SCRIPT_DIR="$(dirname "$(realpath "$0")")"
+COMPOSE_FILE="$SCRIPT_DIR/docker-compose.yml"
+
+# Load .env if present so messages printed by this wrapper expand
+# UNIVORCH_PORT to the value the installer wrote. (docker compose
+# reads .env on its own; this 'source' is only for the echo lines.)
+if [ -f "$SCRIPT_DIR/.env" ]; then
+    set -a
+    # shellcheck disable=SC1090
+    . "$SCRIPT_DIR/.env"
+    set +a
+fi
 
 # Resolve the compose command into an array so we can expand it cleanly
 # (otherwise quoting 'docker compose' as one string breaks the argv split).

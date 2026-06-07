@@ -4,8 +4,10 @@ services:
     image: ghcr.io/clamaveruma/univorch:latest   # image name/tag; also used to publish to ghcr
     container_name: univorch
     ports:
-      # Web GUI port — configurable via UNIVORCH_PORT env var.
-      # Default: 8080. Override: UNIVORCH_PORT=9090 ./univorch.sh start
+      # Host port -> container port. The container ALWAYS listens on 8080
+      # internally (matches EXPOSE in Dockerfile and the healthcheck below);
+      # only the host side varies. Override the host side with UNIVORCH_PORT
+      # in .env or the environment when the host's 8080 is busy.
       - "${UNIVORCH_PORT:-8080}:8080"
     volumes:
       # --- CRITICAL ---
@@ -14,7 +16,11 @@ services:
       # is recreated. Never remove this volume while the service is in use.
       - univorch_data:/data
     environment:
-      UNIVORCH_PORT:    "${UNIVORCH_PORT:-8080}"
+      # Note: UNIVORCH_PORT is intentionally NOT propagated into the
+      # container's env. Inside, the daemon listens on its built-in default
+      # (8080); the variable only controls the host side of the port mapping
+      # above. Propagating it caused the daemon to listen on a port that did
+      # not match the mapping, breaking both /health and the healthcheck.
       UNIVORCH_DB_PATH: /data/univorch.json
     restart: unless-stopped
     # Liveness check via the REST daemon's /health endpoint. Docker marks the
