@@ -1,0 +1,78 @@
+# Publishes the production Docker image to GitHub Container Registry
+# (ghcr.io). Sprint 3.3 — Continuous Delivery, on the user's terms.
+#
+# WHEN it runs:
+#   1. A semver tag is pushed (v0.1.0, v0.2.0, v1.0.0, …). This is the
+#      primary path: the user decides when something is worth a release
+#      and tags it. Encourages discrete, named, citable versions.
+#   2. Manually, via the "Run workflow" button in the Actions tab. Backup
+#      for cases that don't fit the tag flow (an urgent fix, a test build).
+#
+# WHEN it does NOT run:
+#   - Plain pushes to main. The CI workflow (ci.yml) covers those — runs
+#     ruff, mypy and pytest on every push and PR. Publication is a
+#     separate, conscious step (see DEC log entry "release cadence").
+#
+# WHAT it publishes:
+#   ghcr.io/clamaveruma/univorch:vX.Y.Z   (immutable, points at this build)
+#   ghcr.io/clamaveruma/univorch:latest    (mutable, always the latest)
+#
+# WHAT the user has to do once, manually:
+#   After the first successful run, go to the package page on GitHub
+#   (https://github.com/clamaveruma?tab=packages) and switch its visibility
+#   to "public". Otherwise external users cannot `docker pull` without auth.
+
+name: publish
+
+on:
+  push:
+    # Only tags shaped like vSEMVER trigger a release; everyday pushes to
+    # main are left to ci.yml. Pattern intentionally loose (matches v0.x.y
+    # while we are in PoC, v1+ later when API stabilises).
+    tags:
+      - 'v*'
+  workflow_dispatch: {}  # manual trigger button in the Actions tab
+
+permissions:
+  # Default GITHUB_TOKEN scopes: contents=read, packages=none. We need
+  # write on packages to push to ghcr.io. Declared per workflow (not
+  # repository-wide) for least privilege.
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        # Buildx is the modern build engine; enables multi-arch builds,
+        # better caching, and parallel builds. Today we publish amd64 only,
+        # multi-arch is a future improvement (one parameter away).
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          # Two tags every release: the immutable version (`v0.1.0`) and
+          # the floating `latest`. The version tag is what the user pins
+          # to in the memoria del TFG ("the artefact I evaluated is
+          # ghcr.io/clamaveruma/univorch:v0.1.0"); `latest` is the
+          # convenience pointer.
+          # `ref_name` is the tag string (v0.1.0) when push-by-tag fires;
+          # for workflow_dispatch it is the branch name, which is fine
+          # for the manual case ("rebuild from main").
+          tags: |
+            ghcr.io/clamaveruma/univorch:${{ github.ref_name }}
+            ghcr.io/clamaveruma/univorch:latest
