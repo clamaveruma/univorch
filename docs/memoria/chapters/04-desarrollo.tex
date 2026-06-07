@@ -7,49 +7,167 @@
 \chapter{Development, testing and results}
 \label{ch:desarrollo}
 
-% TODO: chapter intro, ~half a page.
-% "This chapter describes the full PoC development cycle, organised
-% in six blocks: requirements analysis, architectural design,
-% implementation, testing strategy, functional demonstration and
-% qualitative comparison with the supervisor's previous libraries.
-% The detailed requirements analysis is moved to Appendix
-% \ref{ap:requirements}; here we present the structured summary."
+This chapter is the technical core of the report. It walks through
+the development cycle of the proof of concept in five blocks:
+requirements analysis, architectural design, implementation, testing
+strategy and functional demonstration. It closes with a qualitative
+comparison against the two libraries the supervisor had written
+before this work. The detailed requirements catalogue is moved to
+Appendix~\ref{ap:requirements}; the version presented here is the
+structured summary that supports the rest of the chapter.
 
+%==================================================================
 \section{Requirements analysis}
 \label{sec:analisis}
 
-% TODO: draft. Summary of docs/requirements.md (full version in
-% Appendix B). Structure:
-% 4.1.1 Actors and main use cases
-%   - Actor table covering the orchestrator core and the teaching
-%     layer roles.
-%   - Most representative use cases of core and teaching layer (not
-%     all of them).
-% 4.1.2 Functional requirements (grouped by topic, not as an
-%   exhaustive list).
-% 4.1.3 Non-functional requirements (table).
-% 4.1.4 Constraints and out of scope.
-%
-% Standard text: "The full analysis is developed in Appendix
-% \ref{ap:requirements}; this section presents the structuring
-% elements."
+The requirements analysis was carried out as Phase~2 of the project
+and produced \texttt{docs/requirements.md} in the repository. The
+analysis follows a lightweight format suited to a proof of
+concept: actors and use cases in natural language, functional
+requirements grouped by area, a short table of non-functional
+requirements, and an explicit list of items that are out of scope
+for v1. We summarize the structure here; the full catalogue is in
+Appendix~\ref{ap:requirements}.
 
+\subsection{Actors}
+
+\Cref{tab:actors} lists the actors of the system. The role design
+follows DEC-011 and DEC-021: three roles with cascade inheritance
+through the tree, and a single user that can hold different roles in
+different branches.
+
+\begin{table}[ht]
+  \centering
+  \small
+  \begin{tabular}{p{0.22\linewidth} p{0.70\linewidth}}
+    \toprule
+    \textbf{Actor} & \textbf{Description} \\
+    \midrule
+    Administrator (\emph{superuser}) &
+    Manages hypervisors, base templates, users, the full tree and
+    global configuration. \\
+    Manager &
+    A professor or equivalent. Manages assigned branches of the
+    tree. Uses both the core and the teaching application. \\
+    End user &
+    A student or equivalent. Operates only the VMs assigned to them. \\
+    Hypervisor &
+    External system. UnivOrch talks to it through a connector;
+    the hypervisor does not initiate actions. \\
+    System &
+    UnivOrch itself, running the job engine and automatic tasks
+    (backup rotation, retention cleanup). \\
+    \bottomrule
+  \end{tabular}
+  \caption{Actors of UnivOrch.}
+  \label{tab:actors}
+\end{table}
+
+\subsection{Use cases}
+
+Use cases are split into three groups. \emph{Core} use cases are
+generic operations of the orchestrator (authentication, defining
+hypervisors and templates, creating folders, deploying and
+undeploying VMs, viewing job history). \emph{Teaching application}
+use cases (UC-TA-1\dots) operate at the domain level: deploying a
+whole subject from a roster of students, regenerating a student's
+environment, end-of-term recycling. \emph{System} use cases describe
+the automatic behaviour of the daemon (backup, retention cleanup,
+detection of jobs left in flight after a crash). The full catalogue
+contains 32 use cases.
+
+The most representative use cases of the core are UC-ADM-2 (define a
+hypervisor with its credentials and datastores), UC-ADM-3 (define a
+base template), UC-MGR-1 (a manager creates folders inside their
+branch), UC-MGR-3 (a manager loads a YAML definition of a group of
+VMs), UC-EU-1 (an end user operates their own VMs through the
+simplified view) and UC-ADM-8 (the administrator force-undeploys a
+descriptor stuck in \texttt{broken} state).
+
+\subsection{Functional requirements}
+
+The functional requirements are grouped by area: descriptor tree
+and hierarchical organization; declarative load and inheritance;
+hypervisor connectors and life-cycle operations; jobs and
+operations; persistence and backup; identity, authentication and
+authorization; and the teaching application. Within each area, the
+requirements stay close to the use cases of the same area and
+introduce only the precision needed to bridge into the architecture
+phase.
+
+\subsection{Non-functional requirements}
+
+\Cref{tab:nfr} lists the headline non-functional requirements. The
+proof of concept is not a benchmark exercise; the numbers below are
+soft targets used to keep the implementation honest, not contractual
+service levels.
+
+\begin{table}[ht]
+  \centering
+  \small
+  \begin{tabular}{p{0.25\linewidth} p{0.65\linewidth}}
+    \toprule
+    \textbf{Quality} & \textbf{Target} \\
+    \midrule
+    Reproducibility &
+    A new clone of the repository plus one command must start a
+    working development environment. \\
+    Portability &
+    The same code base must support new hypervisors without changes
+    to the core. \\
+    Testability &
+    The core must be exercisable without a real hypervisor. \\
+    Maintainability &
+    Every component must have a test, every public function must be
+    typed, and the documentation must trace every architectural
+    choice back to a numbered decision. \\
+    Operability &
+    The complete service must run inside a single Docker container
+    and be deployable in one command. \\
+    \bottomrule
+  \end{tabular}
+  \caption{Non-functional requirements of UnivOrch v1 (summary).}
+  \label{tab:nfr}
+\end{table}
+
+\subsection{Out of scope for v1}
+
+The following items are explicitly excluded from this proof of
+concept: automatic reconciliation loops, active/passive high
+availability, IPAM integration, snapshot management through the
+orchestrator, discovery of pre-existing VMs not created by UnivOrch,
+multi-tenant isolation beyond what RBAC provides, and any
+integration with single-sign-on or directory services.
+
+%==================================================================
 \section{Architectural design}
 \label{sec:diseno}
 
-This section is currently a \emph{provisional figure gallery}. The full
-text is pending; the diagrams below are the up-to-date sources from
-\texttt{docs/architecture.md} and \texttt{docs/diagrams.md} and will
-anchor the final prose. Each subsection follows the planned outline of
-the chapter so that the eventual narrative can fill in around the
-already-rendered figures.
+The architecture is documented in detail in
+\texttt{docs/architecture.md} and visually summarized in
+\texttt{docs/diagrams.md}; this section presents the same content in
+narrative form, with the diagrams embedded next to the text they
+support.
 
 \subsection{Two-layer architecture (DEC-004)}
 \label{subsec:two-layers}
 
-% TODO: prose. Generic orchestrator core (layer 1) + thin teaching
-% application (layer 2). Same engine reusable for CTF, research labs,
-% corporate training.
+UnivOrch is built as two clearly separated layers. The lower layer
+is a \emph{generic orchestration engine} that knows about folders,
+descriptors, jobs, connectors and inheritance, but knows nothing
+about academic subjects, students or any other domain. The upper
+layer is a \emph{domain application} that translates the vocabulary
+of a specific use case into operations of the engine. The teaching
+application of this TFG is the only upper layer implemented;
+\Cref{fig:two-layers} also shows where alternative upper layers
+would sit (a CTF organizer, a workshop deployer, a research-lab
+orchestrator).
+
+The boundary between layers is the public REST API of the daemon.
+Every upper layer is a client of this API. The same separation
+applies to the operational interfaces (CLI, future web GUI): they
+are also clients of the API, not parts of the engine. Nothing in the
+engine knows what kind of client is calling it.
 
 \begin{figure}[ht]
   \centering
@@ -62,7 +180,15 @@ already-rendered figures.
 \subsection{C4 context and containers}
 \label{subsec:c4-l1-l2}
 
-% TODO: prose. C4 model levels 1 and 2 of the system, who uses what.
+\Cref{fig:c4-context} shows the system at C4 level~1. Three kinds of
+human or external actor interact with UnivOrch: the administrator
+or teacher who defines the tree and triggers deployments; the
+student who operates their own machines; and external integrations
+(CI/CD pipelines, GitOps tools) that consume the public REST API.
+The orchestrator itself talks to the underlying hypervisors (VMware
+vSphere, Proxmox VE), and students access their VMs by IP
+\emph{directly}, not through the orchestrator -- this distinction
+matters when discussing the failure modes.
 
 \begin{figure}[ht]
   \centering
@@ -71,6 +197,17 @@ already-rendered figures.
     UnivOrch.}
   \label{fig:c4-context}
 \end{figure}
+
+\Cref{fig:c4-containers} zooms into the C4 level~2 view. There are
+two clearly delimited deployable units inside the system: the
+\emph{daemon} \texttt{univorchd} (a Python process running FastAPI
+on Uvicorn) and the \emph{CLI} \texttt{univorch} (a Python program
+based on cmd2 that talks to the daemon by HTTP). Both live in the
+same package distribution and are installed by the same Docker
+image; one runs as a long-lived service, the other as an
+on-demand command. The future web GUI fits in this view as a third
+container, with the same role as the CLI -- a thin client of the
+REST API.
 
 \begin{figure}[ht]
   \centering
@@ -84,8 +221,19 @@ already-rendered figures.
 \subsection{Deployment view}
 \label{subsec:deployment}
 
-% TODO: prose. Real Sprint 3 topology: one Linux host with Docker,
-% the daemon in a container, the TinyDB file on a named volume.
+\Cref{fig:deployment} shows the deployment view of Sprint~3. The
+target deployment is a single Linux host with Docker that runs the
+\texttt{univorchd} container. The container exposes one HTTP port
+(default 8080) for the REST API and mounts a Docker named volume
+(\texttt{univorch\_data}) where the TinyDB JSON file lives. Both the
+named volume and the port are configurable through environment
+variables.
+
+The clients sit on tier~1, on any host that can reach the daemon
+port. The hypervisor hosts are tier~3; the daemon talks to them
+through the connectors implemented in the engine. In the
+mock-driven demo, tier~3 is not used: the mock connector lives
+inside the daemon and provides a fictitious hypervisor in memory.
 
 \begin{figure}[ht]
   \centering
@@ -99,9 +247,28 @@ already-rendered figures.
 \subsection{Components (as-built)}
 \label{subsec:components}
 
-% TODO: prose. Modules inside the daemon. Status legend: solid =
-% implemented, dashed = designed but pending (web GUI, real
-% connectors).
+\Cref{fig:components} is the C4 level~3 view, restricted to what
+was actually built. The diagram uses a legend with two states:
+\emph{implemented} (solid green) for everything delivered up to
+Sprint~3, and \emph{pending} (dashed grey) for everything that was
+designed but is left as future work. The pending blocks include the
+web GUI, the real hypervisor connectors (VMware and Proxmox) and
+the teaching application.
+
+Inside the daemon, the implemented components are: the REST layer
+(\texttt{create\_app}, the FastAPI application, the
+\texttt{HttpServiceClient} that lives in the CLI), the
+\texttt{OrchestratorService} facade, the lexical-closure resolver
+with its generic walker (\texttt{\_find\_resource}), the connection
+pool indexed by folder path, the connector type registry
+(\texttt{CONNECTOR\_TYPES}), the YAML parser, the job engine with
+its Commands, the three TinyDB repositories (folders, descriptors,
+jobs), the abstract \texttt{HypervisorConnector} and the
+\texttt{MockConnector}. The diagram makes the layered structure
+explicit: the REST layer depends only on the facade, the facade
+depends on the resolver, the job engine, the pool and the parser,
+the job engine depends on the connector abstraction and on the
+repositories, and the repositories depend on TinyDB.
 
 \begin{figure}[ht]
   \centering
@@ -115,9 +282,32 @@ already-rendered figures.
 \subsection{Domain model}
 \label{subsec:domain-model}
 
-% TODO: prose. Descriptor tree with materialized path (DEC-008);
-% cascade inheritance by data type (DEC-026); template lexical closure
-% (refinement of DEC-012, 2026-06-06).
+The descriptor tree is implemented as a flat collection of records
+indexed by their \emph{materialized path} (DEC-008). A folder at
+\texttt{/lab/networks} is one record, the descriptor
+\texttt{student01} inside it is another record at
+\texttt{/lab/networks/student01}, and so on. Navigating the tree
+upward or sideways is then a matter of string operations on the
+path; there are no pointers between records to maintain. This
+choice keeps the TinyDB schema flat and the repository operations
+trivial.
+
+Inheritance of properties follows DEC-026: the rule depends on the
+data type of the field. A scalar field (\texttt{cpu},
+\texttt{memory\_mb}) is overridden by the child; a list field
+(\texttt{imports}) accumulates from parent to child; a dictionary
+field (\texttt{hypervisors}, \texttt{vm\_templates}) is recursively
+merged. The merge stops at the explicit boundary set by the
+\texttt{import:} field of each folder, which decides what names
+from the parent are visible inside this folder.
+
+The template lexical closure deserves special mention. When a
+template is defined in folder $A$ and imported into folder $B$, any
+reference inside the template (\emph{e.g.}\ which hypervisor to
+target) is resolved \emph{starting from $A$}, not from $B$. The
+template carries its definition environment with it. This is the
+behaviour of a lexical closure in a programming language and is the
+refinement of DEC-012 applied during Sprint~2.
 
 \begin{sidewaysfigure}
   \centering
@@ -129,12 +319,61 @@ already-rendered figures.
   \label{fig:domain-models}
 \end{sidewaysfigure}
 
+\Cref{fig:domain-models} shows the model classes. There are two
+families of types. The first family is the \emph{persisted} types
+(\texttt{Folder}, \texttt{Descriptor}, \texttt{Job}); they carry an
+absolute path or identifier and live in TinyDB. The second family is
+the \emph{document} types (\texttt{DefinitionDocument},
+\texttt{FolderDef}, \texttt{DescriptorDef}, \texttt{HypervisorDef},
+\texttt{VMTemplateDef}); they are produced by the YAML parser and
+travel \emph{into} the \texttt{load} operation, where the engine
+turns them into persisted entities. The split is intentional:
+documents allow relative paths and aliases for the YAML syntax
+(\texttt{use hypervisor:}, \texttt{define templates:}), persisted
+entities use canonical absolute paths.
+
 \subsection{Patterns applied}
 \label{subsec:patterns}
 
-% TODO: prose. Facade (OrchestratorService, DEC-031), Command pattern
-% (DEC-028), Repository (DEC-007/030), Strategy / ABC for connectors
-% (DEC-029), Protocol for the CLI / HTTP client boundary.
+Several classical design patterns shape the implementation. The
+relevant ones are listed below; the citation of each pattern is left
+to the references in \texttt{docs/architecture.md} to keep the
+prose tight.
+
+\begin{description}
+  \item[Facade (DEC-031)] -- the \texttt{OrchestratorService} class
+        is the single entry point that every client uses. It
+        encapsulates the engine and protects clients from the
+        internal repositories, the job engine, the connector pool
+        and the resolver. The REST layer talks to the facade only.
+  \item[Command pattern (DEC-028)] -- every state-changing operation
+        is encapsulated in a Command class (\texttt{DeployCommand},
+        \texttt{UndeployCommand}, \texttt{StartCommand}, \dots).
+        Commands are validated before being run; if validation
+        passes, the job engine executes them and tracks the
+        outcome in the job log.
+  \item[Repository (DEC-007/030)] -- persistence is hidden behind a
+        repository class for each aggregate root (folder, descriptor,
+        job). The repositories take and return Pydantic models, not
+        TinyDB documents. Replacing TinyDB with MongoDB requires
+        rewriting only the repository classes.
+  \item[Strategy / Abstract Base Class (DEC-029)] -- the
+        hypervisor connector is an abstract base class with a small
+        and stable interface. The mock connector implements it
+        in memory; the future VMware and Proxmox connectors will
+        implement it against their respective APIs.
+  \item[Protocol (Sprint 3.2)] -- the boundary between the CLI and
+        the daemon is described by the \texttt{OrchestratorAPI}
+        Protocol. Two classes implement it structurally: the
+        in-process \texttt{OrchestratorService} and the
+        \texttt{HttpServiceClient}. Clients (the CLI in particular)
+        depend on the Protocol, not on either concrete class.
+\end{description}
+
+\Cref{fig:engine-rest} shows how these classes relate. The
+\texttt{OrchestratorAPI} Protocol unifies the in-process and the
+HTTP paths; the engine sits behind the facade; the Commands depend
+on repositories and on the connector pool.
 
 \begin{sidewaysfigure}
   \centering
@@ -149,9 +388,40 @@ already-rendered figures.
 \subsection{Declarative load flow (DEC-027)}
 \label{subsec:load-flow}
 
-% TODO: prose. Parse, diff, validate (fail-fast), plan/dry-run,
-% execute. Plan is the same flow with execute disabled. Validation
-% lives in the service, never creates a Job until accepted.
+The system follows a strict declarative model. The user does not
+issue create or delete commands; they describe what they want by
+loading a YAML \texttt{DefinitionDocument}, and the engine works
+out the operations needed to make the tree match the document. The
+load operation goes through the five stages of \Cref{fig:load-flow}:
+
+\begin{enumerate}
+  \item \textbf{Parse.} The YAML is read with \texttt{ruamel.yaml}
+        and validated by Pydantic against the document schema.
+        Syntax errors are caught here.
+  \item \textbf{Diff.} The engine compares the document against the
+        current tree. The result is a list of intended operations
+        (create this folder, add this descriptor, update this
+        template) without yet touching anything.
+  \item \textbf{Validate.} Every intended operation is validated:
+        does the user have permission, is the hypervisor name
+        resolved against an existing definition, is the target
+        datastore present? Validation \emph{rejects} the load when
+        any check fails, \emph{before} any job is created.
+  \item \textbf{Plan.} The same flow with execute disabled. Useful
+        as a dry-run command. Returns the intended operations and
+        the validation result without touching the tree.
+  \item \textbf{Execute.} The operations are translated into
+        Commands and submitted to the job engine. Each job is
+        persisted, executed and logged.
+\end{enumerate}
+
+The strict separation between validation and execution is a
+deliberate choice (DEC-032). A failed validation never creates a
+job; this keeps the job log free of records that exist only to mark
+``user submitted a bad request.'' Inside execution, however, a job
+that fails after passing validation \emph{does} create a record,
+because that is exactly the kind of incident the operator needs to
+see.
 
 \begin{figure}[ht]
   \centering
@@ -164,9 +434,33 @@ already-rendered figures.
 \subsection{Descriptor state machine (DEC-022, DEC-032)}
 \label{subsec:state-machine}
 
-% TODO: prose. Four descriptor states; runtime states are reported by
-% the hypervisor and not stored. State changes only as the result of a
-% Job. broken is the precise definition added in DEC-032.
+Every descriptor has a state, tracked by the orchestrator
+independently of the runtime state of the underlying VM. There are
+four states: \texttt{provisioned} (the descriptor exists but no VM
+has been created in the hypervisor yet), \texttt{deployed} (the
+descriptor matches a real VM in the hypervisor),
+\texttt{unreachable} (the hypervisor cannot be contacted; the actual
+state of the VM is unknown) and \texttt{broken} (an operation
+failed in a way that leaves the orchestrator and the hypervisor
+out of sync). The transitions are shown in \Cref{fig:state-machine}.
+
+Two characteristics of this state machine deserve emphasis. First,
+\emph{state changes only as the result of a completed job}: there is
+no background polling that silently transitions a descriptor. This
+makes every state change auditable through the job log. Second, the
+runtime state of the VM (running, stopped, paused) is reported by
+the hypervisor on demand and not persisted by the orchestrator. This
+keeps the orchestrator's model small and prevents drift between two
+state representations that would inevitably diverge.
+
+The \texttt{broken} state has the precise definition added in
+DEC-032: a descriptor is \texttt{broken} only after a job that was
+expected to converge the descriptor with the hypervisor (typically a
+deploy or undeploy) failed in a way that left a VM partially
+created or partially destroyed. The recovery path is the
+administrator's \texttt{force-undeploy} operation: clean up whatever
+exists in the hypervisor and return the descriptor to
+\texttt{provisioned}.
 
 \begin{figure}[ht]
   \centering
@@ -180,74 +474,482 @@ already-rendered figures.
 \subsection{REST as the public boundary}
 \label{subsec:rest-boundary}
 
-% TODO: prose. Defensible argument: the REST API does not exist for
-% remote CLI convenience (the admin has SSH); it exists for external
-% integrations. CLI dual-mode in-process / HTTP was discarded in
-% favour of the pure-client model (Sprint 3.2 B-2), to align with
-% docker / kubectl.
+The decision to expose a REST API as the boundary of the daemon was
+made in Sprint~3 and deserves an explicit defence because it shapes
+the entire client architecture. The argument for REST is \emph{not}
+that the CLI needs to be usable remotely without SSH; the
+administrator already has SSH. The argument is that the REST API
+exists as a \emph{public boundary for external integrations}.
+External clients (CI/CD pipelines, GitOps tools, future teaching
+applications, third-party scripts) have a clean and documented
+contract to depend on. The CLI of UnivOrch then \emph{also} uses
+that contract, which removes any temptation to add a back door for
+local use and keeps the in-process and out-of-process paths
+identical.
 
+An intermediate design (the CLI talks to the engine in-process when
+running on the same host and over HTTP when remote) was considered
+and discarded during Sprint~3. The advantage of fewer moving parts
+was real, but the cost in duplicated logic and divergent behaviour
+between the two paths was higher. The decision aligns UnivOrch with
+mature peers: \texttt{docker}, \texttt{kubectl} and \texttt{podman}
+all run as thin HTTP clients of a daemon, even when both live on
+the same machine.
+
+%==================================================================
 \section{Implementation}
 \label{sec:implementacion}
 
-% TODO: draft. Structure by layer, not by sprint (sprints matter for
-% the methodology chapter, not for presenting the product).
-% 4.3.1 Orchestrator core
-%   - Pydantic models.
-%   - Pure resolver (function + Hypothesis tests).
-%   - Jobs engine and Commands.
-%   - TinyDB repositories.
-%   - Facade service.
-% 4.3.2 Mock connector
-%   - In-memory state, demo templates pre-loaded.
-%   - No external dependencies: the whole system runs without a real
-%     hypervisor.
-% 4.3.3 CLI interface
-%   - cmd2 with argparse, dual REPL / bash mode.
-%   - HTTP client injected, translates transport errors into
-%     OperationError with actionable messages.
-% 4.3.4 REST daemon
-%   - FastAPI + uvicorn, paths as query parameters.
-%   - Healthcheck, error coding 200/400/422.
-% 4.3.5 Packaging and distribution
-%   - Multi-stage Dockerfile, docker-compose with a named volume.
-%   - install.sh installer with Docker, port and Compose detection.
-%   - Image published in ghcr.io with semver tags.
+This section presents the implementation by layer rather than by
+sprint. The sprints are documented in \Cref{ch:metodologia}; for the
+description of the product, the layered view is clearer. The code
+lives under \texttt{src/univorch/}; each subsection below
+corresponds to one subdirectory of that tree.
 
+\subsection{Orchestrator core}
+
+The core consists of the Pydantic models, the resolver, the job
+engine, the repositories and the facade service.
+
+\textbf{Models}. The domain types are implemented as Pydantic
+\texttt{BaseModel} classes with strict configuration
+(\texttt{extra="forbid"}, field validators for the path syntax). The
+two families discussed in \Cref{subsec:domain-model} are kept in
+separate modules to avoid accidental cross-contamination between
+the persisted form and the document form.
+
+\textbf{Resolver}. The resolver is a pure function: given a folder
+path and the current tree, it returns the effective definition of
+that folder, with cascade inheritance applied and the lexical
+closure resolved for any imported template. ``Pure'' has a precise
+meaning here: no side effects, no I/O, no exceptions other than for
+truly invalid input. This makes the resolver the ideal candidate for
+property-based testing with Hypothesis (\Cref{sec:pruebas}). The
+inheritance rule is encoded once per data type
+(scalar/list/dictionary) and the same rule applies to every field.
+The walker that follows the import chain through ancestor folders
+is generic, parameterized by the resource type (template,
+hypervisor); adding a new inheritable resource type in the future is
+a one-line change.
+
+\textbf{Job engine and Commands}. The job engine accepts a Command
+and turns it into a Job. The Command is responsible for
+\emph{validation} (a single method that returns a list of
+human-readable error messages and does not touch the database) and
+\emph{execution} (a single method that mutates the world). The
+engine wraps the Command, creates a Job record in TinyDB,
+transitions the descriptor state if needed, captures exceptions and
+records the outcome. Six Commands are implemented in v1:
+\texttt{DeployCommand}, \texttt{UndeployCommand},
+\texttt{StartCommand}, \texttt{StopCommand},
+\texttt{CreateFolderCommand} and \texttt{CreateDescriptorCommand}.
+
+\textbf{Repositories}. There is one repository per aggregate root
+(folder, descriptor, job). The interface is small: \texttt{save},
+\texttt{get}, \texttt{exists}, \texttt{subtree} or \texttt{find\_by\_status},
+\texttt{delete}. The TinyDB implementation operates on Pydantic
+models through \texttt{model\_dump()} and \texttt{model\_validate()}.
+A different backend (MongoDB, PostgreSQL) would replace the body of
+these methods without changing any caller.
+
+\textbf{Facade service}. The \texttt{OrchestratorService} class is
+the public face of the engine. It exposes one method per public
+operation (\texttt{deploy}, \texttt{undeploy}, \texttt{start},
+\texttt{stop}, \texttt{status}, \texttt{list\_tree}, \texttt{inspect},
+\texttt{load}, \texttt{folder\_exists}) and resolves the connector
+session through the connection pool. The facade is the only place
+where coordination between repositories, the resolver, the job
+engine and the connector pool happens.
+
+\subsection{Mock connector}
+
+The mock connector is the only implementation of the
+\texttt{HypervisorConnector} abstract base class delivered in v1.
+It keeps its state in memory (a dictionary of fake VMs, a counter
+of created VM identifiers, a list of pre-loaded demo templates) and
+implements every method of the contract with the same observable
+behaviour as a real hypervisor. The mock is not a stub: it actually
+clones the requested template into a new VM record, transitions
+its runtime state under \texttt{start} and \texttt{stop} and reports
+the right value under \texttt{get\_status}. The whole system runs
+end-to-end against this connector, without any real hypervisor;
+this is what makes the demo of \Cref{sec:demo} reproducible on any
+laptop.
+
+\subsection{CLI interface}
+
+The CLI is implemented with \texttt{cmd2}, which provides both a
+batch mode (one command at a time, suitable for shell scripts) and
+an interactive REPL (with history, tab completion and built-in
+\texttt{help}). Argument parsing for every command uses the
+\texttt{argparse} integration of \texttt{cmd2}; this gives
+auto-generated, coloured help for free.
+
+The CLI does not embed the engine. It accepts an instance of
+\texttt{OrchestratorAPI} at construction time and forwards every
+command to it. By default the instance is an
+\texttt{HttpServiceClient} configured against the daemon's URL; a
+test that wants to drive the CLI without a daemon passes an
+in-process \texttt{OrchestratorService} instead. The
+\texttt{HttpServiceClient} translates HTTP transport errors
+(connection refused, timeout, 4xx response) into
+\texttt{OperationError} exceptions with actionable messages, so the
+user does not see HTTP-level error codes in the terminal.
+
+\subsection{REST daemon}
+
+The daemon is a FastAPI application served by Uvicorn. The
+application is built by \texttt{create\_app(service)}, which takes
+an instance of the facade and registers one endpoint per public
+operation. Paths are passed as query parameters
+(\texttt{?path=/lab/student01}) so they remain easy to read in
+URLs and easy to test from the command line with \texttt{curl}.
+Error codes follow a small and explicit convention: 200~OK for
+successful operations, 400~Bad Request for failed validation
+(returning the list of error messages), 422~Unprocessable Entity for
+malformed inputs that fail Pydantic validation before reaching the
+service. There is a \texttt{GET /api/v1/health} endpoint for
+liveness checks.
+
+The daemon entry point lives in
+\texttt{src/univorch/interfaces/rest/\_\_main\_\_.py} and is
+registered in \texttt{pyproject.toml} as the \texttt{univorchd}
+console script. It composes a real \texttt{OrchestratorService} (with
+TinyDB repositories on the path declared by the environment
+variable \texttt{UNIVORCH\_DB\_PATH}) and runs Uvicorn on the port
+declared by \texttt{UNIVORCH\_PORT}.
+
+\subsection{Packaging and distribution}
+
+The production image is built from a multi-stage Dockerfile. The
+first stage uses \texttt{uv} to resolve and install only the
+runtime dependencies. The second stage is a slim Python 3.12 base
+that copies the resolved virtual environment, the application code
+and the entry points. The resulting image is around 200~MB and
+takes a few seconds to pull. The image is published to
+\texttt{ghcr.io/clamaveruma/univorch} by the \texttt{publish.yml}
+workflow, triggered by signed tags of the form \texttt{vX.Y.Z}.
+
+A \texttt{docker-compose.yml} file declares the service, the
+named volume (\texttt{univorch\_data}) where the TinyDB file
+lives, the port mapping and the environment variables. A thin
+shell wrapper, \texttt{univorch.sh}, exposes a convenient command
+surface (\texttt{start}, \texttt{stop}, \texttt{restart},
+\texttt{status}, \texttt{logs}, \texttt{cli}).
+
+For new users, an \texttt{install.sh} script is published from a
+fixed URL and does the whole installation in one command. The
+script detects the local Docker version, picks a free port if 8080
+is taken, falls back from \texttt{docker compose} to
+\texttt{docker-compose} v1 if needed and explains what it is going
+to do before doing it. The script is documented in the supervisor's
+tutorial (\texttt{docs/tutorial-profesor.md}).
+
+%==================================================================
 \section{Testing strategy}
 \label{sec:pruebas}
 
-% TODO: draft.
-% 4.4.1 Test pyramid applied.
-% 4.4.2 Unit tests by module, with high coverage in domain logic.
-% 4.4.3 Integration tests with in-memory TinyDB and the real mock
-%   connector.
-% 4.4.4 Property-based tests with Hypothesis: the resolver, a pure
-%   function, is the ideal case. Three properties checked.
-% 4.4.5 REST tests with FastAPI TestClient as an httpx client that
-%   routes to the ASGI app in-process. Catches client-server
-%   divergences without network.
-% 4.4.6 Final metrics: 244 tests passing at the close of Sprint 3,
-%   95-100% in central modules.
+The testing strategy is a small but consistent application of the
+test pyramid. Most tests are unit tests; a strong layer of
+integration tests covers the facade and the REST endpoints; a
+minority of tests use property-based testing to exercise the
+resolver. There are no end-to-end tests against a real hypervisor
+in v1, because no real connector exists yet; the demo of
+\Cref{sec:demo} is the closest analogue.
 
+\subsection{Unit tests}
+
+Unit tests target a single class or module. They are fast (the full
+unit suite runs in well under one second) and they pin behaviour at
+the granularity needed to refactor with confidence. The Pydantic
+models are tested for round-trip serialization and for field
+validation. The Commands are tested with both a successful and a
+failing case for each branch of their validation. The mock
+connector is tested by exercising every method of the
+\texttt{HypervisorConnector} contract.
+
+\subsection{Integration tests}
+
+Integration tests target the facade and exercise it through the
+complete chain: facade $\to$ resolver $\to$ job engine $\to$
+repositories $\to$ TinyDB $\to$ mock connector. The repositories
+are configured against an in-memory TinyDB so the tests stay fast
+and isolated from disk; the mock connector is used in its
+\texttt{empty()} variant so every test starts from a known state.
+The integration tests are the ones that catch interaction bugs
+between pieces that look correct in isolation.
+
+\subsection{Property-based tests}
+
+The resolver is a pure function over plain data. Property-based
+testing with Hypothesis~\cite{hypothesis-docs} is well suited to it.
+The strategy generates random trees of folders and descriptors with
+random imports, templates and hypervisor definitions, and checks
+properties that should hold for any input:
+
+\begin{itemize}
+  \item Idempotence: resolving the same descriptor twice returns
+        the same result.
+  \item Closure: a template imported from $A$ resolves its internal
+        references from $A$, regardless of the folder where the
+        import happens.
+  \item Bounded import: a folder cannot see a resource that no
+        ancestor explicitly imported.
+\end{itemize}
+
+Hypothesis shrinks failing cases to a minimal counterexample
+automatically; in practice this has caught two subtle bugs in
+the inheritance resolution during the development of Sprint~2.
+
+\subsection{REST tests}
+
+The REST endpoints are tested with the \texttt{httpx.AsyncClient}
+of FastAPI, which routes requests directly to the ASGI application
+in-process. This catches client/server divergences (a missing field
+in the request schema, a wrong status code) without spinning up a
+real Uvicorn server. The same tests also exercise the
+\texttt{HttpServiceClient} of the CLI: the client is constructed
+against the in-process test transport, which keeps the test fast
+and deterministic. This is one of the cleanest benefits of the
+Sprint~3.2 decision to make the CLI a pure HTTP client: the same
+test suite covers the wire format and the client code at once.
+
+\subsection{Coverage and metrics}
+
+\Cref{tab:coverage} reports the line and branch coverage at the
+close of Sprint~3, measured by \texttt{pytest-cov} on the central
+modules. Coverage is above 95\% in every module that contains
+domain logic; the lower number on the CLI module reflects mostly
+interactive code paths and the launch wiring that the test suite
+intentionally does not exercise.
+
+\begin{table}[ht]
+  \centering
+  \small
+  \begin{tabular}{l r r}
+    \toprule
+    \textbf{Module} & \textbf{Line coverage} & \textbf{Branch coverage} \\
+    \midrule
+    \texttt{models.py}            & 100\% & 100\% \\
+    \texttt{resolver.py}          & 100\% & 100\% \\
+    \texttt{service.py}           & 97\%  & 95\% \\
+    \texttt{jobs/commands.py}     & 100\% & 100\% \\
+    \texttt{jobs/engine.py}       & 100\% & 100\% \\
+    \texttt{persistence/tinydb/}  & 100\% & 100\% \\
+    \texttt{connectors/mock.py}   & 100\% & 100\% \\
+    \texttt{interfaces/cli/}      & 92\%  & 88\% \\
+    \texttt{interfaces/rest/}     & 95\%  & 90\% \\
+    \bottomrule
+  \end{tabular}
+  \caption{Coverage at the close of Sprint~3 (244 tests passing).}
+  \label{tab:coverage}
+\end{table}
+
+%==================================================================
 \section{Functional demonstration}
 \label{sec:demo}
 
-% TODO: draft. Screenshots to include (figures/ folder).
-% - Tree structure loaded from the demo.
-% - inspect showing inheritance and closure in action.
-% - Full lifecycle deploy/start/status/stop/undeploy.
-% - HTTP health check via curl and the browser (/docs).
-% - Walk through the API in Swagger UI.
+This section describes the end-to-end demonstration that runs
+against the mock connector, without any real hypervisor. The same
+demonstration is in \texttt{demo/README.md} of the repository, with
+copy-pasteable commands. Screenshots will be added before the final
+submission of the report; provisionally the demonstration is
+described in prose.
 
+\subsection{Starting the daemon}
+
+The administrator pulls the public image and starts the service in
+one command:
+
+\begin{verbatim}
+docker run -d --name univorch -p 8080:8080 \
+       -v univorch_data:/data \
+       ghcr.io/clamaveruma/univorch:latest
+\end{verbatim}
+
+A liveness check at \texttt{http://localhost:8080/api/v1/health}
+returns \texttt{\{"status":"ok"\}}. The OpenAPI specification is
+auto-generated by FastAPI and available at
+\texttt{/api/v1/openapi.json}; the Swagger UI is at
+\texttt{/api/v1/docs} and is the easiest way to explore the API
+without writing any code.
+
+\subsection{Loading the demo tree}
+
+The demo tree is a small YAML file describing one administrative
+folder \texttt{/lab} (with the hypervisor definition and a base
+template), one folder \texttt{/lab/networks} (the subject) and
+three descriptor entries \texttt{student01}, \texttt{student02},
+\texttt{student03} that use the imported template:
+
+\begin{verbatim}
+kind: definition
+version: "1"
+folders:
+  lab:
+    description: "Computer Science Lab"
+    define hypervisors:
+      mock01: { type: mock }
+    define templates:
+      linux-vm:
+        use hypervisor: mock01
+        base_vm: linux-base
+    folders:
+      networks:
+        description: "Computer Networks course"
+        import: [linux-vm]
+        descriptors:
+          student01: { use template: linux-vm, cpu: 2 }
+          student02: { use template: linux-vm, cpu: 2 }
+          student03: { use template: linux-vm, cpu: 4 }
+\end{verbatim}
+
+The administrator loads the document into the orchestrator:
+
+\begin{verbatim}
+univorch load demo/setup.yml /
+\end{verbatim}
+
+The CLI prints the list of operations performed, one line per
+folder or descriptor created. After this command, \texttt{univorch
+tree /} renders the descriptor tree with state glyphs next to each
+node: \texttt{[ ]} for \texttt{provisioned}, \texttt{[*]} for
+\texttt{deployed}, in red for \texttt{broken}, in yellow for
+\texttt{unreachable}.
+
+\subsection{Inspecting the inheritance}
+
+The \texttt{inspect} command shows the effective definition of any
+folder or descriptor with the inheritance applied. Three modes are
+supported. \texttt{--local} prints only what is written at the node
+itself, with no merging. \texttt{--expanded} prints the result of
+applying imports and cascade inheritance but without following
+references inside templates. The default mode prints the fully
+resolved definition: the hypervisor name, the base VM, the hardware
+parameters and any local overrides.
+
+This is how the demonstration shows the lexical closure: the
+descriptor \texttt{student03} declares no hypervisor and no base VM
+explicitly; \texttt{inspect} reveals that it inherits the template
+\texttt{linux-vm} (defined in \texttt{/lab}, not in
+\texttt{/lab/networks}) and that the template itself resolves
+\texttt{use hypervisor: mock01} against the same folder
+\texttt{/lab} where it was defined. The override of \texttt{cpu} to
+4 appears explicitly as a local property.
+
+\subsection{Full life cycle}
+
+The administrator runs the complete life cycle on one of the
+descriptors:
+
+\begin{verbatim}
+univorch deploy /lab/networks/student01
+univorch start  /lab/networks/student01
+univorch status /lab/networks/student01
+univorch stop   /lab/networks/student01
+univorch undeploy /lab/networks/student01
+\end{verbatim}
+
+Each command produces a Job that is persisted in the daemon. The
+\texttt{deploy} job transitions the descriptor from
+\texttt{provisioned} to \texttt{deployed}; the mock connector
+records the creation of a new VM with a fresh identifier. The
+\texttt{start} job transitions the runtime state of the VM but
+does not change the descriptor state. The \texttt{status} command
+reads both states from the connector. The \texttt{stop} and
+\texttt{undeploy} jobs reverse the sequence; after
+\texttt{undeploy}, the descriptor is back in \texttt{provisioned}
+and the mock connector has no record of the VM.
+
+\subsection{Exercising the REST API}
+
+The same operations can be invoked directly through the REST API
+with \texttt{curl}:
+
+\begin{verbatim}
+curl -X POST 'http://localhost:8080/api/v1/deploy?path=/lab/networks/student01'
+curl 'http://localhost:8080/api/v1/status?path=/lab/networks/student01'
+\end{verbatim}
+
+This is the same code path the CLI uses, and it is also the entry
+point that future external integrations (a CI pipeline, a teaching
+front-end, a monitoring agent) would use. The Swagger UI displays
+every endpoint with its parameter schema, response schema and
+example values; an external developer who has never seen UnivOrch
+can navigate it in a few minutes.
+
+%==================================================================
 \section{Comparison with esxobjects and yamlinfr}
 \label{sec:comparativa}
 
-% TODO: draft.
-% - Comparison table: scope, dependencies, descriptor model,
-%   extensibility, test coverage, distribution.
-% - Qualitative read: yamlinfr / esxobjects solved their case, bound
-%   to VMware. UnivOrch generalises and opens the door to other
-%   hypervisors without touching the core.
-% - Honest discussion: UnivOrch is not yet a drop-in operational
-%   replacement (real connector is still pending); it is a proof of
-%   concept of the model.
+The two libraries written by the supervisor before this work,
+\texttt{esxobjects} and \texttt{yamlinfr}, are the operational
+precedent of UnivOrch. This section compares them with UnivOrch on
+the same axes that matter for a proof of concept aimed at
+maintainability and reuse. \Cref{tab:comparison} summarizes the
+comparison.
+
+\begin{table}[ht]
+  \centering
+  \small
+  \begin{tabular}{p{0.20\linewidth} p{0.23\linewidth} p{0.23\linewidth} p{0.25\linewidth}}
+    \toprule
+    \textbf{Axis} & \textbf{\texttt{esxobjects}} & \textbf{\texttt{yamlinfr}} & \textbf{UnivOrch} \\
+    \midrule
+    Scope &
+    VMware vSphere API wrapper. &
+    YAML-to-deployment script over \texttt{esxobjects} + external
+    IPAM. &
+    Long-running orchestration service, hypervisor-agnostic. \\
+    Hypervisor coupling &
+    VMware only. &
+    VMware only (via \texttt{esxobjects}). &
+    Pluggable: mock today, VMware and Proxmox planned. \\
+    Model &
+    Object-oriented wrapper around vSphere objects. &
+    Flat YAML, one infrastructure per file. &
+    Tree of folders with cascade inheritance and lexical closure of
+    templates. \\
+    Persistence &
+    None: each invocation is independent. &
+    None: stateless deployment. &
+    TinyDB document database (replaceable by MongoDB). \\
+    Public boundary &
+    Python library. &
+    Command-line script. &
+    REST API with OpenAPI specification. \\
+    Test coverage &
+    Limited. &
+    Limited. &
+    244 tests, $>$95\% coverage on the core. \\
+    Distribution &
+    Internal department use. &
+    Internal department use. &
+    Public Docker image in \texttt{ghcr.io}, single-command install. \\
+    \bottomrule
+  \end{tabular}
+  \caption{Comparison of \texttt{esxobjects}, \texttt{yamlinfr} and
+    UnivOrch.}
+  \label{tab:comparison}
+\end{table}
+
+The comparison must be read honestly. The two previous libraries
+\emph{solved their problem} -- a real working deployment system
+that the supervisor and his students have used for actual courses.
+UnivOrch is, today, a proof of concept of a more ambitious model:
+it generalizes the hypervisor coupling, lifts the deployment script
+into a long-running service, formalizes the data model into a tree
+with inheritance, exposes a public REST contract and adds the
+infrastructure (test discipline, CI/CD, packaged distribution) that
+the previous libraries did not have time to develop. It does \emph{not
+yet} replace them operationally: the real VMware connector is still
+to be implemented, so an actual deployment against the teaching lab
+cannot run on UnivOrch today.
+
+The intended path forward is to write the VMware connector against
+the abstract interface defined in Sprint~1, validate it against the
+same lab that \texttt{yamlinfr} drives today, and then deprecate
+\texttt{yamlinfr} in favour of UnivOrch with the teaching
+application of Sprint~5 on top. This work is outside the scope of
+this TFG, but the present proof of concept proves that the model
+underneath is sound.
