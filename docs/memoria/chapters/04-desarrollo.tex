@@ -37,32 +37,154 @@
 \section{Architectural design}
 \label{sec:diseno}
 
-% TODO: draft. Source: docs/architecture.md + docs/diagrams.md.
-% Important: refresh both documents before writing this section
-% (they still miss Sprint 2 Piece 3 and the whole Sprint 3).
-%
-% Structure:
-% 4.2.1 Two-layer architecture (DEC-004)
-%   - C4 Context diagram (figure).
-%   - C4 Container diagram (figure).
-% 4.2.2 Domain model
-%   - Descriptor tree with materialized path (DEC-008).
-%   - Cascade inheritance by data type (DEC-026).
-%   - Template lexical closure (refinement of DEC-012, 2026-06-06).
-% 4.2.3 Patterns applied
-%   - Facade (OrchestratorService, DEC-031).
-%   - Command pattern (DEC-028).
-%   - Repository (DEC-007/030).
-%   - Strategy / ABC for connectors (DEC-029).
-%   - Protocol for the CLI / HTTP client boundary.
-% 4.2.4 REST as the public boundary
-%   - Defensible argument: the REST API does not exist for remote
-%     CLI convenience (the admin has SSH); it exists for external
-%     integrations.
-%   - CLI dual-mode in-process / HTTP was discarded in favour of the
-%     pure-client model (Sprint 3.2 B-2), to align with
-%     docker / kubectl.
-% 4.2.5 Component diagram (figure) and deployment diagram (figure).
+This section is currently a \emph{provisional figure gallery}. The full
+text is pending; the diagrams below are the up-to-date sources from
+\texttt{docs/architecture.md} and \texttt{docs/diagrams.md} and will
+anchor the final prose. Each subsection follows the planned outline of
+the chapter so that the eventual narrative can fill in around the
+already-rendered figures.
+
+\subsection{Two-layer architecture (DEC-004)}
+\label{subsec:two-layers}
+
+% TODO: prose. Generic orchestrator core (layer 1) + thin teaching
+% application (layer 2). Same engine reusable for CTF, research labs,
+% corporate training.
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=0.95\linewidth]{two-layers.pdf}
+  \caption{Two-layer overview: the daemon \texttt{univorchd} hosts the
+    core; every client (CLI, web GUI, teaching app) speaks REST to it.}
+  \label{fig:two-layers}
+\end{figure}
+
+\subsection{C4 context and containers}
+\label{subsec:c4-l1-l2}
+
+% TODO: prose. C4 model levels 1 and 2 of the system, who uses what.
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=0.95\linewidth]{context.pdf}
+  \caption{C4 level 1 (Context): people and external systems around
+    UnivOrch.}
+  \label{fig:c4-context}
+\end{figure}
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=0.95\linewidth]{containers.pdf}
+  \caption{C4 level 2 (Containers): independently runnable units. The
+    daemon \texttt{univorchd} and the CLI \texttt{univorch} are two
+    separate binaries; every client speaks HTTP.}
+  \label{fig:c4-containers}
+\end{figure}
+
+\subsection{Deployment view}
+\label{subsec:deployment}
+
+% TODO: prose. Real Sprint 3 topology: one Linux host with Docker,
+% the daemon in a container, the TinyDB file on a named volume.
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=0.95\linewidth]{deployment.pdf}
+  \caption{Deployment topology since Sprint 3: clients on tier 1, the
+    daemon container plus its named volume on tier 2, and the
+    hypervisor hosts on tier 3.}
+  \label{fig:deployment}
+\end{figure}
+
+\subsection{Components (as-built)}
+\label{subsec:components}
+
+% TODO: prose. Modules inside the daemon. Status legend: solid =
+% implemented, dashed = designed but pending (web GUI, real
+% connectors).
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=0.95\linewidth]{components.pdf}
+  \caption{C4 level 3 (Components): modules inside \texttt{univorchd}
+    after Sprint 3. Solid green = implemented; dashed grey = designed,
+    not yet implemented.}
+  \label{fig:components}
+\end{figure}
+
+\subsection{Domain model}
+\label{subsec:domain-model}
+
+% TODO: prose. Descriptor tree with materialized path (DEC-008);
+% cascade inheritance by data type (DEC-026); template lexical closure
+% (refinement of DEC-012, 2026-06-06).
+
+\begin{sidewaysfigure}
+  \centering
+  \includegraphics[width=0.95\linewidth]{domain-models.pdf}
+  \caption{Domain model and connector contract (C4 code level, view
+    1/2). Persisted entities (\texttt{Folder}, \texttt{Descriptor},
+    \texttt{Job}), input documents (\texttt{DefinitionDocument} and
+    friends) and the abstract \texttt{HypervisorConnector}.}
+  \label{fig:domain-models}
+\end{sidewaysfigure}
+
+\subsection{Patterns applied}
+\label{subsec:patterns}
+
+% TODO: prose. Facade (OrchestratorService, DEC-031), Command pattern
+% (DEC-028), Repository (DEC-007/030), Strategy / ABC for connectors
+% (DEC-029), Protocol for the CLI / HTTP client boundary.
+
+\begin{sidewaysfigure}
+  \centering
+  \includegraphics[width=0.95\linewidth]{engine-rest.pdf}
+  \caption{Engine, service and REST boundary (C4 code level, view
+    2/2). The \texttt{OrchestratorAPI} Protocol unifies the in-process
+    service and the HTTP client; clients depend on the Protocol, not
+    on either concrete class.}
+  \label{fig:engine-rest}
+\end{sidewaysfigure}
+
+\subsection{Declarative load flow (DEC-027)}
+\label{subsec:load-flow}
+
+% TODO: prose. Parse, diff, validate (fail-fast), plan/dry-run,
+% execute. Plan is the same flow with execute disabled. Validation
+% lives in the service, never creates a Job until accepted.
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=0.75\linewidth]{load-flow.pdf}
+  \caption{Stages of \texttt{load} / \texttt{plan}: validation
+    rejects \emph{before} any state change.}
+  \label{fig:load-flow}
+\end{figure}
+
+\subsection{Descriptor state machine (DEC-022, DEC-032)}
+\label{subsec:state-machine}
+
+% TODO: prose. Four descriptor states; runtime states are reported by
+% the hypervisor and not stored. State changes only as the result of a
+% Job. broken is the precise definition added in DEC-032.
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=0.85\linewidth]{state-machine.pdf}
+  \caption{Descriptor state machine. Runtime states (running,
+    stopped, paused) belong to the hypervisor and are not persisted by
+    the orchestrator.}
+  \label{fig:state-machine}
+\end{figure}
+
+\subsection{REST as the public boundary}
+\label{subsec:rest-boundary}
+
+% TODO: prose. Defensible argument: the REST API does not exist for
+% remote CLI convenience (the admin has SSH); it exists for external
+% integrations. CLI dual-mode in-process / HTTP was discarded in
+% favour of the pure-client model (Sprint 3.2 B-2), to align with
+% docker / kubectl.
 
 \section{Implementation}
 \label{sec:implementacion}

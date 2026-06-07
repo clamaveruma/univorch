@@ -1,0 +1,18 @@
+stateDiagram-v2
+    [*] --> provisioned
+
+    provisioned --> deployed : deploy OK
+    deployed --> provisioned : undeploy OK
+    deployed --> broken : operation fails
+    broken --> provisioned : force-undeploy
+
+    deployed --> unreachable : comms failure
+    provisioned --> unreachable : comms failure
+    unreachable --> deployed : comms restored
+    unreachable --> provisioned : comms restored
+
+    state deployed {
+        [*] --> normal
+        normal --> drifted : drift detected on get_status
+        drifted --> normal : re-deploy
+    }

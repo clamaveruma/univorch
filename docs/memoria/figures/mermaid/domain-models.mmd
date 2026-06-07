@@ -1,0 +1,136 @@
+classDiagram
+    class DescriptorState {
+        <<enumeration>>
+        PROVISIONED
+        DEPLOYED
+        BROKEN
+        UNREACHABLE
+    }
+    class JobStatus {
+        <<enumeration>>
+        PENDING
+        RUNNING
+        COMPLETED
+        FAILED
+    }
+    class OperationType {
+        <<enumeration>>
+        DEPLOY
+        UNDEPLOY
+        START
+        STOP
+        CREATE_FOLDER
+        CREATE_DESCRIPTOR
+    }
+    class RuntimeState {
+        <<enumeration>>
+        RUNNING
+        STOPPED
+        PAUSED
+        UNKNOWN
+    }
+    class CloneMode {
+        <<enumeration>>
+        LINKED
+        FULL
+    }
+
+    class Folder {
+        +path TreePath
+        +description str
+        +imports list~str~
+        +hypervisors dict~str, HypervisorDef~
+        +vm_templates dict~str, VMTemplateDef~
+    }
+    class Descriptor {
+        +path TreePath
+        +hypervisor str
+        +base_vm str
+        +template str
+        +state DescriptorState
+        +vm_id str
+    }
+    class HypervisorDef {
+        +connector_type str
+        +description str
+    }
+    class VMTemplateDef {
+        +hypervisor str
+        +base_vm str
+        +cpu int
+        +memory_mb int
+        +disk_gb int
+    }
+    class FolderDef {
+        +description str
+        +imports list~str~
+        +hypervisors dict~str, HypervisorDef~
+        +vm_templates dict~str, VMTemplateDef~
+        +folders dict~str, FolderDef~
+        +descriptors dict~str, DescriptorDef~
+    }
+    class DescriptorDef {
+        +hypervisor str
+        +base_vm str
+        +template str
+        +cpu int
+        +memory_mb int
+        +disk_gb int
+    }
+    class DefinitionDocument {
+        +kind str
+        +version str
+        +folders dict~str, FolderDef~
+        +descriptors dict~str, DescriptorDef~
+    }
+    class Job {
+        +id str
+        +operation_type OperationType
+        +target str
+        +status JobStatus
+        +created_at datetime
+        +finished_at datetime
+        +message str
+    }
+
+    class VMInfo {
+        +id str
+        +name str
+        +runtime_state RuntimeState
+    }
+    class HypervisorConnector {
+        <<abstract>>
+        +clone(source_id, name, mode) str
+        +delete(vm_id)
+        +start(vm_id)
+        +stop(vm_id)
+        +force_stop(vm_id)
+        +pause(vm_id)
+        +resume(vm_id)
+        +get_status(vm_id) RuntimeState
+        +get_info(vm_id) VMInfo
+    }
+    class MockConnector {
+        -_templates set~str~
+        -_deployed dict
+        +empty() MockConnector
+        +with_templates(templates) MockConnector
+        +deployed_vms() list~VMInfo~
+    }
+
+    Descriptor ..> DescriptorState
+    Job ..> JobStatus
+    Job ..> OperationType
+    Folder o-- HypervisorDef
+    Folder o-- VMTemplateDef
+    FolderDef o-- HypervisorDef
+    FolderDef o-- VMTemplateDef
+    FolderDef o-- DescriptorDef
+    FolderDef o-- FolderDef : nested
+    DefinitionDocument o-- FolderDef
+    DefinitionDocument o-- DescriptorDef
+    HypervisorConnector <|-- MockConnector
+    HypervisorConnector ..> VMInfo : returns
+    HypervisorConnector ..> RuntimeState : returns
+    HypervisorConnector ..> CloneMode : uses
+    VMInfo ..> RuntimeState

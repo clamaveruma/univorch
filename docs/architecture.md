@@ -1,7 +1,11 @@
 # UnivOrch — Architecture Document
 
 > Phase 3 deliverable — Design of the Universal Virtual Machine Orchestrator  
-> TFG — Universidad de Málaga
+> TFG — Universidad de Málaga  
+> **Last refresh:** 2026-06-07 — incorporates Sprint 2 Piece 3 (connector
+> type registry + live-session pool, template lexical closure) and Sprint 3
+> (REST daemon, dual-binary client/server model, downloadable container,
+> one-line installer).
 
 ---
 
@@ -25,27 +29,33 @@ This separation ensures the core is reusable for other use cases (CTF competitio
 
 ```mermaid
 graph TB
-    subgraph L2["Layer 2"]
-        TA["Teaching Application\nsubject · student · workstation"]
+    subgraph CLIENTS["Clients (each speaks HTTP to the daemon)"]
+        CLI["CLI — univorch (cmd2 + httpx)"]
+        WEB["Web GUI (NiceGUI, Sprint 4)"]
+        TA["Teaching app — Layer 2\nsubject · student · workstation"]
     end
 
-    subgraph L1["Layer 1 — Core"]
-        SVC["OrchestratorService\nfacade"]
-        JE["Job Engine"]
-        RES["Resolver"]
+    subgraph DAEMON["univorchd — REST daemon (one process, one container)"]
+        REST["REST app — FastAPI + uvicorn"]
+        SVC["OrchestratorService — facade"]
+        RES["Resolver — cascade + closure"]
+        JE["Job engine + Commands"]
+        POOL["Connection pool\nlive hypervisor sessions"]
+        REG["Connector type registry"]
         REP["Repositories"]
-        CON["Connectors"]
-        SVC --> JE
+        REST --> SVC
         SVC --> RES
+        SVC --> JE
+        SVC --> POOL
+        POOL --> REG
         JE --> REP
-        JE --> CON
     end
 
-    CLI["CLI (cmd2)"] --> SVC
-    WEB["Web GUI (NiceGUI)"] --> SVC
-    TA --> SVC
+    CLI -- "REST /api/v1/*" --> REST
+    WEB -- "REST /api/v1/*" --> REST
+    TA  -- "REST /api/v1/*" --> REST
     REP --> DB[("TinyDB / MongoDB")]
-    CON --> HYP["VMware · Proxmox · Mock"]
+    POOL --> HYP["VMware · Proxmox · Mock"]
 ```
 
 ---
@@ -94,6 +104,14 @@ The combination rule when a child overrides an inherited value depends on the da
 A field may declare an exception to its default rule. The known v1 case is `ip_pool`, which replaces the entire block rather than merging, because its sub-fields (range, mask, gateway) only make sense as a coherent unit.
 
 Permissions (`managers`, `end_users`) are two lists that accumulate downward. A user assigned as manager at a given folder retains that role in all descendants unless explicitly overridden at a lower level. Revocation is performed at the node where the assignment was made; lists do not support removal entries in v1.
+
+### 4.3.1 Lexical closure of templates (DEC-012 refinement, 2026-06-06)
+
+A template carries the lexical environment of the folder where it is **defined**, not of the folder where it is **used**. When a descriptor references a template through `use template: T`, every internal reference inside `T` (for instance `use hypervisor: mock01`) is resolved by walking the tree from `T`'s defining folder, not from the descriptor's own folder.
+
+This is the closure rule of functional languages applied to inheritable resources. In practice, it means a teaching folder can `import: [linux-vm]` without having to also import `mock01` — the template knows its own hypervisor because that hypervisor lives next to it.
+
+The implementation is captured by a generic walker, `_find_resource(name, start, folders_repo, attribute)`, that traverses ancestors honouring `import:` filters. The two concrete walkers (`_find_template`, `_find_hypervisor`) are one-line adapters over it. When future resource types (datastores, IP pools) join the model, they reuse the same walker.
 
 ### 4.4 Lazy resolution (DEC-B2)
 
@@ -239,19 +257,34 @@ All connectors implement the `HypervisorConnector` abstract base class (Python `
 
 ABC is chosen over `typing.Protocol` for three reasons: it fails loudly at instantiation if a method is missing (rather than at call time); it self-documents the relationship through explicit inheritance; and it allows shared default implementations for common logic.
 
-### 7.2 Connector registry
+### 7.2 Type registry and live-session pool (DEC-036)
 
-In v1, connectors are registered in an internal dictionary mapping the type name to the connector class:
+After Sprint 2 Piece 3 the service no longer receives ready-made connector **instances**; it receives the **type registry** and instantiates a live session the first time each hypervisor is used. Two separate structures with two different responsibilities:
 
-```python
-_registry = {
-    "vmware":  VMwareConnector,
-    "proxmox": ProxmoxConnector,
-    "mock":    MockConnector,
-}
-```
+- **`CONNECTOR_TYPES`** — a hardcoded dictionary in `univorch/connectors/__init__.py` mapping type names to connector classes:
 
-When a descriptor specifies `hypervisor: {type: vmware, ...}`, the engine looks up `"vmware"` in the registry and instantiates the connector with the hypervisor credentials. The registry abstraction is designed to be backed by Python entry points in the future, enabling third-party connectors to be distributed and discovered via `pip install` without modifying the core.
+  ```python
+  CONNECTOR_TYPES: dict[str, type[HypervisorConnector]] = {
+      "mock": MockConnector,
+      # "vmware":  VMwareConnector,    # when the connector lands
+      # "proxmox": ProxmoxConnector,
+  }
+  ```
+
+  Adding a new connector type is one import plus one entry. Python entry-point auto-discovery is left as a future extension for third-party connectors (DEC-029), not a v1 requirement.
+
+- **`_connection_pool`** — a dictionary attribute of `OrchestratorService` mapping the **path of the folder that declared a hypervisor** to the live connector session. Two hypervisors with the same name in different branches (for instance two folders each declaring `aulario`) keep distinct live sessions, so their credentials, sockets and in-memory state never collide.
+
+The pool is **not a Repository**: the live objects hold OS resources (TLS sockets, vSphere tokens, in-memory mock state) that are neither serialisable nor safe to persist (credentials must not land in TinyDB — DEC-021). When the service restarts the pool is empty; sessions are re-created on demand from the declarations stored in the folder tree.
+
+The resolution flow when `use hypervisor: X` is encountered:
+
+1. `_find_hypervisor` walks the tree from the descriptor's folder (or from the template's defining folder, for closure cases) and finds the `HypervisorDef`.
+2. The `type:` value of that `HypervisorDef` is validated against `CONNECTOR_TYPES`.
+3. If the pool already has a session indexed by the defining folder path, it is reused; otherwise the connector class is instantiated and stored in the pool.
+4. The live session is handed to the Command that needs it.
+
+The whole pipeline lives behind `OrchestratorService._resolve_hypervisor`. The Commands never know about the registry, the pool, or the walker; they receive a fully resolved live connector object.
 
 ### 7.3 Mock connector
 
@@ -320,15 +353,68 @@ Methods are session-aware: every call carries a session token that the facade va
 
 Session tokens are persisted in `SessionRepository` from v1 (not held in memory). This ensures sessions survive service restarts and are compatible with future active/passive HA.
 
-### 9.3 Interfaces
+### 9.3 The REST boundary and the client/server split (Sprint 3)
 
-**CLI (cmd2):** dual-mode — individual shell commands for scripting (`univorch deploy /path`) and an interactive REPL shell for exploratory use. Authenticated via session token. Both modes call `OrchestratorService`.
+Sprint 3 turned the facade into the inner core of a long-lived service and added an HTTP boundary in front. Two binaries, one image:
 
-**Web GUI (NiceGUI):** covers all roles. Includes the YAML editor described in section 5.3, the annotated definition view (inherited properties highlighted), and the workstation/desk view for students (DEC-009). Calls `OrchestratorService` via the same facade.
+- **`univorchd`** — the daemon. Composes `OrchestratorService` + `create_app(service)` (FastAPI) + `uvicorn`. Listens on `0.0.0.0:8080` inside the container. This is the `CMD` of the production Docker image.
+- **`univorch`** — the CLI client. Always speaks HTTP to a daemon. The default endpoint is `http://localhost:8080` (the daemon that lives next door in the same container when run via `docker exec`); overridable with `--remote URL`, the `UNIVORCH_REMOTE` env var, or the in-REPL `connect URL` command (precedence in that order).
+
+The argument for keeping a REST API is **not** "remote CLI convenience" — administrators already have SSH. It is the **public API for external integrations**: scripts, CI/CD, GitOps, the future web GUI, third-party automation. The CLI happens to be the first such integration.
+
+#### 9.3.1 `OrchestratorAPI` Protocol
+
+The CLI consumes a `Protocol` (PEP 544) that captures the public surface of the facade:
+
+```python
+class OrchestratorAPI(Protocol):
+    def deploy(self, path: str) -> Job: ...
+    def undeploy(self, path: str) -> Job: ...
+    def start(self, path: str) -> Job: ...
+    def stop(self, path: str) -> Job: ...
+    def status(self, path: str) -> DescriptorStatus: ...
+    def list_tree(self, path: str = "/", recursive: bool = False) -> list[TreeEntry]: ...
+    def folder_exists(self, path: str) -> bool: ...
+    def inspect(self, path: str, *, resolved: bool = True) -> Descriptor | Folder: ...
+    def load(self, document: DefinitionDocument, destination: str = "/") -> list[LoadResult]: ...
+```
+
+Two implementations satisfy the contract by structural typing:
+
+- `OrchestratorService` — runs the orchestrator in-process; embedded inside the daemon.
+- `HttpServiceClient` — translates each call into an HTTP request against the daemon and converts `400` responses back into `OperationError` so the CLI sees a uniform exception shape regardless of whether the backend is local or remote.
+
+`Protocol` is preferred over an ABC here because we do not want to force the existing `OrchestratorService` to inherit from anything; we only want to describe the surface and let `mypy` verify that both implementations honour it.
+
+#### 9.3.2 HTTP error translation
+
+`HttpServiceClient._send` collapses three classes of failure into the same `OperationError` exception that the CLI already knows how to render in red:
+
+- `httpx.ConnectError` → "cannot reach the UnivOrch daemon at *URL*. Is it running? Try: `univorchd`".
+- `httpx.RequestError` (timeouts, network problems) → generic transport error.
+- HTTP `400` from the daemon → the `errors` list carried in the response body.
+
+Everything else propagates raw so an unexpected `500` reaches the user with its real shape.
+
+### 9.4 Container as the delivery unit
+
+The production unit of distribution is a Docker image published in `ghcr.io/clamaveruma/univorch`. A multi-stage `Dockerfile` produces a minimal runtime layer (`python:3.12-slim`); the daemon's `CMD` is `["univorchd"]`. The `docker-compose.yml` declares the host-to-container port mapping `${UNIVORCH_PORT:-8080}:8080`, the named volume `univorch_data` for the TinyDB JSON file, and a Python-based healthcheck against `/api/v1/health`.
+
+A thin bash wrapper, `univorch.sh`, hides `docker compose` behind short verbs (`start | stop | restart | status | logs | cli`). The `cli` verb runs `docker exec -it univorch univorch ...` inside the container, so an administrator without a local Python environment can still drive the CLI.
+
+For first-time installs a one-line installer (`install.sh`) is fetched and piped to `bash`. It checks Docker availability, detects whether the host port `8080` is busy and asks for an alternative when needed, downloads `univorch.sh` and `docker-compose.yml` into `./univorch/`, and persists the chosen port in `.env`. It does not start the service; that is an explicit second step. This is the pattern recommended in the supervisor-facing tutorial.
+
+A continuous-delivery workflow (`.github/workflows/publish.yml`) builds and publishes the image to ghcr whenever a semver tag `vX.Y.Z` is pushed, plus a `workflow_dispatch` manual trigger. The publishing cadence is intentionally not "every push to main": versioned releases require a conscious tag.
+
+### 9.5 Interfaces
+
+**CLI (`univorch`, cmd2):** dual mode — individual shell commands for scripting (`univorch deploy /path`) and an interactive REPL with history and tab completion. Pure HTTP client since Sprint 3.
+
+**Web GUI (NiceGUI, Sprint 4):** covers all roles. Includes the YAML editor described in section 5.3, the annotated definition view (inherited properties highlighted), and the workstation/desk view for students (DEC-009). Another HTTP client of the same daemon.
 
 **TUI (Textual):** future; read-only monitoring view.
 
-### 9.4 The teaching application as a facade client
+### 9.6 The teaching application as a facade client
 
 The teaching application (layer 2) is a client of `OrchestratorService`, not part of the core. It translates domain-specific operations ("deploy the OS lab for all students in this group") into sequences of generic core operations (create folders, create descriptors, assign IPs, deploy). The core has no knowledge of subjects, students, or workstations.
 
@@ -413,18 +499,23 @@ The architectural groundwork for HA is already in place: Jobs, locks, and sessio
 | DEC-006 | Declarative model | 5 |
 | DEC-007 | Repository pattern | 8.3 |
 | DEC-010 | Cascade inheritance | 4.3 |
-| DEC-012 | Import mechanism | 4.3 |
+| DEC-012 | Import mechanism + template closure (refined 2026-06-06) | 4.3, 4.3.1 |
 | DEC-014/015 | Job pattern and persistence | 6.2 |
 | DEC-016 | Connector interface | 7.1 |
-| DEC-018 | Client interfaces | 9.3 |
+| DEC-018 | Client interfaces | 9.5 |
 | DEC-021 | User management | 8.3 |
 | DEC-022 | Descriptor state machine | 10 |
 | DEC-023 | Logging and retention | 6.2 |
 | DEC-024 | Database backup | 8.2 |
 | DEC-025 | IP pool management | 8.3 |
 | DEC-026 | Inheritance by data type | 4.3 |
-| DEC-027 | Declarative apply/plan flow | 5 |
+| DEC-027 | Declarative load/plan flow (renamed from apply/plan) | 5 |
 | DEC-028 | Job engine: Command pattern, locking | 6 |
-| DEC-029 | Hypervisor connectors | 7 |
+| DEC-029 | Hypervisor connectors (ABC + registry pattern) | 7.1, 7.2 |
 | DEC-030 | Persistence: TinyDB → MongoDB | 8 |
 | DEC-031 | Service facade and interfaces | 9 |
+| DEC-032 | `broken` state precise definition | 10 |
+| DEC-033 | Technology stack v1 | (technologies.md) |
+| DEC-034 | Pydantic v2 adoption scope | 8 |
+| DEC-035 | Operation idempotency (in the orchestrator, not in the connector) | 6 |
+| DEC-036 | Connector type registry + live-session pool | 7.2 |

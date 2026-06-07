@@ -1,0 +1,27 @@
+flowchart TB
+    admin["«Person»<br/>Admin / Teacher"]:::person
+    student["«Person»<br/>Student"]:::person
+    integrator["«Person/System»<br/>External integration"]:::person
+
+    subgraph sys["UnivOrch system"]
+        cli["«Container»<br/>CLI — univorch<br/>Python, cmd2 + httpx"]:::container
+        web["«Container»<br/>Web GUI (Sprint 4)<br/>Python, NiceGUI"]:::container
+        api["«Container»<br/>REST daemon — univorchd<br/>Python, FastAPI / uvicorn"]:::container
+        db[("«Database»<br/>TinyDB (PoC) / MongoDB (future)<br/>JSON file or document store")]:::db
+    end
+
+    hv["«External System»<br/>Hypervisors (VMware / Proxmox / Mock)"]:::ext
+
+    admin -->|"Uses (terminal)"| cli
+    admin -->|"Uses (HTTPS)"| web
+    student -->|"Uses (HTTPS)"| web
+    integrator -->|"REST / HTTPS"| api
+    cli -->|"REST /api/v1/*"| api
+    web -->|"REST /api/v1/*"| api
+    api -->|"Reads / writes"| db
+    api -->|"Clones and controls (SOAP / REST / in-memory)"| hv
+
+    classDef person fill:#08427b,color:#fff,stroke:#052e56;
+    classDef container fill:#1168bd,color:#fff,stroke:#0b4884;
+    classDef db fill:#1168bd,color:#fff,stroke:#0b4884;
+    classDef ext fill:#999999,color:#fff,stroke:#6b6b6b;

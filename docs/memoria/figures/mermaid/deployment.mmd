@@ -1,0 +1,37 @@
+flowchart LR
+    subgraph Clients["Tier 1 — Client hosts"]
+        Admin["Admin / teacher<br/>terminal + browser"]
+        Student["Student<br/>browser"]
+        Integ["External integration<br/>scripts, CI/CD"]
+    end
+
+    subgraph OrchHost["Tier 2 — Orchestrator host (Linux + Docker)"]
+        subgraph Container["univorchd container (univorch image, ghcr.io)"]
+            REST["FastAPI + uvicorn — REST :8080"]
+            Core["Core<br/>service · resolver · jobs · pool"]
+        end
+        Vol[("TinyDB JSON<br/>named volume univorch_data")]
+    end
+
+    subgraph HV1["Tier 3 — Hypervisor host (VMware ESXi)"]
+        ESX["vSphere API"]
+        VM1["VM"]
+        VM2["VM"]
+    end
+
+    subgraph HV2["Tier 3 — Hypervisor host (Proxmox)"]
+        PVE["Proxmox API"]
+        VM3["VM"]
+    end
+
+    Admin -->|REST / HTTPS<br/>or docker exec → CLI in container| REST
+    Student -->|Web GUI / HTTPS| REST
+    Integ -->|REST /api/v1| REST
+    REST --> Core
+    Core --> Vol
+    Core -->|vSphere SOAP| ESX
+    Core -->|Proxmox REST| PVE
+    ESX --- VM1
+    ESX --- VM2
+    PVE --- VM3
+    Student -. direct access by IP .-> VM1

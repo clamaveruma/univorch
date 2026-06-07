@@ -1,0 +1,5 @@
+flowchart LR
+    A[parse] --> B[diff] --> C{validate}
+    C -->|pass| D[plan<br/>dry-run]
+    D --> E[execute]
+    C -->|fail| F[reject<br/>no changes made]

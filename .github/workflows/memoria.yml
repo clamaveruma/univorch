@@ -33,6 +33,35 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
+      - name: Setup Node.js (for mermaid-cli)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install mermaid-cli
+        # mmdc renderiza ficheros .mmd a PDF vectorial via Puppeteer
+        # (Chrome headless). El PDF es lo que LaTeX incluye con
+        # \includegraphics manteniendo nitidez a cualquier zoom.
+        run: npm install -g @mermaid-js/mermaid-cli@^11
+
+      - name: Render Mermaid diagrams to PDF
+        # En CI, Chrome necesita --no-sandbox porque el runner ya esta
+        # en un entorno aislado. --pdfFit recorta el blanco para que las
+        # cajas de \includegraphics encajen al tamano real del diagrama.
+        run: |
+          set -euo pipefail
+          cd docs/memoria/figures/mermaid
+          echo '{"args": ["--no-sandbox"]}' > puppeteer-config.json
+          for mmd in *.mmd; do
+            name="${mmd%.mmd}"
+            echo "Rendering $mmd -> ../$name.pdf"
+            mmdc -i "$mmd" -o "../$name.pdf" \
+              --puppeteerConfigFile puppeteer-config.json \
+              --pdfFit
+          done
+          rm -f puppeteer-config.json
+          ls -la ../*.pdf
+
       - name: Compile memoria with XeLaTeX
         # xu-cheng/latex-action trae texlive-full y compila con
         # latexmk; XeLaTeX porque la plantilla UMA usa fuentes OpenType

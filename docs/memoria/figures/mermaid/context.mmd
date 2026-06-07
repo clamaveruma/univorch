@@ -1,0 +1,18 @@
+flowchart TB
+    admin["«Person»<br/>Admin / Teacher<br/>Defines the tree, deploys and manages VMs"]:::person
+    student["«Person»<br/>Student<br/>Operates and uses assigned VMs"]:::person
+    integrator["«Person/System»<br/>External integration<br/>CI/CD, GitOps, scripts"]:::person
+    univorch["«System»<br/>UnivOrch<br/>Universal VM orchestrator"]:::system
+    vmware["«External System»<br/>VMware vSphere"]:::ext
+    proxmox["«External System»<br/>Proxmox VE"]:::ext
+
+    admin -->|"Manages / deploys (CLI, Web)"| univorch
+    student -->|"Operates own VMs (Web)"| univorch
+    integrator -->|"Automates (REST /api/v1)"| univorch
+    univorch -->|"Clones and controls VMs (vSphere SOAP)"| vmware
+    univorch -->|"Clones and controls VMs (Proxmox REST)"| proxmox
+    student -.->|"Uses the VM (SSH / RDP / console)"| vmware
+
+    classDef person fill:#08427b,color:#fff,stroke:#052e56;
+    classDef system fill:#1168bd,color:#fff,stroke:#0b4884;
+    classDef ext fill:#999999,color:#fff,stroke:#6b6b6b;

@@ -7,16 +7,18 @@
 > [architecture.md](architecture.md).
 >
 > **Terminology note:** a C4 *container* is any independently runnable unit (a
-> service, a database, the CLI) — **not** a Docker container. UnivOrch's service
+> service, a database, the CLI) — **not** a Docker container. UnivOrch's daemon
 > happens to run in a Docker container, but the word means different things.
 >
 > **Rendering note:** the diagrams follow the C4 *model*; for reliable layout
 > they are drawn as Mermaid flowcharts and class diagrams (with C4 stereotypes
 > like «Person» and «Container»), not Mermaid's experimental native C4 renderer.
 >
-> **Last updated:** 2026-05-26 — Sprint 1 closed: connectors, persistence, Jobs
-> engine + Commands, `OrchestratorService` facade, YAML parser, and cmd2-based
-> CLI with argparse help. Web GUI and real hypervisor connectors still pending.
+> **Last updated:** 2026-06-07 — Sprint 3 closed. The daemon (`univorchd`) and
+> the CLI client (`univorch`) are now two distinct binaries; everything goes
+> through the REST API. The Resolver, connector type registry and live-session
+> pool are in place. Real hypervisor connectors and the web GUI are still
+> pending.
 
 ---
 
@@ -28,12 +30,14 @@ The big picture: who uses UnivOrch and which external systems it talks to.
 flowchart TB
     admin["«Person»<br/>Admin / Teacher<br/>Defines the tree, deploys and manages VMs"]:::person
     student["«Person»<br/>Student<br/>Operates and uses assigned VMs"]:::person
+    integrator["«Person/System»<br/>External integration<br/>CI/CD, GitOps, scripts"]:::person
     univorch["«System»<br/>UnivOrch<br/>Universal VM orchestrator"]:::system
     vmware["«External System»<br/>VMware vSphere"]:::ext
     proxmox["«External System»<br/>Proxmox VE"]:::ext
 
-    admin -->|"Manages / deploys (REST, Web)"| univorch
+    admin -->|"Manages / deploys (CLI, Web)"| univorch
     student -->|"Operates own VMs (Web)"| univorch
+    integrator -->|"Automates (REST /api/v1)"| univorch
     univorch -->|"Clones and controls VMs (vSphere SOAP)"| vmware
     univorch -->|"Clones and controls VMs (Proxmox REST)"| proxmox
     student -.->|"Uses the VM (SSH / RDP / console)"| vmware
@@ -47,29 +51,34 @@ flowchart TB
 
 ## 2. Containers (C4 level 2)
 
-The independently runnable units that make up UnivOrch.
+The independently runnable units that make up UnivOrch. **Note**: the daemon
+(`univorchd`) and the CLI (`univorch`) are now two separate binaries, both
+published as entry points of the same Python package. Every client speaks
+HTTP to the daemon; nothing embeds the orchestrator in-process anymore.
 
 ```mermaid
 flowchart TB
     admin["«Person»<br/>Admin / Teacher"]:::person
     student["«Person»<br/>Student"]:::person
+    integrator["«Person/System»<br/>External integration"]:::person
 
     subgraph sys["UnivOrch system"]
-        cli["«Container»<br/>CLI<br/>Python, cmd2 + httpx"]:::container
-        web["«Container»<br/>Web GUI<br/>Python, NiceGUI"]:::container
-        api["«Container»<br/>Orchestrator service<br/>Python, FastAPI / uvicorn"]:::container
-        db[("«Database»<br/>TinyDB<br/>JSON file")]:::db
+        cli["«Container»<br/>CLI — univorch<br/>Python, cmd2 + httpx"]:::container
+        web["«Container»<br/>Web GUI (Sprint 4)<br/>Python, NiceGUI"]:::container
+        api["«Container»<br/>REST daemon — univorchd<br/>Python, FastAPI / uvicorn"]:::container
+        db[("«Database»<br/>TinyDB (PoC) / MongoDB (future)<br/>JSON file or document store")]:::db
     end
 
-    hv["«External System»<br/>Hypervisors (VMware / Proxmox)"]:::ext
+    hv["«External System»<br/>Hypervisors (VMware / Proxmox / Mock)"]:::ext
 
-    admin -->|"Uses"| cli
+    admin -->|"Uses (terminal)"| cli
     admin -->|"Uses (HTTPS)"| web
     student -->|"Uses (HTTPS)"| web
-    cli -->|"Calls (REST / HTTPS)"| api
-    web -->|"Calls"| api
+    integrator -->|"REST / HTTPS"| api
+    cli -->|"REST /api/v1/*"| api
+    web -->|"REST /api/v1/*"| api
     api -->|"Reads / writes"| db
-    api -->|"Clones and controls (SOAP / REST)"| hv
+    api -->|"Clones and controls (SOAP / REST / in-memory)"| hv
 
     classDef person fill:#08427b,color:#fff,stroke:#052e56;
     classDef container fill:#1168bd,color:#fff,stroke:#0b4884;
@@ -81,28 +90,32 @@ flowchart TB
 
 ## 3. Deployment (C4 supplementary view)
 
-How the containers map onto hosts and tiers. This is the **target** topology —
-largely future; it shows how the pieces are meant to be deployed.
+How the containers map onto hosts and tiers. This is the **real** topology
+since Sprint 3: a single Linux host running the daemon in a Docker container,
+with the CLI either driven from the same container (via `docker exec`) or
+from any external host that can reach the REST port.
 
-- **Tier 1 — clients:** admins/teachers (CLI + browser) and students (browser).
-- **Tier 2 — orchestrator:** one Linux host running UnivOrch in a Docker
-  container; TinyDB persists on a host-managed named volume mounted into it.
-- **Tier 3 — hypervisors + VMs:** VMware/Proxmox hosts running the VMs; the
-  connectors talk to each hypervisor's management API.
+- **Tier 1 — clients:** admins/teachers (CLI or browser) and students (browser).
+- **Tier 2 — orchestrator host:** one Linux machine running Docker. The
+  `univorchd` daemon lives in a container; the TinyDB JSON file persists on a
+  named volume.
+- **Tier 3 — hypervisor hosts + VMs:** VMware and Proxmox hosts running the
+  VMs the orchestrator clones and controls.
 
 ```mermaid
 flowchart LR
     subgraph Clients["Tier 1 — Client hosts"]
-        Admin["Admin / teacher<br/>CLI + browser"]
+        Admin["Admin / teacher<br/>terminal + browser"]
         Student["Student<br/>browser"]
+        Integ["External integration<br/>scripts, CI/CD"]
     end
 
     subgraph OrchHost["Tier 2 — Orchestrator host (Linux + Docker)"]
-        subgraph Container["UnivOrch container"]
-            API["FastAPI + uvicorn<br/>REST API + Web GUI :8080"]
-            Core["Core<br/>service · jobs · connectors"]
+        subgraph Container["univorchd container (univorch image, ghcr.io)"]
+            REST["FastAPI + uvicorn — REST :8080"]
+            Core["Core<br/>service · resolver · jobs · pool"]
         end
-        Vol[("TinyDB<br/>named volume")]
+        Vol[("TinyDB JSON<br/>named volume univorch_data")]
     end
 
     subgraph HV1["Tier 3 — Hypervisor host (VMware ESXi)"]
@@ -116,9 +129,10 @@ flowchart LR
         VM3["VM"]
     end
 
-    Admin -->|REST / HTTPS| API
-    Student -->|Web GUI / HTTPS| API
-    API --> Core
+    Admin -->|REST / HTTPS<br/>or docker exec → CLI in container| REST
+    Student -->|Web GUI / HTTPS| REST
+    Integ -->|REST /api/v1| REST
+    REST --> Core
     Core --> Vol
     Core -->|vSphere SOAP| ESX
     Core -->|Proxmox REST| PVE
@@ -128,29 +142,44 @@ flowchart LR
     Student -. direct access by IP .-> VM1
 ```
 
-In **development and the demo**, the `MockConnector` stands in for the hypervisor
-tier: no real ESXi/Proxmox hosts are needed, and the orchestrator runs directly
-with `uv run` (no container).
+In the **mock-driven demo**, the `MockConnector` replaces both hypervisor
+tiers: the daemon runs the same Docker image, only the connector type
+declared by the tree changes.
 
 ---
 
 ## 4. Components (C4 level 3) — as-built
 
-Modules inside the orchestrator. After Sprint 1, the engine, persistence and the
-CLI are in place; the web GUI and the real hypervisor connectors are still pending.
+Modules inside the daemon. After Sprint 3 the daemon (`univorchd`),
+the CLI (`univorch`), the Resolver, the connector type registry and the
+live-session pool are all in place. The web GUI and the real hypervisor
+connectors are still pending.
 
 **Legend:** solid green = implemented · dashed/grey = designed, not yet implemented.
 
 ```mermaid
 flowchart TD
-    subgraph Interfaces
-        CLI["CLI — cmd2 + argparse"]:::done
-        Web["Web GUI — NiceGUI"]:::pending
+    subgraph Clients["Client binaries"]
+        CLI["univorch CLI — cmd2 + argparse"]:::done
+        Web["Web GUI — NiceGUI (Sprint 4)"]:::pending
+        TA["Teaching app — layer 2 (Sprint 5+)"]:::pending
     end
 
-    Service["OrchestratorService (facade)"]:::done
-    Parser["YAML parser — ruamel.yaml + Pydantic"]:::done
-    Jobs["Jobs engine + Commands"]:::done
+    subgraph RESTLayer["REST boundary (inside univorchd)"]
+        Http["HttpServiceClient<br/>(inside the CLI)"]:::done
+        App["FastAPI app — create_app(service)"]:::done
+        Main["__main__ — uvicorn entry point"]:::done
+    end
+
+    subgraph Core["Core (inside univorchd)"]
+        Service["OrchestratorService (facade)"]:::done
+        Resolver["Resolver<br/>cascade + lexical closure"]:::done
+        Walker["_find_resource<br/>generic walker"]:::done
+        Pool["Connection pool<br/>path → live connector"]:::done
+        Registry["CONNECTOR_TYPES<br/>type → class"]:::done
+        Parser["YAML parser — ruamel.yaml + Pydantic"]:::done
+        Jobs["Jobs engine + Commands"]:::done
+    end
 
     subgraph Persistence
         Repos["Repositories<br/>Folder · Descriptor · Job"]:::done
@@ -164,15 +193,20 @@ flowchart TD
         Proxmox["ProxmoxConnector"]:::pending
     end
 
-    Models["Models — Folder, Descriptor,<br/>Job, ApplyDocument, …"]:::done
-    Resolver["Resolver (cascade inheritance)"]:::pending
+    Models["Models — DefinitionDocument,<br/>Folder, Descriptor, Job,<br/>HypervisorDef, VMTemplateDef"]:::done
 
-    CLI --> Service
-    Web --> Service
-    CLI --> Parser
+    CLI --> Http
+    Http -->|HTTP /api/v1/*| App
+    Web -.HTTP.-> App
+    TA -.HTTP.-> App
+    App --> Service
+    Main --> App
+    Service --> Resolver
     Service --> Jobs
-    Service --> Repos
-    Service -.uses (Sprint 2).-> Resolver
+    Service --> Pool
+    Resolver --> Walker
+    Pool --> Registry
+    Service --> Parser
     Jobs --> ABC
     Jobs --> Repos
     Repos --> DB
@@ -191,10 +225,10 @@ flowchart TD
 
 ## 5. Code (C4 level 4) — as-built
 
-The classes that exist after Sprint 1. Optional fields (typed `X | None`,
-default `None`) are omitted from the diagrams to keep them readable. Two views,
-because one diagram with everything is unreadable: **5.1 Domain + Connectors**
-and **5.2 Engine, Persistence, Service, CLI**.
+The classes that exist after Sprint 3. Optional fields (typed `X | None`,
+default `None`) are omitted from the diagrams to keep them readable. Two
+views, because one diagram with everything is unreadable: **5.1 Domain +
+Connectors** and **5.2 Engine, Service, REST boundary**.
 
 ### 5.1 Domain models & connectors
 
@@ -238,13 +272,51 @@ classDiagram
 
     class Folder {
         +path TreePath
+        +description str
+        +imports list~str~
+        +hypervisors dict~str, HypervisorDef~
+        +vm_templates dict~str, VMTemplateDef~
     }
     class Descriptor {
         +path TreePath
         +hypervisor str
         +base_vm str
+        +template str
         +state DescriptorState
         +vm_id str
+    }
+    class HypervisorDef {
+        +connector_type str  // type:
+        +description str
+    }
+    class VMTemplateDef {
+        +hypervisor str  // use hypervisor:
+        +base_vm str
+        +cpu int
+        +memory_mb int
+        +disk_gb int
+    }
+    class FolderDef {
+        +description str
+        +imports list~str~
+        +hypervisors dict~str, HypervisorDef~
+        +vm_templates dict~str, VMTemplateDef~
+        +folders dict~str, FolderDef~
+        +descriptors dict~str, DescriptorDef~
+    }
+    class DescriptorDef {
+        +hypervisor str
+        +base_vm str
+        +template str
+        +cpu int
+        +memory_mb int
+        +disk_gb int
+    }
+    class DefinitionDocument {
+        +kind: "definition"
+        +version str
+        +folders dict~str, FolderDef~
+        +descriptors dict~str, DescriptorDef~
     }
     class Job {
         +id str
@@ -254,12 +326,6 @@ classDiagram
         +created_at datetime
         +finished_at datetime
         +message str
-    }
-    class ApplyDocument {
-        +kind: "apply"
-        +version str
-        +folders list~Folder~
-        +descriptors list~Descriptor~
     }
 
     class VMInfo {
@@ -280,33 +346,32 @@ classDiagram
         +get_info(vm_id) VMInfo
     }
     class MockConnector {
+        -_templates set~str~
+        -_deployed dict
         +empty() MockConnector
-        +with_demo_templates() MockConnector
         +with_templates(templates) MockConnector
         +deployed_vms() list~VMInfo~
-    }
-    class _MockVM {
-        +id str
-        +name str
-        +runtime_state RuntimeState
-        +metadata dict
     }
 
     Descriptor ..> DescriptorState
     Job ..> JobStatus
     Job ..> OperationType
-    ApplyDocument o-- Folder
-    ApplyDocument o-- Descriptor
+    Folder o-- HypervisorDef
+    Folder o-- VMTemplateDef
+    FolderDef o-- HypervisorDef
+    FolderDef o-- VMTemplateDef
+    FolderDef o-- DescriptorDef
+    FolderDef o-- FolderDef : nested
+    DefinitionDocument o-- FolderDef
+    DefinitionDocument o-- DescriptorDef
     HypervisorConnector <|-- MockConnector
-    MockConnector "1" o-- "*" _MockVM : manages
     HypervisorConnector ..> VMInfo : returns
     HypervisorConnector ..> RuntimeState : returns
     HypervisorConnector ..> CloneMode : uses
     VMInfo ..> RuntimeState
-    _MockVM ..> RuntimeState
 ```
 
-### 5.2 Engine, persistence, service & CLI
+### 5.2 Engine, service & REST boundary
 
 ```mermaid
 classDiagram
@@ -349,7 +414,8 @@ classDiagram
         +find_by_status(status) list~Job~
     }
 
-    class OrchestratorService {
+    class OrchestratorAPI {
+        <<Protocol>>
         +deploy(path) Job
         +undeploy(path) Job
         +start(path) Job
@@ -357,7 +423,35 @@ classDiagram
         +status(path) DescriptorStatus
         +list_tree(path, recursive) list~TreeEntry~
         +folder_exists(path) bool
-        +apply(document) list~ApplyResult~
+        +inspect(path, resolved) Descriptor or Folder
+        +load(document, destination) list~LoadResult~
+    }
+    class OrchestratorService {
+        -_connector_types dict
+        -_connection_pool dict
+        +deploy(path) Job
+        +undeploy(path) Job
+        +start(path) Job
+        +stop(path) Job
+        +status(path) DescriptorStatus
+        +list_tree(path, recursive) list~TreeEntry~
+        +folder_exists(path) bool
+        +inspect(path, resolved) Descriptor or Folder
+        +load(document, destination) list~LoadResult~
+        -_resolve_hypervisor(original, resolved, origin) HypervisorConnector
+    }
+    class HttpServiceClient {
+        -_http httpx.Client
+        +deploy(path) Job
+        +undeploy(path) Job
+        +start(path) Job
+        +stop(path) Job
+        +status(path) DescriptorStatus
+        +list_tree(path, recursive) list~TreeEntry~
+        +folder_exists(path) bool
+        +inspect(path, resolved) Descriptor or Folder
+        +load(document, destination) list~LoadResult~
+        -_send(method, url, ...) Response
     }
     class OperationError {
         +errors list~str~
@@ -373,25 +467,42 @@ classDiagram
         +kind: "folder" | "descriptor"
         +state DescriptorState
     }
-    class ApplyResult {
+    class LoadResult {
         +path str
         +ok bool
         +message str
     }
+    class InspectResult {
+        +kind: "folder" | "descriptor"
+        +folder Folder
+        +descriptor Descriptor
+    }
+
+    class create_app {
+        <<function>>
+        +create_app(service) FastAPI
+    }
+    class univorchd {
+        <<entry point>>
+        +main()
+    }
 
     class UnivOrchShell {
         <<cmd2.Cmd>>
+        -_service OrchestratorAPI
+        -_remote str
         +do_cd(args)
         +do_pwd(args)
         +do_list(args)
-        +do_ls(args)
         +do_tree(args)
+        +do_inspect(args)
         +do_deploy(args)
         +do_undeploy(args)
         +do_start(args)
         +do_stop(args)
         +do_status(args)
-        +do_apply(args)
+        +do_load(args)
+        +do_connect(args)
     }
 
     Command <|-- DeployCommand
@@ -401,6 +512,9 @@ classDiagram
     Command <|-- CreateFolderCommand
     Command <|-- CreateDescriptorCommand
 
+    OrchestratorService ..|> OrchestratorAPI : implements (structural)
+    HttpServiceClient ..|> OrchestratorAPI : implements (structural)
+
     OrchestratorService --> JobEngine : owns
     OrchestratorService --> FolderRepository
     OrchestratorService --> DescriptorRepository
@@ -408,7 +522,8 @@ classDiagram
     OrchestratorService ..> OperationError : raises
     OrchestratorService ..> DescriptorStatus : returns
     OrchestratorService ..> TreeEntry : returns
-    OrchestratorService ..> ApplyResult : returns
+    OrchestratorService ..> LoadResult : returns
+    OrchestratorService ..> HypervisorConnector : pool of
 
     JobEngine --> JobRepository
     DeployCommand --> DescriptorRepository
@@ -423,7 +538,14 @@ classDiagram
     CreateDescriptorCommand --> DescriptorRepository
     CreateDescriptorCommand --> FolderRepository
 
-    UnivOrchShell --> OrchestratorService
+    create_app --> OrchestratorService : injects
+    create_app ..> InspectResult : wraps inspect
+    univorchd --> create_app
+    univorchd ..> OrchestratorService : composes
+
+    HttpServiceClient ..> OperationError : raises on 400 or ConnectError
+    UnivOrchShell --> OrchestratorAPI
+    UnivOrchShell ..> HttpServiceClient : default backend
 ```
 
 ---
@@ -432,5 +554,6 @@ classDiagram
 
 GitHub renders Mermaid automatically — open this file in the repository. In
 VSCode, the *Markdown Preview Mermaid Support* extension renders it in the
-preview pane. For the final thesis, export to PNG/SVG/PDF with `mermaid-cli` or a
-screenshot of the rendered diagram.
+preview pane. The thesis embeds these diagrams as PDF figures generated from
+the Mermaid sources with `mermaid-cli` (`mmdc`); see
+`docs/memoria/figures/mermaid/` and the CI workflow for the build pipeline.

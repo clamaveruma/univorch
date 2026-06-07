@@ -1,0 +1,61 @@
+flowchart TD
+    subgraph Clients["Client binaries"]
+        CLI["univorch CLI — cmd2 + argparse"]:::done
+        Web["Web GUI — NiceGUI (Sprint 4)"]:::pending
+        TA["Teaching app — layer 2 (Sprint 5+)"]:::pending
+    end
+
+    subgraph RESTLayer["REST boundary (inside univorchd)"]
+        Http["HttpServiceClient<br/>(inside the CLI)"]:::done
+        App["FastAPI app — create_app(service)"]:::done
+        Main["__main__ — uvicorn entry point"]:::done
+    end
+
+    subgraph Core["Core (inside univorchd)"]
+        Service["OrchestratorService (facade)"]:::done
+        Resolver["Resolver<br/>cascade + lexical closure"]:::done
+        Walker["_find_resource<br/>generic walker"]:::done
+        Pool["Connection pool<br/>path → live connector"]:::done
+        Registry["CONNECTOR_TYPES<br/>type → class"]:::done
+        Parser["YAML parser — ruamel.yaml + Pydantic"]:::done
+        Jobs["Jobs engine + Commands"]:::done
+    end
+
+    subgraph Persistence
+        Repos["Repositories<br/>Folder · Descriptor · Job"]:::done
+        DB[("TinyDB — JSON file")]:::done
+    end
+
+    subgraph Connectors
+        ABC["HypervisorConnector (ABC)"]:::done
+        Mock["MockConnector"]:::done
+        VMware["VMwareConnector"]:::pending
+        Proxmox["ProxmoxConnector"]:::pending
+    end
+
+    Models["Models — DefinitionDocument,<br/>Folder, Descriptor, Job,<br/>HypervisorDef, VMTemplateDef"]:::done
+
+    CLI --> Http
+    Http -->|HTTP /api/v1/*| App
+    Web -.HTTP.-> App
+    TA -.HTTP.-> App
+    App --> Service
+    Main --> App
+    Service --> Resolver
+    Service --> Jobs
+    Service --> Pool
+    Resolver --> Walker
+    Pool --> Registry
+    Service --> Parser
+    Jobs --> ABC
+    Jobs --> Repos
+    Repos --> DB
+    Mock -.implements.-> ABC
+    VMware -.implements.-> ABC
+    Proxmox -.implements.-> ABC
+    Service -.uses.-> Models
+    Parser -.produces.-> Models
+    Repos -.persist.-> Models
+
+    classDef done fill:#cde7cd,stroke:#2e7d32,color:#000;
+    classDef pending fill:#f0f0f0,stroke:#999,stroke-dasharray:4 4,color:#555;

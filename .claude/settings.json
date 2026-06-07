@@ -2,7 +2,42 @@
   "permissions": {
     "allow": [
       "Read(//tmp/**)",
-      "Bash(grep -v '^Script started\\\\|^Script done\\\\|^$')"
+      "Bash(grep -v '^Script started\\\\|^Script done\\\\|^$')",
+      "Bash(UNIVORCH_DB=/tmp/demo-3c.json uv run univorch)",
+      "Bash(UNIVORCH_DB=/tmp/demo-closure.json uv run univorch)",
+      "Bash(UNIVORCH_DB_PATH=/tmp/dev-rest.json UNIVORCH_PORT=8080 uv run python -m univorch.interfaces.rest)",
+      "Bash(echo \"daemon PID=$!\")",
+      "Bash(curl -s http://localhost:8080/api/v1/health)",
+      "Bash(curl -s 'http://localhost:8080/api/v1/tree?path=/')",
+      "Bash(curl -s -X POST http://localhost:8080/api/v1/load?destination=/ -H 'Content-Type: application/json' -d '{\"kind\":\"definition\",\"version\":\"1\",\"folders\":{\"lab\":{\"hypervisors\":{\"mock\":{\"connector_type\":\"mock\"}},\"descriptors\":{\"vm\":{\"hypervisor\":\"mock\",\"base_vm\":\"linux-base\"}}}}}')",
+      "Bash(uv pip *)",
+      "Bash(XDG_DATA_HOME=/tmp/xdg-test uv run univorchd)",
+      "Bash(kill %1)",
+      "Bash(wait)",
+      "Bash(git tag -a v0.1.0 -m ' *)",
+      "Bash(chmod +x /workspaces/orch_pru/install.sh)",
+      "Bash(bash -n /workspaces/orch_pru/install.sh)",
+      "Bash(command -v shellcheck)",
+      "Bash(shellcheck /workspaces/orch_pru/install.sh)",
+      "Bash(bash -n /workspaces/orch_pru/univorch.sh)",
+      "Bash(git tag -a v0.2.0 -m ' *)",
+      "WebSearch",
+      "WebFetch(domain:www.uma.es)",
+      "WebFetch(domain:riuma.uma.es)",
+      "WebFetch(domain:biblioguias.uma.es)",
+      "Bash(find /tmp /home /workspaces -maxdepth 4 -name \"*.zip\" -type f 2>/dev/null | head -10 *)",
+      "Read(//home/**)",
+      "Bash(unzip -q Memoria_TFG_UnivOrch.zip -d overleaf-template)",
+      "WebFetch(domain:www.overleaf.com)",
+      "Bash(chmod +x /workspaces/orch_pru/scripts/sync-overleaf.sh)",
+      "Bash(bash -n /workspaces/orch_pru/scripts/sync-overleaf.sh)",
+      "Bash(/workspaces/orch_pru/scripts/sync-overleaf.sh push *)",
+      "WebFetch(domain:docs.overleaf.com)",
+      "Bash(git reset *)",
+      "Bash(npm --version)"
+    ],
+    "additionalDirectories": [
+      "/tmp"
     ]
   }
 }

@@ -1,0 +1,165 @@
+classDiagram
+    class Command {
+        <<abstract>>
+        +operation_type OperationType
+        +target str
+        +validate() list~str~
+        +execute() str
+    }
+    class DeployCommand
+    class UndeployCommand
+    class StartCommand
+    class StopCommand
+    class CreateFolderCommand
+    class CreateDescriptorCommand
+
+    class JobEngine {
+        +run(command) Job
+    }
+
+    class FolderRepository {
+        +save(folder)
+        +get(path) Folder
+        +exists(path) bool
+        +subtree(prefix) list~Folder~
+        +delete(path)
+    }
+    class DescriptorRepository {
+        +save(descriptor)
+        +get(path) Descriptor
+        +exists(path) bool
+        +subtree(prefix) list~Descriptor~
+        +delete(path)
+    }
+    class JobRepository {
+        +save(job)
+        +get(id) Job
+        +find_by_target(target) list~Job~
+        +find_by_status(status) list~Job~
+    }
+
+    class OrchestratorAPI {
+        <<Protocol>>
+        +deploy(path) Job
+        +undeploy(path) Job
+        +start(path) Job
+        +stop(path) Job
+        +status(path) DescriptorStatus
+        +list_tree(path, recursive) list~TreeEntry~
+        +folder_exists(path) bool
+        +inspect(path, resolved) InspectResult
+        +load(document, destination) list~LoadResult~
+    }
+    class OrchestratorService {
+        -_connector_types dict
+        -_connection_pool dict
+        +deploy(path) Job
+        +undeploy(path) Job
+        +start(path) Job
+        +stop(path) Job
+        +status(path) DescriptorStatus
+        +list_tree(path, recursive) list~TreeEntry~
+        +folder_exists(path) bool
+        +inspect(path, resolved) InspectResult
+        +load(document, destination) list~LoadResult~
+        -_resolve_hypervisor(original, resolved, origin) HypervisorConnector
+    }
+    class HttpServiceClient {
+        -_http httpx.Client
+        +deploy(path) Job
+        +undeploy(path) Job
+        +start(path) Job
+        +stop(path) Job
+        +status(path) DescriptorStatus
+        +list_tree(path, recursive) list~TreeEntry~
+        +folder_exists(path) bool
+        +inspect(path, resolved) InspectResult
+        +load(document, destination) list~LoadResult~
+        -_send(method, url) Response
+    }
+    class OperationError {
+        +errors list~str~
+    }
+    class DescriptorStatus {
+        +path str
+        +state DescriptorState
+        +runtime_state RuntimeState
+        +vm_id str
+    }
+    class TreeEntry {
+        +path str
+        +kind str
+        +state DescriptorState
+    }
+    class LoadResult {
+        +path str
+        +ok bool
+        +message str
+    }
+    class InspectResult {
+        +kind str
+        +folder Folder
+        +descriptor Descriptor
+    }
+
+    class create_app {
+        <<function>>
+        +create_app(service) FastAPI
+    }
+    class univorchd {
+        <<entry point>>
+        +main()
+    }
+
+    class UnivOrchShell {
+        <<cmd2.Cmd>>
+        -_service OrchestratorAPI
+        -_remote str
+        +do_cd(args)
+        +do_pwd(args)
+        +do_list(args)
+        +do_tree(args)
+        +do_inspect(args)
+        +do_deploy(args)
+        +do_undeploy(args)
+        +do_start(args)
+        +do_stop(args)
+        +do_status(args)
+        +do_load(args)
+        +do_connect(args)
+    }
+
+    Command <|-- DeployCommand
+    Command <|-- UndeployCommand
+    Command <|-- StartCommand
+    Command <|-- StopCommand
+    Command <|-- CreateFolderCommand
+    Command <|-- CreateDescriptorCommand
+
+    OrchestratorService ..|> OrchestratorAPI : implements
+    HttpServiceClient ..|> OrchestratorAPI : implements
+
+    OrchestratorService --> JobEngine : owns
+    OrchestratorService --> FolderRepository
+    OrchestratorService --> DescriptorRepository
+    OrchestratorService --> JobRepository
+    OrchestratorService ..> OperationError : raises
+    OrchestratorService ..> DescriptorStatus : returns
+    OrchestratorService ..> TreeEntry : returns
+    OrchestratorService ..> LoadResult : returns
+
+    JobEngine --> JobRepository
+    DeployCommand --> DescriptorRepository
+    UndeployCommand --> DescriptorRepository
+    StartCommand --> DescriptorRepository
+    StopCommand --> DescriptorRepository
+    CreateFolderCommand --> FolderRepository
+    CreateDescriptorCommand --> DescriptorRepository
+    CreateDescriptorCommand --> FolderRepository
+
+    create_app --> OrchestratorService : injects
+    univorchd --> create_app
+
+    HttpServiceClient ..> OperationError : raises on 400 or ConnectError
+    UnivOrchShell --> OrchestratorAPI
+    UnivOrchShell ..> HttpServiceClient : default backend
