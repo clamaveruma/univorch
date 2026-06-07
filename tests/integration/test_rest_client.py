@@ -10,8 +10,14 @@ Why this beats mocking the transport: an httpx.MockTransport would
 need a hand-rolled fake of every response, and that fake can silently
 drift from the real server. With TestClient the server *is* the real
 code.
+
+For transport-error translation (pendiente 5.2) we DO use MockTransport
+deliberately: we cannot make TestClient refuse a connection because it
+never opens one. ``httpx.MockTransport`` is the right tool for "the
+network said no" tests.
 """
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 from tinydb import TinyDB
@@ -146,6 +152,44 @@ class TestWrites:
     def test_load_missing_destination_raises(self, http: HttpServiceClient) -> None:
         with pytest.raises(OperationError):
             http.load(DefinitionDocument(), destination="/nope")
+
+
+class TestTransportErrors:
+    """Pendiente 5.2: when httpx itself cannot deliver a request (daemon
+    down, timeout, network), the client raises ``OperationError`` with an
+    actionable message — same shape the CLI already knows how to render.
+    """
+
+    def test_connect_error_becomes_actionable_operation_error(self) -> None:
+        def refuse(_request: httpx.Request) -> httpx.Response:
+            raise httpx.ConnectError("connection refused")
+
+        http = HttpServiceClient(
+            httpx.Client(
+                transport=httpx.MockTransport(refuse),
+                base_url="http://localhost:8080",
+            )
+        )
+        with pytest.raises(OperationError) as excinfo:
+            http.status("/lab/vm")
+        message = "; ".join(excinfo.value.errors)
+        assert "cannot reach the UnivOrch daemon" in message
+        assert "http://localhost:8080" in message
+        assert "univorchd" in message  # tells the user how to fix it
+
+    def test_timeout_becomes_operation_error(self) -> None:
+        def timeout(_request: httpx.Request) -> httpx.Response:
+            raise httpx.ReadTimeout("read timeout")
+
+        http = HttpServiceClient(
+            httpx.Client(
+                transport=httpx.MockTransport(timeout),
+                base_url="http://localhost:8080",
+            )
+        )
+        with pytest.raises(OperationError) as excinfo:
+            http.status("/lab/vm")
+        assert "transport error" in "; ".join(excinfo.value.errors)
 
 
 class TestProtocolConformance:

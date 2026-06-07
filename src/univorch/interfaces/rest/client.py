@@ -98,7 +98,7 @@ class HttpServiceClient:
     def _raise_or_get(
         self, url: str, *, params: dict[str, str] | None = None
     ) -> httpx.Response:
-        return self._handle(self._http.get(url, params=params))
+        return self._send("GET", url, params=params)
 
     def _raise_or_post(
         self,
@@ -107,17 +107,38 @@ class HttpServiceClient:
         params: dict[str, str] | None = None,
         json: object = None,
     ) -> httpx.Response:
-        return self._handle(self._http.post(url, params=params, json=json))
+        return self._send("POST", url, params=params, json=json)
 
-    @staticmethod
-    def _handle(response: httpx.Response) -> httpx.Response:
-        """Translate the daemon's 400 into ``OperationError``, raise the rest.
+    def _send(
+        self,
+        method: str,
+        url: str,
+        *,
+        params: dict[str, str] | None = None,
+        json: object = None,
+    ) -> httpx.Response:
+        """Single place where transport errors and 400s are translated.
 
-        The point is to make the HTTP boundary invisible to the CLI: an
-        ``OperationError`` raised in-process and one received via 400 from
-        the daemon look the same to the caller, so the existing error
-        rendering keeps working without changes.
+        Three buckets: cannot even reach the server (``ConnectError`` →
+        actionable message naming the URL and how to start the daemon);
+        any other transport problem (timeout, broken pipe, etc.); and a
+        response that did arrive but the daemon rejected (400 → carries
+        the same ``OperationError`` shape as the in-process facade).
         """
+        try:
+            response = self._http.request(method, url, params=params, json=json)
+        except httpx.ConnectError as e:
+            raise OperationError(
+                [
+                    f"cannot reach the UnivOrch daemon at {self._http.base_url}. "
+                    "Is it running? Try: 'univorchd' "
+                    "(or './univorch.sh start' in production)."
+                ]
+            ) from e
+        except httpx.RequestError as e:
+            raise OperationError(
+                [f"transport error talking to the daemon: {e!s}"]
+            ) from e
         if response.status_code == 400:
             raise OperationError(response.json()["errors"])
         response.raise_for_status()

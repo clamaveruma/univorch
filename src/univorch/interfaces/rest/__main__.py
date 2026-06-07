@@ -25,14 +25,34 @@ from univorch.persistence.tinydb.repositories import (
 )
 from univorch.service import OrchestratorService
 
-_DEFAULT_DB = "/data/univorch.json"
+_CONTAINER_DATA_DIR = Path("/data")
 _DEFAULT_PORT = 8080
+
+
+def _default_db_path(container_dir: Path = _CONTAINER_DATA_DIR) -> Path:
+    """Pick a sensible TinyDB path when ``UNIVORCH_DB_PATH`` is not set.
+
+    Inside the production container, ``/data`` is the volume mount and the
+    natural place — the docker-compose file binds the named volume there.
+    Outside (devcontainer, host without Docker, CI runner…), ``/data`` does
+    not exist and writing to it errors out; in that case fall back to the
+    XDG Base Directory Specification: ``$XDG_DATA_HOME/univorch/db.json``
+    (typically ``~/.local/share/univorch/db.json`` on Linux).
+
+    Pure function: takes ``container_dir`` as a parameter so the choice is
+    testable without touching the real filesystem at /data.
+    """
+    if container_dir.is_dir() and os.access(container_dir, os.W_OK):
+        return container_dir / "univorch.json"
+    xdg = os.environ.get("XDG_DATA_HOME") or str(Path.home() / ".local" / "share")
+    return Path(xdg) / "univorch" / "db.json"
 
 
 def _build_service() -> OrchestratorService:
     """Wire the service over a disk-backed TinyDB at ``UNIVORCH_DB_PATH``."""
-    db_path = os.environ.get("UNIVORCH_DB_PATH", _DEFAULT_DB)
-    Path(db_path).parent.mkdir(parents=True, exist_ok=True)
+    env = os.environ.get("UNIVORCH_DB_PATH")
+    db_path = Path(env) if env else _default_db_path()
+    db_path.parent.mkdir(parents=True, exist_ok=True)
     db = TinyDB(db_path)
     return OrchestratorService(
         FolderRepository(db),
