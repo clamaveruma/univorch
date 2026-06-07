@@ -619,6 +619,36 @@ TinyDB repositories on the path declared by the environment
 variable \texttt{UNIVORCH\_DB\_PATH}) and runs Uvicorn on the port
 declared by \texttt{UNIVORCH\_PORT}.
 
+\subsection{Web interface (read-only)}
+
+A first version of the web interface is delivered in Sprint~4 as a
+read-only view of the tree. It is built with NiceGUI and mounted on
+the same Uvicorn process as the REST application via
+\texttt{ui.run\_with(fastapi\_app, \dots)}: a single port serves both
+\texttt{/api/v1/*} and the web pages. This is a deliberate departure
+from the Sprint~3 ``every client is HTTP'' rule: the web is part of
+the daemon, not an external HTTP client of it. The external clients
+(CLI, future teaching application, third-party integrations) keep
+going through the REST API.
+
+The v1 has three pages. The index page shows a header, four summary
+cards (\emph{total VMs}, \emph{provisioned}, \emph{deployed},
+\emph{broken or unreachable}) and an expandable tree of folders and
+descriptors. The descriptor nodes carry an icon and a badge that
+match the state vocabulary of the CLI (grey for
+\texttt{provisioned}, green for \texttt{deployed}, red for
+\texttt{broken}, yellow for \texttt{unreachable}). Clicking a
+descriptor node navigates to the descriptor detail page, which
+calls \texttt{service.inspect(path, resolved=True)} and
+\texttt{service.status(path)} and renders the eleven relevant
+fields of the effective definition. Folder nodes only expand or
+collapse, with no navigation.
+
+Write operations (deploy, start, stop, undeploy, load),
+authentication and the workstation/desk view for students remain on
+the roadmap; the read-only v1 is the proof that the boundary with
+the orchestrator service works correctly through a graphical client.
+
 \subsection{Packaging and distribution}
 
 The production image is built from a multi-stage Dockerfile. The

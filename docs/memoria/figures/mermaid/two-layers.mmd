@@ -1,12 +1,12 @@
 graph TB
-    subgraph CLIENTS["Clients (each speaks HTTP to the daemon)"]
+    subgraph CLIENTS["External clients (each speaks HTTP to the daemon)"]
         CLI["CLI — univorch (cmd2 + httpx)"]
-        WEB["Web GUI (NiceGUI, Sprint 4)"]
         TA["Teaching app — Layer 2<br/>subject · student · workstation"]
     end
 
-    subgraph DAEMON["univorchd — REST daemon (one process, one container)"]
+    subgraph DAEMON["univorchd — daemon (one process, one container)"]
         REST["REST app — FastAPI + uvicorn"]
+        WEB["Web GUI — NiceGUI<br/>mounted on the same uvicorn"]
         SVC["OrchestratorService — facade"]
         RES["Resolver — cascade + closure"]
         JE["Job engine + Commands"]
@@ -14,6 +14,7 @@ graph TB
         REG["Connector type registry"]
         REP["Repositories"]
         REST --> SVC
+        WEB --> SVC
         SVC --> RES
         SVC --> JE
         SVC --> POOL
@@ -22,7 +23,6 @@ graph TB
     end
 
     CLI -- "REST /api/v1/*" --> REST
-    WEB -- "REST /api/v1/*" --> REST
     TA  -- "REST /api/v1/*" --> REST
     REP --> DB[("TinyDB / MongoDB")]
     POOL --> HYP["VMware · Proxmox · Mock"]

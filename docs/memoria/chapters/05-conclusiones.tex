@@ -125,10 +125,11 @@ the assessment of the work is not based on optimistic assumptions.
         not available during the development period. The VMware
         connector is the immediate next task once access is
         granted.
-  \item \textbf{No graphical interface.} The CLI is the only client
-        delivered. The web GUI was deferred to the next sprint
-        because the REST boundary, the CLI and the engine had
-        higher priority for the PoC.
+  \item \textbf{Web interface limited to read-only.} A first
+        version of the web GUI is delivered in Sprint~4 with the
+        tree view, summary counters and per-descriptor detail; write
+        operations (deploy, start, stop, undeploy, load) and the
+        workstation/desk view for end users remain on the roadmap.
   \item \textbf{Teaching application not implemented.} The
         layer-2 teaching application is fully designed but the
         implementation is left for a later sprint. The current
@@ -168,11 +169,11 @@ abstract connector contract against the messiest of the two target
 APIs (vSphere SOAP). The Proxmox connector follows the same plan
 once VMware is in.
 
-\textbf{Basic web interface.} A NiceGUI-based interface that uses
-the REST API as a thin client. The first version focuses on
-read-only navigation of the tree, descriptor details, job log and
-state at a glance. Write operations (create, edit, deploy) are added
-in a second iteration.
+\textbf{Write operations in the web interface.} The read-only
+v1 delivered in Sprint~4 covers tree navigation, summary counters
+and per-descriptor detail. The next iteration adds the write
+operations (deploy, start, stop, undeploy, load), the YAML editor
+and the workstation/desk view for end users.
 
 \textbf{Teaching application (layer 2).} A single command takes a
 list of students and a base template and produces a complete

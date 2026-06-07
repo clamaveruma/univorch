@@ -29,14 +29,14 @@ This separation ensures the core is reusable for other use cases (CTF competitio
 
 ```mermaid
 graph TB
-    subgraph CLIENTS["Clients (each speaks HTTP to the daemon)"]
+    subgraph CLIENTS["External clients (each speaks HTTP to the daemon)"]
         CLI["CLI — univorch (cmd2 + httpx)"]
-        WEB["Web GUI (NiceGUI, Sprint 4)"]
         TA["Teaching app — Layer 2\nsubject · student · workstation"]
     end
 
-    subgraph DAEMON["univorchd — REST daemon (one process, one container)"]
+    subgraph DAEMON["univorchd — daemon (one process, one container)"]
         REST["REST app — FastAPI + uvicorn"]
+        WEB["Web GUI — NiceGUI\nmounted on the same uvicorn"]
         SVC["OrchestratorService — facade"]
         RES["Resolver — cascade + closure"]
         JE["Job engine + Commands"]
@@ -44,6 +44,7 @@ graph TB
         REG["Connector type registry"]
         REP["Repositories"]
         REST --> SVC
+        WEB --> SVC
         SVC --> RES
         SVC --> JE
         SVC --> POOL
@@ -52,7 +53,6 @@ graph TB
     end
 
     CLI -- "REST /api/v1/*" --> REST
-    WEB -- "REST /api/v1/*" --> REST
     TA  -- "REST /api/v1/*" --> REST
     REP --> DB[("TinyDB / MongoDB")]
     POOL --> HYP["VMware · Proxmox · Mock"]
@@ -410,7 +410,7 @@ A continuous-delivery workflow (`.github/workflows/publish.yml`) builds and publ
 
 **CLI (`univorch`, cmd2):** dual mode — individual shell commands for scripting (`univorch deploy /path`) and an interactive REPL with history and tab completion. Pure HTTP client since Sprint 3.
 
-**Web GUI (NiceGUI, Sprint 4):** covers all roles. Includes the YAML editor described in section 5.3, the annotated definition view (inherited properties highlighted), and the workstation/desk view for students (DEC-009). Another HTTP client of the same daemon.
+**Web GUI (NiceGUI):** mounted on the same uvicorn process as the REST app via `ui.run_with(fastapi_app, ...)`, so a single port serves both `/api/v1/*` and the web pages. The web is part of the daemon, not an external HTTP client of it — a deliberate departure from the Sprint 3.2 "every client is HTTP" rule (DEC-031). External clients (CLI, future teaching app, third-party integrations) keep going through the REST API. The read-only v1 (Sprint 4) renders the descriptor tree with state glyphs and a per-descriptor detail card; the richer features (YAML editor, annotated definition view, workstation/desk view for students described in section 5.3, write operations, RBAC) remain on the roadmap.
 
 **TUI (Textual):** future; read-only monitoring view.
 

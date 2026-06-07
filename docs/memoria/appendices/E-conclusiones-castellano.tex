@@ -127,10 +127,13 @@ optimistas.
         VPN al cluster VMware docente no estuvo disponible durante
         el periodo de desarrollo. El conector VMware es la
         siguiente tarea inmediata cuando se conceda el acceso.
-  \item \textbf{Sin interfaz gráfica.} La CLI es el único cliente
-        entregado. La interfaz web se difirió al siguiente sprint
-        porque la frontera REST, la CLI y el motor tenían
-        prioridad para la PoC.
+  \item \textbf{Interfaz web limitada a solo lectura.} En el
+        Sprint~4 se entrega una primera versión de la interfaz web
+        con la vista del árbol, los contadores resumen y el detalle
+        por descriptor; las operaciones de escritura (deploy, start,
+        stop, undeploy, load) y la vista de mesa/ordenador para los
+        usuarios finales quedan pendientes para la siguiente
+        iteración.
   \item \textbf{Aplicación docente no implementada.} La aplicación
         docente de capa 2 está completamente diseñada pero la
         implementación queda para un sprint posterior. El flujo
@@ -170,12 +173,12 @@ contrato abstracto del conector contra la API más compleja de las
 dos previstas (vSphere SOAP). El conector Proxmox sigue el mismo
 plan una vez que VMware esté en marcha.
 
-\textbf{Interfaz web básica.} Una interfaz basada en NiceGUI que
-use la API REST como cliente fino. La primera versión se centra en
-la navegación de solo lectura del árbol, los detalles del
-descriptor, el historial de Jobs y el estado a primera vista. Las
-operaciones de escritura (crear, editar, desplegar) se añaden en
-una segunda iteración.
+\textbf{Operaciones de escritura en la interfaz web.} La versión
+de solo lectura entregada en el Sprint~4 cubre la navegación del
+árbol, los contadores resumen y el detalle por descriptor. La
+siguiente iteración añade las operaciones de escritura (deploy,
+start, stop, undeploy, load), el editor YAML y la vista de
+mesa/ordenador para los usuarios finales.
 
 \textbf{Aplicación docente (capa 2).} Un solo comando toma una lista
 de alumnos y una plantilla base y produce un despliegue completo

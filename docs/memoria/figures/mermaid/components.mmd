@@ -1,7 +1,7 @@
 flowchart TD
     subgraph Clients["Client binaries"]
         CLI["univorch CLI — cmd2 + argparse"]:::done
-        Web["Web GUI — NiceGUI (Sprint 4)"]:::pending
+        Web["Web GUI — NiceGUI (read-only v1)"]:::done
         TA["Teaching app — layer 2 (Sprint 5+)"]:::pending
     end
 
@@ -37,7 +37,7 @@ flowchart TD
 
     CLI --> Http
     Http -->|HTTP /api/v1/*| App
-    Web -.HTTP.-> App
+    Web --> Service
     TA -.HTTP.-> App
     App --> Service
     Main --> App

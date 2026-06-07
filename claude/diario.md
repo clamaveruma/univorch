@@ -1875,3 +1875,140 @@ de cpu=4) → ciclo `deploy/start/stop/undeploy`. El pool reutiliza la
 sesión mock para las cinco operaciones.
 
 **Próximo (mismo que antes):** Sprint 3.1, daemon REST.
+
+---
+
+## 2026-06-07
+
+### Memoria del TFG redactada (provisional)
+
+Sesión larga, casi entera dedicada a la memoria. El código real
+estaba al día (Sprint 3 cerrado en orca con `v0.2.0`); tocaba
+redactar la documentación académica.
+
+- **Plantilla UMA-ETSI inglés v2.2** sin modificar salvo un parche
+  mínimo a `plain_cover-whiteuma.sty` (envolver "Fecha defensa: …"
+  en `\ifdefempty` para no pintar la línea cuando el campo está
+  vacío). Mismo patrón que ya trae `cotutor_cover-whiteuma.sty`.
+- **Watermark "DRAFT"** en gris claro (scale 1.5) en todas las
+  páginas con `draftwatermark` — la memoria se marca como
+  provisional sin tener que poner avisos sección por sección.
+- **Capítulos 1-5** redactados completos en inglés B2:
+  - Cap 1 (Introduction): motivación EI UMA, esxobjects/yamlinfr
+    del tutor, 7 objetivos O1-O7, tabla §1.3 con los 8 objetivos
+    del anteproyecto mapeados a delivered/designed-but-deferred/
+    blocked.
+  - Cap 2 (State of the art): 9 secciones (virtualization,
+    multi-hv abstraction, declarative IaC, RBAC, lexical scoping,
+    containers vs VMs, supervisor's previous work, positioning,
+    selected technologies). Posicionamiento honesto: jerarquía,
+    multi-hipervisor y delegación a usuarios finales no son
+    novedosos por sí solos; la combinación específica sí lo es.
+    VCL (Vouk 2009) destacado como antecedente directo; Crossplane
+    reconocido como referencia más cercana.
+  - Cap 3 (Methodology): 6 secciones (fases + sprints, devcontainer
+    triple uso, calidad TDD, CI/CD con los 3 workflows reales, IA
+    asistida con patrón propose-clarify-confirm-execute,
+    trazabilidad con los ficheros de claude/).
+  - Cap 4 (Development): el grande. Apertura + 6 bloques. §4.2
+    con las 9 figuras Mermaid integradas + prosa por subsección.
+    Resto: análisis de requisitos resumido, implementación por
+    capa, testing strategy con tabla de coverage real,
+    demostración funcional, comparativa contra esxobjects/yamlinfr
+    en 7 ejes.
+  - Cap 5 (Conclusions): cumplimiento de objetivos, aportaciones,
+    limitaciones honestas, trabajo futuro fusionado en una sola
+    sección.
+- **Apéndice E (Conclusiones y trabajo futuro en castellano):**
+  traducción estructuralmente fiel del cap 5, como exige la
+  normativa EI UMA cuando la memoria está en inglés.
+- **Frontmatter:** abstract en inglés, resumen en castellano,
+  agradecimientos (tutor, familia, Arturo, Anthropic/IA),
+  glosario transcrito de `docs/glossary.md`.
+- **Bibliografía:** `references.bib` con 25 entradas BibTeX bien
+  formadas, DOIs verificables. Búsqueda hecha en paralelo por dos
+  agentes (sistemas comparables + literatura académica) y
+  consolidada en `docs/memoria/_notes/state-of-the-art-research.md`
+  (no entra en el PDF, es material de trabajo).
+- **Workflow `memoria.yml`:** renderiza los 9 diagramas Mermaid a
+  PDF vectorial con `mmdc` antes de compilar XeLaTeX. PDF
+  publicado a la rama `pdf-preview` con URL estable; tarda 2-3 min.
+- **Salvedades pequeñas:** la plantilla "inglesa" UMA traía
+  `Agradecimientos` y `Bibliografía` hardcoded en castellano —
+  sobrescritos con `\SetAcknowledgmentsName{Acknowledgments}` y
+  `\printbibliography[title={Bibliography}]`.
+- **Apéndices A-D** quedan como TODOs (manual del admin,
+  requirements completos, decisiones, CLI reference). Confirmado
+  con el usuario que los apéndices van **dentro del mismo PDF**,
+  no como ficheros aparte: la práctica habitual de la EI UMA y el
+  depósito en RIUMA piden un único PDF como entregable.
+
+### Sprint 4 — Web GUI básica (W1-W5)
+
+Tras la sesión de memoria, sprint nuevo a continuación. La web
+GUI estaba decidida desde DEC-018: NiceGUI, tema Material default.
+Cinco piezas commiteadas por separado:
+
+**Decisión arquitectónica clave**: la web vive **dentro del mismo
+proceso `univorchd`** con `ui.run_with(fastapi_app, ...)`. Una
+sola instancia de uvicorn sirve `/api/v1/*` y las pages web. Esto
+es una desviación deliberada de la regla "todos los clientes son
+HTTP" del Sprint 3.2 (DEC-031); la justificación es que la web es
+**parte del daemon**, no un cliente externo. El usuario lo razonó
+desde el principio (FastAPI y NiceGUI corren ambos sobre uvicorn
+ASGI; integrarlos es lo natural). Los clientes externos (CLI,
+futura Teaching app, integraciones de terceros) siguen siendo
+HTTP puros — esa regla no se rompe.
+
+- **W1 (`e1d9ad2`)**: scaffolding. `src/univorch/interfaces/web/app.py`
+  con `mount_web(app, service)`. Page raíz mínima. `mount_web`
+  llamado desde `rest/__main__.py` justo después de `create_app`.
+  Smoke test verde: `/api/v1/health` 200 OK y `/` sirve HTML de
+  NiceGUI con título "UnivOrch".
+- **W2 (`e6ef8c4`)**: vista del árbol. `_build_tree_nodes(entries)`
+  convierte la lista plana de `TreeEntry` en estructura anidada
+  para `ui.tree`. Custom slot Vue (`default-header`) renderiza
+  cada nodo con icono (folder/check_box/error/cloud_off/
+  crop_square) y badge de estado en colores coherentes con la
+  CLI (provisioned gris, deployed primary, broken rojo,
+  unreachable amarillo).
+- **W3 (`15a95dd`)**: página `/descriptor?path=X`. Click en
+  descriptor del árbol navega ahí; click en folder solo expande.
+  La página llama a `service.inspect(path, resolved=True)` y
+  `service.status(path)` y muestra 11 campos. Maneja
+  `OperationError` (path inexistente) y `entity no descriptor`
+  (folder) sin romperse.
+- **W4 (`e7b3bed`)**: cabecera con 4 stat-cards (total VMs,
+  provisioned, deployed, broken-or-unreachable). Color rojo si
+  hay alguno en broken/unreachable, gris si no.
+- **W5 (`914912b`)**: tests unitarios de los dos helpers puros
+  (`_build_tree_nodes`, `_descriptor_counts`). 9 tests nuevos →
+  253 tests verdes en total. Las pages NiceGUI no se testean
+  unitariamente (cubiertas por smoke tests con el daemon real).
+  Dockerfile no requiere cambios: NiceGUI ya estaba en `pyproject.toml`
+  como dep de producción.
+
+### Documentación actualizada (W6)
+
+- `docs/architecture.md` y `docs/diagrams.md`: la Web GUI sale del
+  subgraph CLIENTS (porque ya no es cliente HTTP externo) y entra
+  en el subgraph DAEMON, conectada directamente a `Service`. El
+  diagrama de componentes (`components.mmd` + `diagrams.md`) marca
+  el Web como `done`. El diagrama two-layer (`two-layers.mmd`)
+  refleja la nueva topología.
+- `docs/memoria/chapters/04-desarrollo.tex`: subsección nueva
+  §4.3.6 "Web interface (read-only)" que describe la decisión
+  arquitectónica, las 3 páginas y lo que queda fuera.
+- `docs/memoria/chapters/05-conclusiones.tex` + apéndice E
+  castellano: la limitación "no graphical interface" pasa a "Web
+  interface limited to read-only"; el future-work "basic web
+  interface" pasa a "write operations in the web interface".
+
+### Próximo
+
+- Sprint 5+: web con operaciones de escritura (deploy, start,
+  stop, undeploy, load), editor YAML, vista de mesa/ordenador para
+  el alumno, autenticación, RBAC.
+- VMware connector (bloqueado por acceso al cluster docente).
+- Pieza 4 Sprint 2 (`based on:`) — aplazada.
+- Apéndices A-D de la memoria.

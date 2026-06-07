@@ -64,7 +64,7 @@ flowchart TB
 
     subgraph sys["UnivOrch system"]
         cli["«Container»<br/>CLI — univorch<br/>Python, cmd2 + httpx"]:::container
-        web["«Container»<br/>Web GUI (Sprint 4)<br/>Python, NiceGUI"]:::container
+        web["«Mounted on the daemon»<br/>Web GUI (read-only v1)<br/>NiceGUI on FastAPI"]:::container
         api["«Container»<br/>REST daemon — univorchd<br/>Python, FastAPI / uvicorn"]:::container
         db[("«Database»<br/>TinyDB (PoC) / MongoDB (future)<br/>JSON file or document store")]:::db
     end
@@ -161,7 +161,7 @@ connectors are still pending.
 flowchart TD
     subgraph Clients["Client binaries"]
         CLI["univorch CLI — cmd2 + argparse"]:::done
-        Web["Web GUI — NiceGUI (Sprint 4)"]:::pending
+        Web["Web GUI — NiceGUI (read-only v1)"]:::done
         TA["Teaching app — layer 2 (Sprint 5+)"]:::pending
     end
 
@@ -197,7 +197,7 @@ flowchart TD
 
     CLI --> Http
     Http -->|HTTP /api/v1/*| App
-    Web -.HTTP.-> App
+    Web --> Service
     TA -.HTTP.-> App
     App --> Service
     Main --> App
