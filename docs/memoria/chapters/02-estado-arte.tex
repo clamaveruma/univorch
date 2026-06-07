@@ -1,92 +1,394 @@
 % Chapter 2 - State of the art and technologies.
-% Sources: docs/technologies.md + new text with IEEE bibliography.
+% Sources: docs/memoria/_notes/state-of-the-art-research.md,
+% docs/technologies.md.
 % Target length: 8-10 pages.
 
 \chapter{State of the art and technologies}
 \label{ch:estado-arte}
 
-% TODO: chapter intro, ~1 page.
-% "This chapter places UnivOrch in the landscape of existing
-% orchestration solutions. We first review the classical categories
-% (hypervisor management, IaC, container orchestration), then narrow
-% down what the teaching case requires and why off-the-shelf products
-% do not fully fit. We close with the concrete technologies adopted
-% for the implementation."
+This chapter places UnivOrch in the landscape of existing systems
+and ideas. We approach it from several angles: the closest academic
+precedent of virtual labs for higher education, the lineage of
+multi-hypervisor abstractions, the broader move from imperative to
+declarative infrastructure management, the well-known field of
+role-based access control with hierarchy, and a recurring discussion
+that surrounds any educational lab today, namely whether containers
+or VMs are the right substrate. We then describe the two libraries
+that the supervisor had developed before this work and that serve as
+the operational starting point. We close with an honest positioning
+of UnivOrch against everything that exists, and with the concrete
+technologies adopted for the implementation.
 
-\section{Virtualisation and orchestration}
+The aim throughout is to be precise about what is already available
+and what is not. Several pieces of UnivOrch borrow from prior art and
+the report acknowledges those debts; the contribution lives in the
+specific combination, not in any individual feature.
+
+%==================================================================
+\section{Virtualization, orchestration and the teaching case}
 \label{sec:virtualizacion-orquestacion}
 
-% TODO: draft. Ideas:
-% - Conceptual difference between "hypervisor", "hypervisor manager"
-%   (vCenter) and "orchestration" (vRA, OpenStack, Kubernetes).
-% - Declarative vs imperative model: Terraform as a reference.
-% - Conceptual parallel with Kubernetes: control plane + declarative
-%   API + reconciliation. UnivOrch borrows the resource model without
-%   inheriting Kubernetes' complexity.
+The terms \emph{hypervisor}, \emph{hypervisor manager} and
+\emph{orchestration} are often used loosely. In this work we use them
+in a strict sense. A \emph{hypervisor} (VMware ESXi, Proxmox VE,
+KVM, Hyper-V) creates and runs virtual machines on a single host. A
+\emph{hypervisor manager} (VMware vCenter, Proxmox cluster) groups
+several hypervisors of the same family under a single administrative
+view, but still speaks the vocabulary of the hypervisor. An
+\emph{orchestrator} sits one level above: it manages the life cycle
+of VMs across one or more managers, exposes its own model of the
+resources, and can speak to several heterogeneous hypervisors through
+adapters.
 
-\section{Existing solutions}
-\label{sec:soluciones-existentes}
+The orchestrator can be \emph{imperative} (the user issues
+\texttt{create}, \texttt{start}, \texttt{stop} commands) or
+\emph{declarative} (the user describes the desired state and the
+orchestrator computes the operations needed to reach it). Burgess
+established the theoretical framing of this latter model in his
+\emph{theory of system administration}~\cite{burgess2003theory},
+introducing the notions of \emph{convergence} between desired and
+actual state and \emph{configuration drift}, which form the
+conceptual basis of Terraform, Ansible and Kubernetes alike. UnivOrch
+adopts the declarative model with on-demand application;
+continuous reconciliation is mentioned in the closing chapter as a
+natural extension.
 
-% TODO: draft. Comparison table at the end.
-% Products to discuss:
-% - VMware vSphere (vCenter): the de-facto standard on VMware.
-%   Paid, proprietary.
-% - VMware vRealize Automation (vRA): VMware's orchestration layer.
-%   Complex, expensive, proprietary.
-% - OpenStack: open source IaaS orchestrator. Excessively complex for
-%   small teaching environments.
-% - Proxmox VE: management UI for Proxmox. Bound to Proxmox.
-% - Foreman: open source provisioning. More oriented to bare metal.
-% - Cloud-init / Ansible: configuration, not orchestration.
-%   Complementary, not substitutes.
-% - Kubernetes: container orchestration, not VM orchestration.
-%   Reference model.
-%
-% For each: one paragraph stating what it solves and what does not
-% match the teaching case.
+The case that justifies a dedicated orchestrator is well documented
+in the academic literature on virtual labs. The most directly
+comparable academic precedent is the Virtual Computing Laboratory
+(VCL) of North Carolina State University, presented in IEEE
+Computer~\cite{vouk2009ncsu} and described in detail
+in~\cite{averitt2007vcl, vouk2008cloud}. The VCL is an open-source
+cloud orchestrator built explicitly for teaching and research, used
+by tens of thousands of students. It demonstrates that a single
+service that lets professors define VM environments and that lets
+students access their own machines is feasible. UnivOrch differs from
+the VCL in three concrete aspects: it is built as a
+hypervisor-agnostic engine instead of a tightly integrated stack, it
+uses a declarative YAML model with cascade inheritance instead of an
+imperative reservation system, and it separates the domain layer
+(teaching, CTF, research) from the engine through a clean public
+boundary.
 
-\section{The teaching case: specific needs}
-\label{sec:caso-docente}
+%==================================================================
+\section{Multi-hypervisor abstraction layers}
+\label{sec:multi-hv}
 
-% TODO: draft. Ideas:
-% - One course == a pyramid of N copies of a template.
-% - Recycling at the end of the term: bulk undeploy.
-% - Isolation between students (network, IPs, snapshots).
-% - The lecturer should not need to be a VMware or networking expert.
-% - Heterogeneity: VMware in the classroom lab, Proxmox in the
-%   research lab. Same conceptual model expected.
-% - This leaves a gap: a hypervisor-agnostic orchestrator with
-%   vocabulary fitting the teaching environment.
+Abstracting several hypervisor families behind a common interface is
+not a new idea. The reference is
+\texttt{libvirt}~\cite{bolte2010libvirt}, an open-source library that
+exposes VMware, Hyper-V, KVM and Xen behind a single API. Its model
+inspired the abstract \texttt{HypervisorConnector} interface used in
+UnivOrch (\Cref{ch:desarrollo}), and the connector contract follows
+the same general shape: a small set of life-cycle operations
+(\texttt{clone}, \texttt{delete}, \texttt{start}, \texttt{stop},
+\texttt{get\_status}) plus a way to expose hypervisor-specific
+parameters.
 
-\section{Starting point: supervisor's previous work}
+At a higher level, several open-source orchestrators already provide
+multi-hypervisor coverage. OpenNebula~\cite{opennebula-docs} supports
+KVM, LXC, vSphere and Firecracker and organizes users in two-level
+groups (groups and Virtual Data Centers); Apache
+CloudStack~\cite{cloudstack-docs} supports KVM, vSphere, XenServer
+and Hyper-V and organizes both the infrastructure (Region $>$ Zone
+$>$ Pod $>$ Cluster) and the user space (Domain $>$ Account) in
+trees; oVirt~\cite{ovirt-docs} focuses on KVM but exposes Data
+Center $>$ Cluster $>$ Host as a hierarchy with inheritance of
+machine type and CPU model from the cluster. The Distributed
+Management Task Force, on the standards side, offers Open
+Virtualization Format (OVF)~\cite{dmtf-ovf} for cross-hypervisor VM
+portability.
+
+The conclusion is that multi-hypervisor abstraction \emph{per se} is
+not a novel contribution; what UnivOrch contributes in this area is a
+much lighter integration model. OpenNebula and CloudStack are
+substantial systems that assume a dedicated operations team. UnivOrch
+keeps the same connector pattern but ships as a single container
+intended to be installed in one command and operated by a single
+person.
+
+%==================================================================
+\section{Declarative infrastructure management}
+\label{sec:declarative}
+
+The declarative model has become the standard in the
+infrastructure-as-code field. Rahman, Mahdavi-Hezaveh and Williams
+present a systematic mapping study~\cite{rahman2019mapping} that
+identifies the main research themes in this area, and their companion
+work on defective IaC scripts~\cite{rahman2019defective} gives
+empirical grounding to the discussion of correctness. The dominant
+industrial tool, Terraform, organizes infrastructure in
+\emph{modules} that can be composed through inputs and outputs, but
+variables do not inherit across module boundaries automatically;
+inheritance has to be wired by hand.
+
+The closest current system to what UnivOrch tries to achieve is
+Crossplane~\cite{crossplane-docs}, which runs inside a Kubernetes
+cluster and uses Composite Resource Definitions (XRDs) and
+Compositions to abstract any cloud or platform resource behind a
+simplified Claim. Crossplane resolves elegantly the separation
+between a generic engine (Kubernetes plus the Crossplane controllers)
+and a domain layer (the XRDs that each organization defines for its
+own platform). This work cannot ignore Crossplane: the architectural
+pattern is similar in spirit. UnivOrch differs in three points: it
+does not require a Kubernetes cluster, which is a practical advantage
+in environments with one to a few hosts; it uses a tree-structured
+domain model with cascade inheritance instead of composition graphs;
+and it accepts that it is much less mature and less extensible than
+Crossplane.
+
+In the specific niche of \emph{GitOps over VMs}, Red Hat has
+documented an integration of KubeVirt with OpenShift
+GitOps~\cite{kubevirt-gitops} that treats VM definitions as code in a
+Git repository. This is a useful reference for the future-work
+section of this report; UnivOrch does not implement Git triggers in
+v1 but its declarative YAML interface and the public REST API leave
+the door open to the same workflow.
+
+%==================================================================
+\section{Hierarchical RBAC and tenant delegation}
+\label{sec:rbac}
+
+Role-Based Access Control with role hierarchy is a classical topic,
+formalized by Sandhu et al.\ in~\cite{sandhu1996rbac} and later
+standardized as the NIST RBAC model~\cite{ferraiolo2001nist} and the
+\mbox{ANSI INCITS}~359-2004 standard~\cite{ansi2004rbac}. The RBAC1
+model directly maps to what UnivOrch implements at the design level:
+a hierarchy of roles in which the assignment at a higher level
+cascades to descendants, with the possibility of overriding at any
+node.
+
+Delegation of management to non-administrator users with a
+simplified view is also common in industry products. OpenNebula
+exposes a \emph{Cloud View} for end users in its Sunstone interface;
+VMware Cloud Director offers Tenant Portals; Nutanix Prism
+incorporates Self-Service blueprints. In all these systems, an
+ordinary user receives a curated subset of operations corresponding
+to their role, without exposure to the underlying machinery. UnivOrch
+embraces this same principle and goes further in one specific
+dimension: the metaphor presented to the student is intentionally
+domain-specific (a \emph{desk} that contains \emph{computers}) and
+hides not only the technical machinery but also the orchestrator's
+own concept of a tree. This is a contribution at the level of
+user-experience design, not at the level of access-control
+mechanism; we present it as such in \Cref{ch:desarrollo}.
+
+The closest pattern in the open-source space is the Hierarchical
+Namespace Controller (HNC) of Kubernetes~\cite{k8s-hnc-blog}, which
+introduces a tree of namespaces with automatic propagation of RBAC
+roles, resource quotas and network policies. HNC is also a good
+reference for the inheritance semantics chosen in UnivOrch.
+
+%==================================================================
+\section{Lexical scoping applied to infrastructure}
+\label{sec:lexical}
+
+One specific aspect of UnivOrch deserves separate discussion because
+it is, to our knowledge, less common in the orchestration literature
+and more familiar to programming-language theory. When a template
+is imported from a parent folder into a child folder, references
+inside the template (\textit{e.g.}\ the hypervisor it targets) are
+resolved \emph{against the folder where the template was originally
+defined}, not against the folder where it is used. This is exactly
+the behaviour of a \emph{lexical closure} in a programming language:
+the environment in which a function was defined accompanies the
+function wherever it travels.
+
+The notion of lexical scoping was introduced by Sussman and Steele in
+the seminal Scheme paper~\cite{sussman1975scheme} and is the subject
+of a clear pedagogical treatment in Chapter~3 of
+SICP~\cite{abelson1996sicp}. In the configuration-language space, the
+idea is alive in Jsonnet~\cite{jsonnet-lang}, which supports lexical
+scoping and object inheritance with \texttt{self} and \texttt{super}
+keywords, and in similar languages such as CUE and Dhall.
+
+The novelty of UnivOrch in this respect is modest but real: this
+work applies the lexical-closure pattern to a concrete model of
+infrastructure resources, integrated with a hierarchical organization
+of users and a multi-hypervisor adapter layer. We have not found
+this combination in any production orchestrator surveyed.
+
+%==================================================================
+\section{Containers and virtual machines in educational labs}
+\label{sec:vm-vs-container}
+
+A reasonable reader may ask, in 2026, why a TFG on VM orchestration
+makes sense at all when container-based stacks are dominant. The
+answer comes from the specific requirements of practical work in
+computer science education. Several recent works are explicit on the
+matter. The KYPO cyber range~\cite{vykopal2017kypo} argues that
+hands-on training in network security and operating-system
+internals demands access to a privileged kernel and to arbitrary
+networking, neither of which a non-privileged container can offer.
+The CyTrONE framework~\cite{beuran2018cytrone} compares both
+substrates and reaches the same practical conclusion: containers
+suffice for many introductory scenarios, but full VMs remain
+necessary for kernel-level and complex-networking exercises. The
+Tele-Lab project~\cite{willems2012telelab} of HPI Potsdam is an
+earlier example of a VM-based learning environment with a long
+operational history.
+
+The Labtainers framework~\cite{irvine2017labtainers}, in contrast,
+demonstrates that the container approach is perfectly viable when
+the lab focuses on application-level security and does not require
+kernel modifications, and it offers an interesting model of
+parameterized, per-student lab instances.
+
+The conclusion is that the choice of substrate depends on the
+nature of the lab. UnivOrch focuses on the VM case for two reasons:
+the existing labs at the EI UMA rely on VMware ESXi and Proxmox; and
+the kinds of exercises that drive the most operational pain at the
+school (computer networks, operating systems, infrastructure
+administration) are precisely the ones that require full VMs.
+
+%==================================================================
+\section{Starting point: the supervisor's previous work}
 \label{sec:punto-partida}
 
-% TODO: draft. Ideas:
-% - esxobjects: Python library wrapping the vSphere SOAP API into a
-%   friendlier interface. Bound to VMware.
-% - yamlinfr: reads YAML descriptions and deploys to vSphere using
-%   esxobjects. Embryonic declarative model.
-% - UnivOrch generalises the model to any hypervisor, rewrites the
-%   connectors from scratch under TDD, and adds a REST layer as a
-%   public boundary.
-% - The Development chapter includes a qualitative comparison with
-%   both libraries.
+The TFG starts from two Python libraries developed by the supervisor,
+Dr.~Guillermo Pérez Trabado, inside the Department of Computer
+Architecture of the University of Málaga. They are unpublished
+internal software but solve a real operational need at the school.
 
-\section{Selected technologies and rationale}
+\texttt{esxobjects} is a Python library that wraps the VMware
+vSphere SOAP API behind a friendlier object-oriented interface. It
+takes care of authentication, session management and the most
+common operations on VMs and templates. It is tied to VMware by
+construction.
+
+\texttt{yamlinfr} is a higher-level layer built on top of
+\texttt{esxobjects}. It reads a YAML description of an infrastructure
+of VMs and deploys it onto VMware. It also interacts with an
+external IPAM service to allocate IP addresses. It is the closest
+operational antecedent of UnivOrch: it already adopts a YAML-based
+declarative model and the idea of deploying a whole infrastructure
+at once.
+
+UnivOrch generalizes this experience along three axes. First, the
+hypervisor is no longer fixed: a connector abstract class allows
+VMware, Proxmox and a development mock to coexist behind the same
+interface. Second, the YAML model is enriched with a tree of folders,
+cascade inheritance and template closures, which the previous
+libraries did not provide. Third, the system becomes a long-running
+service with a public REST API, accessible to multiple clients
+(CLI, future web GUI, external tools), rather than a one-shot
+deployment script. A qualitative comparison between
+\texttt{esxobjects}, \texttt{yamlinfr} and UnivOrch closes
+\Cref{ch:desarrollo}.
+
+%==================================================================
+\section{Positioning of UnivOrch}
+\label{sec:positioning}
+
+Summarizing the sections above, the original contribution of
+UnivOrch is not the appearance of any individual feature in
+isolation. Hierarchical organizations of resources and users are
+provided by OpenNebula, CloudStack, vCloud Director, oVirt and the
+Kubernetes HNC; declarative provisioning is the standard model
+behind Terraform and the various flavours of GitOps; multi-hypervisor
+adapters have been provided by libvirt for over a decade; lexical
+scoping in configuration languages already exists in Jsonnet, CUE
+and Dhall; tenant delegation with simplified user views is offered
+by every major commercial cloud platform.
+
+What UnivOrch contributes is the synthesis of these ingredients in a
+lightweight, single-container service explicitly aimed at the
+teaching and small-research case. Concretely, three points are
+defensible as original:
+
+\begin{enumerate}
+  \item The application of a lexical-closure pattern to
+        infrastructure templates inside a hierarchical tree with
+        cascade inheritance by data type. We have not found this
+        combination in the surveyed production systems.
+  \item A strict separation between a domain-agnostic engine and a
+        domain-specific layer (teaching, CTF, research), implemented
+        as a thin client of a public REST API rather than as a
+        controller on top of Kubernetes. The pattern itself is
+        familiar from Crossplane; the contribution is to show that
+        an equivalent decoupling is achievable in a much lighter
+        deployment.
+  \item A user-experience model in which non-technical users
+        (students) operate VMs through a domain-specific metaphor
+        (\emph{desks} and \emph{computers}) that hides not only the
+        hypervisor but the orchestrator's own concepts. This is a
+        design contribution rather than an engineering one and we
+        acknowledge it as such.
+\end{enumerate}
+
+The closest single point of reference among all the systems
+surveyed is the NCSU VCL~\cite{vouk2009ncsu}; the largest unfair
+fight, in terms of maturity and engineering depth, is Crossplane.
+UnivOrch is neither at the scale of the former nor at the maturity
+of the latter; it occupies a defensible niche between them.
+
+%==================================================================
+\section{Selected technologies}
 \label{sec:tecnologias-seleccionadas}
 
-% TODO: summary table at the top, then justify each block.
-% Source: docs/technologies.md (full content).
-% Blocks:
-% - Language: Python 3.12.
-% - Web framework: FastAPI + uvicorn.
-% - HTTP client: httpx (with injection for tests).
-% - Storage: TinyDB (PoC) -> MongoDB (future). Document database.
-% - Modelling: Pydantic v2.
-% - CLI: cmd2.
-% - Quality: ruff, mypy strict, pytest + Hypothesis.
-% - Packaging: multi-stage Docker, ghcr.io.
-% - Hypervisor libraries (future): pyvmomi, proxmoxer.
-%
-% For each: what it is used for, why chosen over alternatives, what
-% was discarded and why.
+\Cref{tab:tech-stack} summarizes the technologies adopted for the
+implementation. The choices are documented in detail in
+\texttt{docs/technologies.md} of the project repository and in the
+design-decision DEC-033; we restate the rationale here.
+
+\begin{table}[ht]
+  \centering
+  \small
+  \begin{tabular}{p{0.20\linewidth} p{0.30\linewidth} p{0.42\linewidth}}
+    \toprule
+    \textbf{Layer} & \textbf{Selected technology} & \textbf{Why} \\
+    \midrule
+    Language &
+    Python 3.12 &
+    Same language as the supervisor's libraries; native abstract
+    classes, type hints and \texttt{@override}; well supported in
+    a long-lived container. \\
+    Web framework &
+    FastAPI + Uvicorn~\cite{fastapi-docs} &
+    Generates an OpenAPI specification automatically; strict typing
+    integrates with Pydantic; ASGI test client is standard. \\
+    Domain modelling &
+    Pydantic v2~\cite{pydantic-docs} &
+    Declarative model, validation at the boundary, JSON
+    serialization for free, used by FastAPI internally. \\
+    HTTP client (CLI) &
+    httpx &
+    Same API as \texttt{requests}, with async support and a strict
+    test transport; replaceable through dependency injection in
+    tests. \\
+    Persistence &
+    TinyDB~\cite{tinydb-docs} (PoC) &
+    A single JSON file as the database keeps the proof of concept
+    self-contained. A MongoDB-backed repository is the natural
+    successor for production. \\
+    CLI &
+    cmd2 &
+    Bash-style and REPL modes from the same command set; argparse
+    integration; well-tested behaviour for tab completion and help. \\
+    Quality &
+    Ruff~\cite{ruff-docs}, mypy --strict,
+    pytest, Hypothesis~\cite{hypothesis-docs} &
+    Fast linter and formatter; strict static typing; full unit and
+    integration test coverage; property-based testing on the pure
+    Resolver. \\
+    Tooling &
+    uv~\cite{uv-docs} + Docker &
+    \texttt{uv} for reproducible Python environments; multi-stage
+    Docker for a minimal runtime image; image hosted in GitHub
+    Container Registry. \\
+    \bottomrule
+  \end{tabular}
+  \caption{Summary of the implementation technology stack.}
+  \label{tab:tech-stack}
+\end{table}
+
+Two design alternatives are worth mentioning briefly. SQLite was
+considered for persistence; it was rejected in favour of TinyDB
+because the descriptor data is naturally document-shaped (deeply
+nested YAML fragments), not relational, and TinyDB removes the need
+for an ORM in the proof of concept. Click was considered as a CLI
+framework; cmd2 was preferred because it offers an interactive REPL
+in addition to one-shot commands without extra code, which matches
+the experience the end user is expected to have.
+
+The implementation is presented in detail in \Cref{ch:desarrollo}.
