@@ -1,0 +1,550 @@
+% Chapter 2 - System concepts.
+% Sources: docs/vision.md, docs/glossary.md, docs/architecture.md,
+% claude/decisiones.md (DEC-005, DEC-008, DEC-009, DEC-011, DEC-012,
+% DEC-022, DEC-026).
+% Target length: 10-12 pages.
+%
+% Pedagogical chapter. The reader who reaches here has read the
+% Introduction but does not yet know anything specific about UnivOrch.
+% Concepts are introduced in the order a new reader needs to acquire
+% them, from what each user sees to the internal vocabulary, and ends
+% just before the implementation details (which belong to Chapter 5).
+
+\chapter{System concepts}
+\label{ch:conceptos}
+
+UnivOrch is a service with several moving parts and a vocabulary of
+its own. Before reviewing the related work and the development of
+the proof of concept, this chapter introduces the ideas the reader
+will encounter throughout the rest of the report. The order is
+deliberately pedagogical: we start from what each user sees, then
+introduce the underlying domain (hypervisors, VMs and their
+states), then the orchestrator's central object (the descriptor),
+then the tree that organizes descriptors, and only after that the
+mechanisms that hold the tree together (cascade inheritance,
+declarative loading, lexical closure of reusable resources). The
+chapter closes with a glance at how the same design fits the
+role-based access control that v1 leaves as future work.
+
+The aim is that, after reading this chapter, a reader knows what
+UnivOrch \emph{is and does} without needing to know how it is built.
+The implementation details are presented in \Cref{ch:desarrollo}.
+
+%==================================================================
+\section{The product through three lenses}
+\label{sec:tres-lentes}
+
+UnivOrch is built for three kinds of user, and each of them sees a
+different slice of the system. Understanding what each one sees,
+and what each one does \emph{not} see, is the easiest way to grasp
+what the system is for.
+
+\paragraph{The end user (a student).}
+The end user opens the web interface, logs in, and sees a curated
+list of the virtual machines assigned to them. The list is small:
+typically the machines for one or two courses. The user can start,
+stop and (when offered) reset their own machines. They do not see
+the catalogue of base templates, the underlying hypervisors, the
+hierarchy of folders or the orchestrator's vocabulary; what they see
+is a domain-specific view designed for them, in our case the
+metaphor of a virtual \emph{desk} that contains \emph{computers}
+(DEC-009). The whole point of UnivOrch from this perspective is
+that the student operates without depending on the system
+administrator.
+
+\paragraph{The manager (a teacher).}
+The manager (in the teaching application, a professor) sees a
+larger slice. They see the branch of the system that belongs to
+their courses: the folders for their subjects, the descriptors for
+each student, the templates they have made available to those
+students. They can create folders and descriptors inside their
+branch, change properties, deploy or undeploy whole subjects in a
+single operation, and audit the history. They do not see the
+catalogue of users, the global system configuration, the credentials
+of hypervisors or the branches that belong to other teachers.
+
+\paragraph{The administrator.}
+The administrator sees everything. They define the hypervisors and
+the base templates that everyone else uses, they manage the user
+catalogue, they grant or revoke access to other roles, and they
+respond to incidents (for example, recovering a descriptor that was
+left inconsistent after a failed deployment). The administrator is
+also the person who installs and operates the daemon itself.
+
+A single person can, of course, hold different roles in different
+parts of the system; the role lives on the folder, not on the user
+record. We make this precise in \Cref{sec:rbac-vista} at the end of
+the chapter. For now, it is enough to think of three different views
+of the same product.
+
+%==================================================================
+\section{Hypervisors, virtual machines and their states}
+\label{sec:hipervisores}
+
+A \emph{hypervisor} is a piece of software that lets multiple
+virtual machines share the same physical hardware. VMware ESXi and
+Proxmox VE are two examples that this work targets. Each VM
+believes it owns its CPU, memory, disks and network adapters; the
+hypervisor presents that illusion and arbitrates access to the real
+hardware. A hypervisor lives on a single host (or a small cluster of
+hosts) and exposes an API that lets external programs create,
+destroy, start and stop VMs.
+
+A \emph{virtual machine}, from the hypervisor's perspective, has
+three runtime states relevant to this work:
+
+\begin{itemize}
+  \item \texttt{running}: the VM is powered on and executing.
+  \item \texttt{stopped}: the VM exists in the hypervisor but is
+        powered off.
+  \item \texttt{paused}: the VM is suspended in place; its memory
+        is preserved and a resume operation can return it to
+        \texttt{running}.
+\end{itemize}
+
+These three states are well known and shared by every hypervisor.
+UnivOrch reports them but does not invent them.
+
+\paragraph{The new axis: provisioned versus deployed.}
+The most important concept of this chapter is that UnivOrch
+introduces a \emph{second state axis} that does not exist at the
+hypervisor level. This second axis is the orchestrator's own view of
+the relationship between the descriptor and the real VM, and it has
+four values (DEC-022, DEC-032):
+
+\begin{description}
+  \item[\texttt{provisioned}] -- the orchestrator has the
+        descriptor (definition and identifier) but the
+        \emph{hypervisor has no VM yet}. The VM has been described
+        but not built. This is the natural initial state of every
+        descriptor.
+  \item[\texttt{deployed}] -- the descriptor has a matching VM in
+        the hypervisor. This is the state from which the three
+        runtime states above become meaningful: a deployed VM may
+        be running, stopped or paused.
+  \item[\texttt{broken}] -- an operation (typically a deploy or
+        undeploy) failed in a way that left the orchestrator and
+        the hypervisor out of sync. Recovery requires an explicit
+        \emph{force-undeploy}.
+  \item[\texttt{unreachable}] -- the hypervisor cannot be reached;
+        the actual state of the VM is therefore unknown. The
+        orchestrator marks this state reactively, when a request
+        fails because of a connectivity error.
+\end{description}
+
+This second axis is the conceptual key of UnivOrch. It lets a
+professor describe an entire subject \emph{before} any VM is built,
+keep the descriptions versioned and reproducible, and then either
+deploy them all at once or let each student deploy their own machine
+on demand. Without the \texttt{provisioned} state, the only way to
+describe an environment would be to instantiate it, which is what
+forces every traditional setup script to be tied to the moment of
+deployment.
+
+A descriptor in \texttt{provisioned} consumes no hypervisor
+resources. A descriptor in \texttt{deployed} corresponds to a VM
+that exists, takes disk space and may consume memory and CPU. Moving
+from \texttt{provisioned} to \texttt{deployed} and back is, from the
+user's point of view, the central operation of the system.
+
+\Cref{fig:state-machine} on page~\pageref{fig:state-machine} of
+\Cref{ch:desarrollo} shows the formal state machine that ties both
+axes together.
+
+%==================================================================
+\section{The descriptor: definition plus proxy}
+\label{sec:descriptor}
+
+The main object UnivOrch manipulates is the \emph{descriptor}. The
+name is borrowed from operating systems: in a Unix-like kernel, a
+file descriptor is a small integer that points to an open file
+without being the file itself; the application reads and writes
+through the descriptor, the kernel takes care of the actual file.
+The analogy is direct (DEC-005). In UnivOrch:
+
+\begin{itemize}
+  \item The descriptor is the orchestrator's handle to a virtual
+        machine.
+  \item The descriptor is \emph{not} the virtual machine. The VM
+        lives in the hypervisor.
+  \item Users interact with the descriptor; the orchestrator takes
+        care of talking to the hypervisor on their behalf.
+\end{itemize}
+
+A descriptor is two things at once. On the one hand, it carries the
+\emph{definition} of the VM it represents: the base template it
+should be cloned from, the hardware parameters (CPU, memory, disks),
+the target hypervisor and any property the system needs in order to
+build the VM. On the other hand, it serves as a \emph{proxy} to the
+deployed VM: when the descriptor is \texttt{deployed}, it records
+the identifier of the VM in the hypervisor, so the orchestrator
+knows where to send operations like \texttt{start} or \texttt{stop}.
+
+The distinction between definition and proxy is what makes the
+\texttt{provisioned} state meaningful. A provisioned descriptor
+carries the full definition but no proxy; a deployed descriptor
+carries both. Moving between the two states is what a deploy or an
+undeploy does.
+
+A descriptor lives at a single path inside the descriptor tree, and
+that path is its identifier. We turn to the tree next.
+
+%==================================================================
+\section{The descriptor tree}
+\label{sec:arbol}
+
+UnivOrch organizes descriptors in a tree. Each node of the tree is
+either a \emph{folder} (an internal node) or a \emph{descriptor}
+(a leaf). The structure is identical to a Unix file system, and the
+identifiers follow the same convention: a forward slash separates
+levels, the root is \texttt{/}, and a node is identified by the
+concatenation of names from the root to the node.
+
+For example, the system that the proof of concept ships as a demo
+contains:
+
+\begin{verbatim}
+/lab/                              folder, administrator's workspace
+/lab/networks/                     folder, one subject
+/lab/networks/student01            descriptor, a single student's VM
+/lab/networks/student02            descriptor, another student's VM
+/lab/networks/student03            descriptor, another student's VM
+\end{verbatim}
+
+The tree is the conceptual scaffolding of the whole system. It
+gives identity to every node (the path), gives structure to access
+control (you have permissions on a branch), gives a natural unit
+for batch operations (\emph{deploy the whole subject}), and -- as
+we see in the next section -- gives a place for shared
+configuration.
+
+The tree also gives a natural vocabulary for the teaching
+application. A subject becomes a folder. A student becomes either a
+descriptor (when each student has a single VM) or a folder
+underneath the subject (when each student has several VMs). The same
+tree could be used for a CTF competition or a set of laboratory
+experiments by changing only the labels in the domain application.
+
+Folders can hold their own properties (description, the resources
+they make available to their descendants, the IP pool they assign
+addresses from) and zero or more descriptors. A descriptor cannot
+contain other descriptors; descriptors are the leaves of the tree.
+
+%==================================================================
+\section{Cascade inheritance, with examples}
+\label{sec:herencia}
+
+The reason the tree is useful is that \emph{properties cascade}.
+Anything defined at a folder is inherited by its descendants. The
+mechanism is the closest the system has to a magic ingredient, so
+we present it in two passes: first the rules, then two worked
+examples.
+
+\paragraph{The three rules.}
+The merge rule between parent and child depends on the type of the
+field (DEC-026):
+
+\begin{itemize}
+  \item \textbf{Scalar fields} (an integer, a string): the child's
+        value, if it exists, overrides the parent's.
+  \item \textbf{List fields}: the child's list \emph{accumulates}
+        on top of the parent's. An item that appears in the
+        parent's list is still there for the child unless the parent
+        no longer offers it.
+  \item \textbf{Dictionary fields}: the parent's and child's
+        dictionaries are merged \emph{recursively}, applying the
+        same three rules to each key.
+\end{itemize}
+
+There are well-known exceptions where the default does not fit. The
+IP pool is one: a pool is a coherent block (network, mask, gateway,
+range) and merging it field by field would yield nonsense. For
+those cases the engine accepts an explicit override that replaces
+the whole field rather than merging it.
+
+\paragraph{Example 1: a simple override.}
+Suppose the administrator declares, at the folder \texttt{/lab}, a
+default of \texttt{cpu: 2} for every machine that lives below. The
+folder \texttt{/lab/networks} adds nothing. The descriptor
+\texttt{/lab/networks/student01} does not state a CPU value, so it
+inherits \texttt{cpu: 2}. The descriptor
+\texttt{/lab/networks/student03} explicitly declares \texttt{cpu: 4}.
+Both inherit through \texttt{/lab/networks}; \texttt{student01} ends
+up with two CPUs, \texttt{student03} with four.
+
+\paragraph{Example 2: an accumulated list.}
+The folder \texttt{/lab/networks} declares an \texttt{import:} list
+containing \texttt{[linux-vm]}, meaning ``the template
+\texttt{linux-vm} is available to my descendants''. The folder
+\texttt{/lab/networks/group-A} adds \texttt{import: [windows-vm]}.
+A descriptor inside \texttt{group-A} sees both \texttt{linux-vm} and
+\texttt{windows-vm}, because the imports of the two folders have
+accumulated as the list rule prescribes.
+
+\paragraph{Implications.}
+Cascade inheritance is what makes the system practical at scale.
+The administrator declares the catalogue of base templates and the
+hypervisor configuration \emph{once}, in a high-level folder, and
+every descriptor below inherits them. A subject of a hundred
+students is then a hundred near-identical descriptors that share
+the bulk of their configuration. The teacher edits the shared
+configuration in one place; the change reaches every student in the
+next deployment.
+
+%==================================================================
+\section{Core engine and domain application}
+\label{sec:dos-capas}
+
+UnivOrch is built in two layers (DEC-004). The lower layer is the
+\emph{generic engine}: it knows about folders, descriptors, jobs,
+inheritance and hypervisors, but it knows nothing about subjects,
+students or any specific domain. The upper layer is the
+\emph{domain application}: it gives meaning to the generic tree in
+terms of one concrete use case.
+
+The proof of concept ships a single domain application -- the
+teaching one -- but the engine is general. The same engine could
+serve a CTF (where the tree models teams instead of subjects), a
+set of conference workshops (where each attendee gets a temporary
+VM from a shared template), or a research laboratory (where each
+experiment has its own folder with its own machines and is
+recycled when the experiment ends). The domain application is, in
+all of these cases, a thin client that translates the vocabulary of
+the domain (\emph{subject}, \emph{student}, \emph{team},
+\emph{experiment}) into the generic operations of the engine
+(create folder, create descriptor, deploy, undeploy).
+
+The boundary between the engine and the domain application is the
+public REST API of the daemon. The teaching application is, from
+the engine's point of view, an HTTP client like any other; the
+engine has no special path for it.
+
+The separation matters for two reasons. First, the engine can be
+reused without modification by a different domain application
+written by a third party. Second, the engine is much easier to
+maintain when it stays free of teaching vocabulary; the
+specialization happens once, at the boundary, and never leaks
+inwards.
+
+%==================================================================
+\section{Declarative YAML: describing what you want}
+\label{sec:declarativo}
+
+UnivOrch follows a declarative model. The user does not say
+``create this folder, then create that descriptor, then assign this
+template'' one step at a time. The user describes the desired
+state in a YAML file, and the system computes the operations needed
+to bring the tree into that state. The model is the same one used by
+Terraform and Ansible (\Cref{ch:estado-arte}); the operation that
+applies it in UnivOrch is called \texttt{load}.
+
+\paragraph{The load operation.}
+\texttt{load} takes a YAML file and a destination path. It reads the
+YAML, validates it against the current tree, and creates the new
+folders and descriptors at the destination. The destination is any
+folder in the tree, not only the root; this is what makes a YAML
+file \emph{portable}.
+
+For example, the demo file \texttt{demo/setup.yml} describes a
+folder \texttt{lab} that contains a folder \texttt{networks} that
+contains three student descriptors. The administrator runs:
+
+\begin{verbatim}
+univorch load demo/setup.yml /
+\end{verbatim}
+
+and the structure appears under the root. A different
+administrator, on a different installation, can run:
+
+\begin{verbatim}
+univorch load demo/setup.yml /research/site-B/
+\end{verbatim}
+
+and the same structure appears under that other folder. The paths
+inside the YAML are relative to the destination; the file is a
+reusable template.
+
+\paragraph{What a definition looks like.}
+The YAML file is a nested dictionary that follows the structure of
+the tree. The demonstration file the proof of concept ships looks
+like this:
+
+\begin{verbatim}
+kind: definition
+version: "1"
+folders:
+  lab:
+    description: "Computer Science Lab"
+    define hypervisors:
+      mock01: { type: mock }
+    define templates:
+      linux-vm:
+        use hypervisor: mock01
+        base_vm: linux-base
+    folders:
+      networks:
+        description: "Computer Networks course"
+        import: [linux-vm]
+        descriptors:
+          student01: { use template: linux-vm, cpu: 2 }
+          student02: { use template: linux-vm, cpu: 2 }
+          student03: { use template: linux-vm, cpu: 4 }
+\end{verbatim}
+
+The structure is straightforward. Folders nest under
+\texttt{folders}; descriptors live under \texttt{descriptors}.
+Resources that are made available to descendants (hypervisors and
+templates) are declared with \texttt{define}. Resources that the
+folder \emph{borrows} from its parent are declared with
+\texttt{import}. Local properties of a descriptor (here, the
+\texttt{cpu} of each student) live next to the references.
+
+The vocabulary of \texttt{define}, \texttt{use} and \texttt{import}
+deserves its own section.
+
+%==================================================================
+\section{Reusable resources: define, use, import, closure}
+\label{sec:define-use-import}
+
+The descriptor tree is more than a hierarchy of names; it is also a
+hierarchy of \emph{scopes} in which resources are declared, used and
+imported. Three keywords govern the model:
+
+\begin{description}
+  \item[\texttt{define X:}] declares a resource at this folder. The
+        resource exists from now on inside this folder and below.
+        The two resources supported in v1 are \texttt{hypervisors}
+        and \texttt{templates}. Future extensions will add
+        \texttt{datastores} and \texttt{IP pools}, with the same
+        grammar.
+  \item[\texttt{use X:}] references an existing resource by name. A
+        descriptor that says \texttt{use template: linux-vm}
+        inherits the fields of the template; a template that says
+        \texttt{use hypervisor: mock01} targets that hypervisor.
+        The name is resolved in the scope where the resource was
+        defined, not where it is used (we return to this below).
+  \item[\texttt{import:}] is the visibility control. A folder that
+        imports a name from its parent makes that name visible to
+        its descendants. A name that is not imported is invisible
+        below, even if the parent defined it. This lets an
+        administrator publish a large catalogue of templates while
+        keeping each course's branch limited to the templates the
+        teacher chose to use.
+\end{description}
+
+The interaction between \texttt{define}, \texttt{use} and
+\texttt{import} mirrors the interaction between
+\texttt{define}, \texttt{use} and \texttt{import} keywords in many
+programming languages, which is not a coincidence. The next idea
+makes the analogy explicit.
+
+\paragraph{Lexical closure of templates.}
+When a template defined in folder $A$ is imported into folder $B$,
+and a descriptor inside $B$ uses the template, every reference
+inside the template (for example \texttt{use hypervisor: mock01})
+is resolved \emph{starting from $A$}, not from $B$. The template
+carries with it the scope where it was defined; we say it
+\emph{closes over} that scope. This is the same behaviour a closure
+has in a programming language: the function definition captures the
+environment in which it was written.
+
+The motivation is purely practical. A teacher who imports the
+template \texttt{linux-vm} from the administrator's catalogue is not
+expected to also import the underlying hypervisor; they should just
+have to write \texttt{use template: linux-vm} and have it work. The
+hypervisor reference inside the template is the administrator's
+business, not the teacher's. Lexical closure makes this just work.
+
+\paragraph{Example.}
+The demonstration file above declares \texttt{mock01} (the
+hypervisor) and \texttt{linux-vm} (the template) at the folder
+\texttt{/lab}. The folder \texttt{/lab/networks} imports only
+\texttt{linux-vm}; it does not need to import \texttt{mock01}.
+When \texttt{student01} says \texttt{use template: linux-vm}, the
+engine merges the template's fields into the descriptor; the
+template's own \texttt{use hypervisor: mock01} is then resolved
+against \texttt{/lab}, where \texttt{mock01} lives, even though
+the descriptor itself lives in \texttt{/lab/networks}.
+
+%==================================================================
+\section{Why the same design fits a future RBAC}
+\label{sec:rbac-vista}
+
+The cascade inheritance described above is not specific to
+configuration fields. It applies, with the same rules, to
+\emph{role assignments}. UnivOrch defines three roles (DEC-011):
+
+\begin{description}
+  \item[\texttt{superuser}] -- the system administrator. Assigned
+        at the root; full visibility and control.
+  \item[\texttt{manager}] -- a teacher or equivalent. Assigned at
+        the folder of a subject; can manage the descendants of that
+        folder.
+  \item[\texttt{end\_user}] -- a student or equivalent. Assigned at
+        the folder of a workstation or set of workstations; can
+        operate the descriptors below.
+\end{description}
+
+A role assignment is attached to a folder, not to a user record
+(DEC-021). The user record itself only carries identity information
+(name, password, e-mail). Whether the user is a teacher in one
+branch and a student in another is decided by which folders mention
+them and in which role.
+
+Two consequences follow directly from cascade inheritance. First,
+an assignment made at a high level reaches every descendant
+automatically: declaring a user as \texttt{end\_user} at a folder
+gives them access to every workstation inside it. Second, a more
+specific assignment lower down can override the inherited one if
+needed: a user who is an \texttt{end\_user} of an entire subject
+can additionally be made a \texttt{manager} of a single
+sub-folder of that subject.
+
+The proof of concept does not implement the full RBAC in code; only
+the \texttt{superuser} role is realistic in v1, and the service
+assumes it runs in a trusted network. The point of this section is
+that the model is consistent with the rest of the design and that
+\emph{the engine does not need to grow new mechanisms to support
+roles}. The same cascade-inheritance code that resolves
+configuration fields will resolve role assignments. When the
+implementation arrives, it slots into the existing engine without
+rearchitecting it.
+
+%==================================================================
+\section{Summary}
+\label{sec:resumen-conceptos}
+
+The reader who reaches this point has the conceptual map of
+UnivOrch:
+
+\begin{itemize}
+  \item Three kinds of user (student, teacher, administrator), each
+        with a different view of the system.
+  \item A second state axis on top of the hypervisor's runtime
+        states: \texttt{provisioned}, \texttt{deployed},
+        \texttt{broken}, \texttt{unreachable}.
+  \item The descriptor as the orchestrator's handle, carrying both
+        the definition of a VM and the proxy to the deployed one.
+  \item The descriptor tree as the scaffolding that gives identity,
+        structure and inheritance to every node.
+  \item Cascade inheritance with three type-driven rules and a
+        small set of well-defined exceptions.
+  \item Two layers, a generic engine and a domain application, with
+        the REST API as the boundary between them.
+  \item A declarative YAML model and a \texttt{load} operation that
+        accepts any destination in the tree.
+  \item Three keywords -- \texttt{define}, \texttt{use},
+        \texttt{import} -- that turn the tree into a hierarchy of
+        scopes, plus a lexical closure that lets templates travel
+        with their definition environment.
+  \item A role-based access control whose mechanics fit the same
+        cascade and are designed for a future implementation.
+\end{itemize}
+
+The following chapters take this conceptual map for granted.
+\Cref{ch:estado-arte} compares UnivOrch with the closest existing
+systems and identifies where the model is original.
+\Cref{ch:metodologia} describes how the proof of concept was built.
+\Cref{ch:desarrollo} is the technical core of the report: it
+documents the architecture and the implementation in detail.
+\Cref{ch:conclusiones} closes the report against the objectives.

@@ -18,7 +18,7 @@ docs/memoria/
 ├── main.tex                 # documento raíz, hace \input de los demás
 ├── references.bib           # bibliografía en formato BibTeX
 ├── frontmatter/             # resumen, abstract, agradecimientos, glosario
-├── chapters/                # los 5 capítulos del cuerpo
+├── chapters/                # los 6 capítulos del cuerpo
 ├── appendices/              # los 4 apéndices
 ├── figures/                 # imágenes (PNG, PDF de Mermaid)
 └── template/                # plantilla oficial UMA (fuentes, logos, .sty)
@@ -116,7 +116,7 @@ Antes de la entrega final, revisar en `main.tex` los placeholders:
   `docs/requirements.md`. Misma regla de propagación.
 - **Decisiones técnicas**: el apéndice C resume `claude/decisiones.md`.
   Misma regla.
-- **Capítulo 4 (Desarrollo)**: cuando se redacte, refrescar antes
+- **Capítulo 5 (Desarrollo)**: cuando se redacte, refrescar antes
   `docs/architecture.md` y `docs/diagrams.md` (les faltan Sprint 2
   Pieza 3 y todo Sprint 3).
 
