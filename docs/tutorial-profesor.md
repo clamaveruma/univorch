@@ -1,133 +1,104 @@
-# UnivOrch — Tutorial de instalación y demo
+# UnivOrch — demostración para el tutor
 
-> Prueba de concepto de un orquestador universal de máquinas virtuales,
-> desarrollado como Trabajo Fin de Grado de Ingeniería de Computadores
-> (Universidad de Málaga, 2025–2026). Autor: Claudio M. Martínez Velasco.
-> Tutor: Guillermo Pérez Trabado.
+> **AVISO IMPORTANTE.** Este documento describe una **demostración
+> provisional** del estado del trabajo del TFG. **No es el TFG final**.
+> El objetivo es que veas el modelo conceptual del orquestador
+> funcionando con un conector simulado (mock), no presentar el producto
+> terminado. Faltan piezas importantes que sí estarán en el TFG (en
+> particular: conectores reales, autenticación, interfaz web, y la
+> aplicación específica para despliegue de asignaturas).
 
-Este documento guía paso a paso la instalación y la prueba del sistema con
-el conector mock (sin hipervisor real). Tiempo estimado: **10 minutos**.
-
----
-
-## 1. ¿Qué vas a probar?
-
-UnivOrch es una capa de abstracción que gestiona máquinas virtuales de forma
-agnóstica al hipervisor. En esta versión de demostración, el hipervisor es
-un **mock** que simula VMs en memoria — no se crea nada real en disco.
-Sirve para inspeccionar el modelo conceptual del sistema (árbol de
-recursos, herencia, ciclo de vida) sin necesidad de un VMware o un Proxmox
-detrás.
-
-Al terminar el tutorial habrás:
-
-- Arrancado el servicio en un contenedor Docker.
-- Cargado un árbol de ejemplo con un laboratorio docente.
-- Desplegado, arrancado, parado y retirado una VM.
-- Visto cómo la herencia en cascada y las plantillas estructuran el modelo.
+Tiempo estimado: 10 minutos.
 
 ---
 
-## 2. Requisitos
+## 1. Qué vas a ver
 
-- **Linux, macOS o Windows con WSL2.**
-- **Docker** instalado y funcionando. Verificación rápida:
-  ```bash
-  docker --version
-  docker compose version
-  ```
-- **Permiso para usar Docker**: o estás en el grupo `docker`, o vas a
-  llevar `sudo` por delante en cada orden del demonio (en inglés "daemon").
-- **Conexión a internet** la primera vez (para descargar la imagen).
+El sistema sin GUI, en modo cliente/servidor:
+
+- Un **demonio** (en inglés "daemon") que corre dentro de un contenedor
+  Docker, expone una API REST en `localhost:8080` y persiste el estado
+  en un volumen.
+- Un **cliente CLI** que habla con ese demonio por HTTP. Acepta dos
+  modos: una orden suelta desde tu shell, o un REPL interactivo.
+- Un **ejemplo precargado en la imagen** con un laboratorio docente:
+  una asignatura con tres alumnos y una plantilla compartida.
+
+El conector hipervisor es un mock: no se crea nada real en disco, solo
+se observa el modelo (herencia, ciclo de vida, dos ejes de estado).
 
 ---
 
-## 3. Instalación
+## 2. Instalar
 
-Copia y pega en tu terminal:
+Una sola orden:
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/clamaveruma/univorch/main/install.sh | bash
 ```
 
-Esto descarga e ejecuta el instalador, que:
+Si quieres ver qué hace el instalador antes, sustituye `bash` por `less`
+al final.
 
-1. Comprueba que tienes Docker.
-2. Detecta si el puerto 8080 está libre; si no, te pregunta por otro.
-3. Crea un directorio `univorch/` en tu carpeta actual con dos ficheros:
-   - `univorch.sh` — script que envuelve `docker compose` con órdenes cortas.
-   - `docker-compose.yml` — receta del contenedor.
-4. **No** arranca el servicio: eso lo decides tú en el siguiente paso.
-
-Al terminar te muestra los próximos comandos.
-
-### Si te falta confianza con `curl | bash`
-
-Es válido. Puedes ver el script antes de ejecutarlo:
-
-```bash
-curl -sSL https://raw.githubusercontent.com/clamaveruma/univorch/main/install.sh | less
-```
-
-Cuando confirmes que el contenido te parece razonable, vuelve a lanzarlo
-con `| bash` al final.
+El instalador deja un directorio `univorch/` con `univorch.sh` y
+`docker-compose.yml`. No arranca nada por sí mismo. Si el puerto 8080
+está ocupado en tu máquina, te pregunta interactivamente por otro y lo
+fija en `.env`.
 
 ---
 
-## 4. Arrancar el servicio
+## 3. Arrancar y comprobar
 
 ```bash
 cd univorch
 ./univorch.sh start
-```
-
-La primera vez Docker descarga la imagen (~100 MB, 30–60 segundos
-dependiendo de tu conexión). En arranques posteriores levanta el
-contenedor en uno o dos segundos.
-
-Al terminar verás:
-
-```
-UnivOrch started.
-REST API:   http://localhost:8080/api/v1/
-Health:     http://localhost:8080/api/v1/health
-Interactive CLI: ./univorch.sh cli
-```
-
-(Si el instalador eligió otro puerto, aparecerá ese.)
-
-Comprueba que el servicio responde:
-
-```bash
 curl http://localhost:8080/api/v1/health
 ```
 
 Debe devolver `{"status":"ok"}`.
 
+> Si tu usuario no está en el grupo `docker`, prefija las órdenes con
+> `sudo` o añádete al grupo (`sudo usermod -aG docker $USER`) y vuelve
+> a iniciar sesión.
+
 ---
 
-## 5. Entrar al cliente y cargar el ejemplo
+## 4. Dos formas de hablar con el sistema
+
+**Orden suelta** (modo bash, se ejecuta y vuelve a tu shell):
+
+```bash
+./univorch.sh cli tree /
+./univorch.sh cli load /opt/univorch/examples/setup.yml
+./univorch.sh cli inspect /lab/networks/student03
+```
+
+**Sesión interactiva** (REPL, con historial y autocompletado de Tab):
 
 ```bash
 ./univorch.sh cli
 ```
 
-Esto te abre el REPL (intérprete interactivo) **dentro del contenedor**.
-Verás el prompt:
+Te abre el prompt:
 
 ```
 univorch />
 ```
 
-El ejemplo precargado vive en `/opt/univorch/examples/setup.yml`. Cárgalo:
+Y dentro escribes las mismas órdenes sin el `./univorch.sh cli` por
+delante. Se sale con `quit` o Ctrl-D.
+
+Los ejemplos siguientes usan el REPL por brevedad, pero todo lo mismo
+funciona desde la línea de comandos directa.
+
+---
+
+## 5. Cargar el ejemplo y recorrer el árbol
+
+El ejemplo viene dentro de la imagen, en `/opt/univorch/examples/`.
 
 ```
 univorch /> load /opt/univorch/examples/setup.yml
-```
-
-Verás líneas como:
-
-```
 /lab                       folder /lab created
 /lab/networks              folder /lab/networks created
 /lab/networks/student01    descriptor /lab/networks/student01 created
@@ -135,22 +106,8 @@ Verás líneas como:
 /lab/networks/student03    descriptor /lab/networks/student03 created
 ```
 
-Has creado un árbol con un laboratorio (`/lab`), dentro una carpeta de
-asignatura (`/lab/networks`) y dentro tres alumnos.
-
----
-
-## 6. Recorrer el árbol
-
-Lista lo que hay en la raíz:
-
 ```
 univorch /> tree /
-```
-
-Resultado esperado:
-
-```
   lab/
     networks/
     □ student01
@@ -158,27 +115,13 @@ Resultado esperado:
     □ student03
 ```
 
-Los símbolos son indicadores de estado:
+Símbolos: `□` provisionado · `■` desplegado · `✗` roto · `▲` inalcanzable.
 
-| Símbolo | Estado |
-|---|---|
-| `□` | provisionada (definida, no desplegada) |
-| `■` | desplegada (existe la VM) |
-| `✗` | rota (operación a medias) |
-| `▲` | inalcanzable (sin conexión al hipervisor) |
-
-Como el conector es mock y todavía no has desplegado nada, las tres están
-provisionadas.
-
-Inspecciona la definición efectiva de un alumno:
+La pieza interesante del modelo es la **herencia en cascada**.
+Inspecciona la definición efectiva del tercer alumno:
 
 ```
 univorch /> inspect /lab/networks/student03
-```
-
-Verás:
-
-```
 /lab/networks/student03   (descriptor)
   description:       Standard student Linux workstation
   use hypervisor:    mock01
@@ -190,55 +133,42 @@ Verás:
   state:             provisioned
 ```
 
-Esto demuestra el corazón del modelo: el alumno solo define `use template:
-linux-vm` y un override local de `cpu: 4`. Todo lo demás (description,
-base_vm, memory_mb, disk_gb) viene **heredado** de la plantilla que está
-declarada arriba, en `/lab`. La hipervisor (`mock01`) llega por el mismo
-mecanismo, siguiendo el "cierre" o entorno léxico (en inglés "closure") de
-la plantilla.
+El descriptor de `student03` **solo** dice `use template: linux-vm` y
+`cpu: 4` (sobreescritura local de un campo). Todo lo demás —
+`description`, `base_vm`, `memory_mb`, `disk_gb`, y el hipervisor
+`mock01` — viene heredado de la plantilla declarada arriba, en `/lab`.
+La referencia al hipervisor se resuelve en el **entorno léxico de la
+plantilla** (en inglés "closure"), no en el del alumno: por eso
+`/lab/networks` no necesita importar `mock01` explícitamente, solo la
+plantilla que ya lo usa.
+
+Para comparar, mira la definición **local** del mismo descriptor (lo
+que realmente está escrito en el árbol):
+
+```
+univorch /> inspect --local /lab/networks/student03
+```
+
+Verás solo las dos líneas (`use template:` y `cpu: 4`).
 
 ---
 
-## 7. El ciclo de vida de una VM
+## 6. Ciclo de vida de una VM
 
-Vas a desplegar `student01`, arrancarla, pararla y retirarla, observando los
-cambios de estado.
+Dos ejes de estado en juego:
 
-### Desplegar
+- **`state`** del descriptor (lado del orquestador): provisionado →
+  desplegado → de vuelta a provisionado.
+- **`runtime`** de la VM (lado del hipervisor): parado/encendido/
+  pausado.
 
 ```
 univorch /> deploy /lab/networks/student01
-```
-
-Respuesta:
-
-```
 deployed as mock-vm-1
-```
 
-El mock ha creado una VM con identificador `mock-vm-1`. Comprueba el estado:
-
-```
 univorch /> status /lab/networks/student01
-```
-
-```
 /lab/networks/student01  state=deployed  runtime=stopped  vm_id=mock-vm-1
-```
 
-**Dos ejes de estado** en juego (es una distinción clave del modelo):
-
-- **`state`**: el lado del orquestador. Refleja el ciclo de vida del
-  descriptor (provisioned, deployed, broken…).
-- **`runtime`**: el lado del hipervisor. Refleja el estado eléctrico de la
-  VM (running, stopped, paused…).
-
-Acabas de desplegar, así que el descriptor está en `deployed` y la VM
-recién clonada está parada (`stopped`).
-
-### Arrancar y parar
-
-```
 univorch /> start /lab/networks/student01
 started
 
@@ -247,14 +177,7 @@ univorch /> status /lab/networks/student01
 
 univorch /> stop /lab/networks/student01
 stopped
-```
 
-El `state` no cambia (sigue desplegada) pero el `runtime` sí. Esto refleja
-que arrancar o parar no destruyen la VM, solo cambian su estado eléctrico.
-
-### Retirar
-
-```
 univorch /> undeploy /lab/networks/student01
 undeployed
 
@@ -262,151 +185,110 @@ univorch /> status /lab/networks/student01
 /lab/networks/student01  state=provisioned  runtime=-  vm_id=-
 ```
 
-La VM ha desaparecido del hipervisor. El descriptor vuelve a
-`provisioned`: la definición sigue en el árbol pero no hay nada
-desplegado. Es exactamente como estaba antes del `deploy`.
+Observa que `start`/`stop` no tocan el `state` del descriptor: solo el
+runtime de la VM. Por contra, `deploy`/`undeploy` sí cambian el `state`
+(crean o destruyen la VM en el hipervisor).
 
 ---
 
-## 8. Salir y parar el servicio
-
-Sal del REPL:
+## 7. Apagar
 
 ```
 univorch /> quit
 ```
 
-Para el contenedor cuando termines:
-
 ```bash
 ./univorch.sh stop
 ```
 
-Los datos persisten en un volumen Docker llamado `univorch_univorch_data`.
-Si vuelves a arrancar, el árbol que cargaste seguirá ahí.
-
-Para empezar de cero (borrando todo lo que hayas cargado):
-
-```bash
-./univorch.sh stop
-docker volume rm univorch_univorch_data
-./univorch.sh start
-```
+Los datos persisten en el volumen `univorch_univorch_data`. Para
+empezar de cero, `docker volume rm univorch_univorch_data` antes del
+siguiente `start`.
 
 ---
 
-## 9. Cosas que pueden salir mal
+## 8. Si algo falla
 
-### "permission denied" al usar Docker
-
-```
-permission denied while trying to connect to the docker API at unix:///var/run/docker.sock
-```
-
-Tu usuario no está en el grupo `docker`. Dos opciones:
-
-- **Rápido**: prefija las órdenes con `sudo` (`sudo ./univorch.sh start`).
-- **Permanente**: `sudo usermod -aG docker $USER`, cierra sesión y vuelve a
-  entrar. Aviso: estar en el grupo `docker` equivale a tener root.
-
-### "address already in use" al arrancar
-
-Algo está escuchando ya en el puerto 8080. Compruébalo con:
-
-```bash
-ss -tlnp | grep ':8080'
-```
-
-Si es un servicio tuyo legítimo, arranca UnivOrch en otro puerto:
-
-```bash
-UNIVORCH_PORT=9090 ./univorch.sh start
-```
-
-(El instalador detecta esto y lo gestiona; si volvió a romper, es que el
-servicio en conflicto arrancó después.)
-
-### El árbol aparece vacío tras arrancar
-
-Estás en una sesión limpia o has borrado el volumen. Vuelve a cargar el
-ejemplo:
-
-```
-univorch /> load /opt/univorch/examples/setup.yml
-```
-
-### Ver los logs del demonio
-
-```bash
-./univorch.sh logs
-```
-
-Muestra los registros del proceso uvicorn dentro del contenedor (las
-peticiones HTTP que entran, los errores, etc.). Útil para diagnosticar.
+| Síntoma | Causa habitual y arreglo |
+|---|---|
+| `permission denied to /var/run/docker.sock` | Usa `sudo` o añade tu usuario al grupo `docker`. |
+| `address already in use` al arrancar | Otro servicio ocupa el 8080. `UNIVORCH_PORT=9090 ./univorch.sh start` o ajusta `.env`. |
+| `cannot reach the UnivOrch daemon` | El contenedor no está corriendo. `./univorch.sh start`. |
+| Logs del demonio | `./univorch.sh logs` |
 
 ---
 
-## 10. Referencia rápida de órdenes
+## 9. Referencia rápida
 
-### Desde el host
+**Desde el host:**
 
 | Orden | Hace |
 |---|---|
-| `./univorch.sh start` | Arranca el contenedor |
-| `./univorch.sh stop` | Lo apaga limpiamente |
-| `./univorch.sh restart` | Stop + start |
+| `./univorch.sh start` / `stop` / `restart` | Ciclo de vida del contenedor |
 | `./univorch.sh status` | Estado del contenedor |
 | `./univorch.sh logs` | Sigue los registros |
-| `./univorch.sh cli` | Abre el REPL del cliente |
+| `./univorch.sh cli [orden]` | Cliente: REPL si no hay orden, modo bash si la hay |
 
-### Desde el REPL
+**Órdenes del cliente** (con `help <orden>` ves la ayuda detallada de cada
+una):
 
-| Orden | Hace |
-|---|---|
-| `help` | Lista de órdenes disponibles |
-| `help <orden>` | Ayuda detallada de una orden |
-| `tree /` | Vista del árbol completo |
-| `ls /lab` | Listado de un nivel (como `ls`) |
-| `cd /lab/networks` | Cambia la carpeta de trabajo |
-| `pwd` | Imprime la carpeta actual |
-| `load <fichero>` | Carga un YAML en el árbol |
-| `inspect <ruta>` | Muestra la definición efectiva |
-| `deploy <ruta>` | Despliega una VM |
-| `start <ruta>` | Enciende una VM desplegada |
-| `stop <ruta>` | Apaga una VM desplegada |
-| `undeploy <ruta>` | Retira una VM (mantiene la definición) |
-| `status <ruta>` | Estado del descriptor + runtime |
-| `connect <url>` | Cambia el destino del cliente en caliente |
-| `quit` | Sale del REPL |
-
-### Desde HTTP (para integraciones)
-
-La API REST está en `http://localhost:8080/api/v1/`. Ejemplos:
-
-```bash
-curl http://localhost:8080/api/v1/tree?path=/
-curl -X POST http://localhost:8080/api/v1/deploy?path=/lab/networks/student01
+```
+load <fichero>       carga un YAML en el árbol
+tree [ruta]          subárbol completo
+ls   [ruta]          un solo nivel
+cd   [ruta]          cambia la carpeta de trabajo (REPL)
+inspect <ruta>       definición efectiva (con --local: solo local)
+deploy <ruta>        despliega una VM
+start <ruta>         enciende
+stop <ruta>          apaga
+undeploy <ruta>      retira la VM (mantiene la definición)
+status <ruta>        estado del descriptor + runtime
+connect <url>        cambia el destino del cliente en caliente (REPL)
 ```
 
-La documentación interactiva (Swagger UI) está en
-`http://localhost:8080/docs` cuando el servicio está corriendo. Te permite
-explorar y probar todos los puntos de acceso del API desde el navegador.
+**API REST**: `http://localhost:8080/api/v1/`. La documentación
+interactiva (Swagger UI) está en `http://localhost:8080/docs` cuando el
+servicio corre. Permite probar todos los puntos de acceso desde el
+navegador.
 
 ---
 
-## 11. Próximos pasos
+## 10. Qué falta para el TFG
 
-Lo que has probado es la **prueba de concepto** del orquestador. El modelo
-está completo (árbol, herencia, ciclo de vida, motor de Jobs, API REST,
-cliente CLI), pero el conector es un mock.
+Esto es **lo importante**. Lo que has probado hoy es un PoC del motor
+de orquestación. El TFG completo añade encima cuatro piezas:
 
-Lo que vendrá en próximas versiones:
+1. **Conectores reales** — VMware (vSphere) y Proxmox. Hoy solo está el
+   mock; el contrato del conector es una clase abstracta (ABC) y meter
+   un conector nuevo es un módulo Python + una línea en el registro de
+   tipos. He empezado pruebas contra los hipervisores VMware del
+   aulario por VPN.
 
-- **Conectores reales**: VMware (vSphere) y Proxmox.
-- **Interfaz web**: NiceGUI sobre la misma API REST.
-- **Autenticación y RBAC**: usuarios, roles, permisos por carpeta.
-- **Aplicación docente**: capa específica para gestionar asignaturas y
-  alumnos, con vocabulario adaptado a entornos universitarios.
+2. **Autenticación y RBAC** — usuarios con login y token persistido,
+   tres roles (admin, manager, end_user), permisos por carpeta con
+   herencia en cascada. **El modelo está diseñado y los puntos de
+   extensión existen**: `SessionRepository` para los tokens,
+   `OrchestratorService` como facade donde se aplican los chequeos,
+   reuso del mismo Resolver de definiciones para los permisos. Lo que
+   queda es la implementación. El CLI ya recibe el cliente HTTP por
+   inyección de dependencias: añadir un header `Authorization: Bearer
+   <token>` no toca código del cliente.
 
-El código fuente, las decisiones de diseño, y el historial completo están
-en el repositorio: [github.com/clamaveruma/univorch](https://github.com/clamaveruma/univorch).
+3. **Interfaz web** — NiceGUI sobre la misma API REST. Tres vistas
+   previstas: navegador del árbol con tres modos (local, expandida,
+   resuelta), editor de nodos con diálogos por tipo, y vista
+   alternativa "desde el hipervisor" (qué VMs viven en qué hipervisor).
+   Inspiración visual desde [V0.app](https://v0.app), implementación
+   con tema Material.
+
+4. **Aplicación docente** — capa específica sobre el motor genérico,
+   con vocabulario propio: una carpeta es una "asignatura", cada
+   subcarpeta es una "mesa", el descriptor es "el ordenador" del
+   alumno. Una sola orden despliega toda la asignatura: crea las
+   carpetas de los alumnos a partir de una lista, clona las VMs desde
+   una plantilla, asigna IPs de un pool, envía correos con
+   credenciales, e informa al profesor. **Esto es la pieza que cierra
+   el TFG**: el motor existe para esto.
+
+El historial completo, las decisiones de diseño, y el código fuente
+están en [github.com/clamaveruma/univorch](https://github.com/clamaveruma/univorch).

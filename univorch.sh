@@ -42,12 +42,19 @@ case "${1:-}" in
         docker compose -f "$COMPOSE_FILE" logs -f
         ;;
     cli)
-        # Open an interactive CLI session inside the running container.
-        # The container must already be started with './univorch.sh start'.
-        # The CLI talks HTTP to the daemon at http://localhost:8080
-        # (the default _DEFAULT_REMOTE in cli/app.py), which is exactly
-        # the daemon running as PID 1 of this container.
-        docker exec -it univorch univorch
+        # Open the CLI inside the running container. Two modes:
+        #   - './univorch.sh cli'              -> interactive REPL (tty + stdin)
+        #   - './univorch.sh cli <comando...>' -> single command (bash mode)
+        # The CLI talks HTTP to the daemon at http://localhost:8080, which
+        # is the daemon running as PID 1 of this same container.
+        shift  # drop the literal 'cli' from "$@"
+        if [ $# -eq 0 ]; then
+            docker exec -it univorch univorch
+        else
+            # Bash mode: only -i (stdin), no -t (no TTY) so scripts that
+            # redirect the output do not get pseudo-terminal escapes.
+            docker exec -i univorch univorch "$@"
+        fi
         ;;
     *)
         usage
