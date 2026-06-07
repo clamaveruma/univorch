@@ -1,49 +1,50 @@
-% Capítulo 1 - Introducción.
-% Fuente principal: docs/vision.md
-% Extensión objetivo: 4-6 páginas.
+% Chapter 1 - Introduction.
+% Main source: docs/vision.md.
+% Target length: 4-6 pages.
 
-\chapter{Introducción}
+\chapter{Introduction}
 \label{ch:introduccion}
 
-% TODO: párrafo inicial. Una página de tono "qué es UnivOrch, por qué
-% se hace, qué problema resuelve". Debe poder leerse por un tribunal
-% ajeno al proyecto y entender el porqué.
+% TODO: opening paragraph. About one page setting the scene: what
+% UnivOrch is, why it is built, what problem it solves. It must be
+% readable by a tribunal unfamiliar with the project and still convey
+% the motivation.
 
-\section{Motivación}
+\section{Motivation}
 \label{sec:motivacion}
 
-% TODO: redactar. Esqueleto de ideas:
-% - El laboratorio docente de la EI UMA tiene VMs físicas + virtuales.
-% - Cada asignatura monta su pirámide de máquinas a mano: tedioso y
-%   propenso a error.
-% - Existen orquestadores (vSphere, vRA, OpenStack...) pero ninguno
-%   resuelve el caso docente de "una asignatura, N alumnos, una
-%   plantilla, IPs por pool, snapshots, reciclaje".
-% - El tutor venía trabajando con esxobjects y yamlinfr, que cubren
-%   parte del problema pero atados a VMware.
-% - Aprovechar la experiencia y generalizar: un motor agnóstico al
-%   hipervisor + una capa específica para docencia.
+% TODO: draft based on the following ideas:
+% - The EI UMA teaching lab combines physical and virtual machines.
+% - Each course builds its own pyramid of VMs by hand: tedious and
+%   error-prone.
+% - Existing orchestrators (vSphere, vRA, OpenStack...) do not cover
+%   the teaching case of "one course, N students, one template, IPs
+%   from a pool, snapshots, recycling".
+% - The supervisor had been working with esxobjects and yamlinfr,
+%   which cover part of the problem but are bound to VMware.
+% - Build on that experience and generalise: a hypervisor-agnostic
+%   engine plus a teaching-specific layer.
 
-\section{Objetivos}
+\section{Objectives}
 \label{sec:objetivos}
 
-% TODO: redactar como objetivos numerados.
-% O1. Diseñar e implementar el núcleo del orquestador como capa
-%     agnóstica al hipervisor.
-% O2. Definir un modelo declarativo de los recursos a desplegar, con
-%     herencia y reutilización de plantillas.
-% O3. Establecer un contrato de conector que permita añadir hipervisores
-%     reales (VMware, Proxmox) sin tocar el núcleo.
-% O4. Exponer una API REST como frontera pública del servicio.
-% O5. Proveer un cliente de línea de órdenes y empaquetar todo como
-%     contenedor Docker descargable e instalable en una sola línea.
-% O6. Sentar las bases (puntos de extensión y modelo) para las piezas
-%     que el TFG completa más adelante: interfaz web, conectores reales,
-%     aplicación específica para docencia.
+% TODO: write as a numbered list of objectives.
+% O1. Design and implement the orchestrator core as a hypervisor-
+%     agnostic layer.
+% O2. Define a declarative model of the resources to deploy, with
+%     inheritance and template reuse.
+% O3. Establish a connector contract that lets new hypervisors
+%     (VMware, Proxmox) be added without touching the core.
+% O4. Expose a REST API as the public boundary of the service.
+% O5. Provide a command-line client and package the whole system as
+%     a single-line installable Docker container.
+% O6. Lay the groundwork (extension points and model) for the pieces
+%     that the TFG will deliver next: web interface, real connectors,
+%     teaching-specific application.
 
-\section{Estructura de la memoria}
+\section{Report structure}
 \label{sec:estructura}
 
-% TODO: redactar, ~media página describiendo brevemente los 5 capítulos
-% y los 4 apéndices. Patrón típico:
-% "El capítulo \ref{ch:estado-arte} presenta el contexto técnico..."
+% TODO: write a short paragraph describing each of the 5 chapters and
+% the 4 appendices. Pattern:
+% "Chapter \ref{ch:estado-arte} reviews the technical context...".

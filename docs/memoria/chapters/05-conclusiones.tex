@@ -1,64 +1,69 @@
-% Capítulo 5 - Conclusiones y trabajo futuro.
-% Fuentes: claude/ideas-pendientes.md y la sección 10 del tutorial.
-% Extensión objetivo: 3-5 páginas.
+% Chapter 5 - Conclusions and future work.
+% Sources: claude/ideas-pendientes.md and section 10 of the
+% tutorial-profesor.md.
+% Target length: 3-5 pages.
+%
+% Note: as the report is written in English, UMA EI regulations
+% require this chapter to also appear in Spanish. The Spanish version
+% is included as Appendix E (E-conclusiones-castellano.tex).
 
-\chapter{Conclusiones y trabajo futuro}
+\chapter{Conclusions and future work}
 \label{ch:conclusiones}
 
-\section{Conclusiones}
+\section{Conclusions}
 \label{sec:conclusiones}
 
-% TODO: redactar. Estructura sugerida:
-% 5.1.1 Cumplimiento de objetivos.
-%   - Repaso de los O1..O6 del capítulo 1 con marca de cumplido/parcial
-%     y referencia al apartado donde se justifica.
-% 5.1.2 Aportaciones principales.
-%   - Modelo de árbol con herencia en cascada y cierre léxico de
-%     plantillas.
-%   - Patrón cliente/servidor con frontera REST en una imagen Docker
-%     descargable.
-%   - Disciplina de calidad: ~95% cobertura, mypy estricto, CI/CD.
-%   - Comparativa con esxobjects/yamlinfr como base reutilizable.
-%   - Metodología de trabajo con asistencia IA, trazable y
+% TODO: draft. Suggested structure:
+% 5.1.1 Fulfilment of objectives.
+%   - Review of O1..O6 from Chapter 1 with done / partial mark and
+%     reference to the section where it is justified.
+% 5.1.2 Main contributions.
+%   - Tree model with cascade inheritance and lexical closure of
+%     templates.
+%   - Client / server pattern with a REST boundary in a downloadable
+%     Docker image.
+%   - Quality discipline: ~95% coverage, strict mypy, CI/CD.
+%   - Comparison with esxobjects / yamlinfr as a reusable basis.
+%   - Working methodology with AI assistance, traceable and
 %     reproducible.
-% 5.1.3 Limitaciones conocidas (honestas).
-%   - El conector real (VMware/Proxmox) no está implementado en esta
-%     versión.
-%   - La interfaz web no entra en esta versión.
-%   - La aplicación específica para docencia (capa 2) está diseñada
-%     pero no implementada.
-%   - No hay autenticación: el servicio se asume desplegado en red de
-%     confianza.
+% 5.1.3 Known limitations (honest).
+%   - The real connector (VMware / Proxmox) is not implemented in
+%     this version.
+%   - The web interface does not enter this version.
+%   - The teaching-specific application (layer 2) is designed but
+%     not implemented.
+%   - No authentication: the service is assumed to live in a trusted
+%     network.
 
-\section{Trabajo futuro dentro del TFG}
+\section{Future work inside the TFG}
 \label{sec:futuro-tfg}
 
-% TODO: redactar. Las tres piezas que sí entran en el TFG:
-% - Conectores reales contra VMware del aulario (acceso por VPN
-%   pendiente del tutor).
-% - Interfaz web básica con NiceGUI sobre la API REST: navegador del
-%   árbol, edición por diálogos, vista alternativa "desde el
-%   hipervisor".
-% - Aplicación específica para despliegue de asignaturas (capa 2): una
-%   única orden despliega toda la asignatura a partir de una lista de
-%   alumnos y una plantilla común.
+% TODO: draft. The three pieces that do enter the TFG:
+% - Real connectors against the classroom-lab VMware (VPN access
+%   pending from the supervisor).
+% - Basic web interface with NiceGUI over the REST API: tree
+%   navigator, node editing through dialogues, alternative view
+%   "from the hypervisor".
+% - Teaching-specific application (layer 2): a single command
+%   deploys a whole course from a list of students and a common
+%   template.
 
-\section{Trabajo futuro más allá del TFG}
+\section{Future work beyond the TFG}
 \label{sec:futuro-mas-alla}
 
-% TODO: redactar como lista, con párrafo introductorio que justifique
-% por qué quedan fuera (alcance temporal del TFG). Lista:
-% - Control de usuarios, autenticación y permisos (RBAC). Diseño
-%   completo cerrado, puntos de extensión identificados.
-% - Interfaz web más completa: acciones, edición avanzada, dashboards
-%   operacionales.
-% - Integración con sistemas de gestión de direcciones IP (IPAM).
-% - Gestión de snapshots de VMs con políticas heredables.
-% - Modelado de datastores como recurso heredable.
-% - Conectores adicionales: Hyper-V, KVM, plataformas cloud.
-% - Alta disponibilidad del servicio (activo/pasivo, MongoDB en
-%   sustitución de TinyDB).
-% - Despliegue de la configuración desde repositorios git (GitOps).
-% - Logs estructurados a syslog (módulo logging stdlib, ya diseñado en
-%   DEC-023 pero pendiente de implementar).
-% - Política de seguridad de undeploy con flag --force.
+% TODO: draft as a list with an introductory paragraph justifying why
+% these are out of scope (TFG time budget). List:
+% - User management, authentication and permissions (RBAC). Full
+%   design closed, extension points identified.
+% - Richer web interface: actions, advanced editing, operational
+%   dashboards.
+% - Integration with IP-address management systems (IPAM).
+% - Snapshot management for VMs with inheritable policies.
+% - Datastore modelling as an inheritable resource.
+% - Extra connectors: Hyper-V, KVM, cloud platforms.
+% - High availability of the service (active/standby, MongoDB
+%   replacing TinyDB).
+% - GitOps-style deployment from git repositories.
+% - Structured logging to syslog (Python stdlib logging, designed in
+%   DEC-023 but still to be implemented).
+% - Undeploy safety policy with --force flag.

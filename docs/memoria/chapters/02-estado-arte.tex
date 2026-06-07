@@ -1,90 +1,92 @@
-% Capítulo 2 - Estado del arte y tecnologías.
-% Fuente: docs/technologies.md + redacción nueva con bibliografía IEEE.
-% Extensión objetivo: 8-10 páginas.
+% Chapter 2 - State of the art and technologies.
+% Sources: docs/technologies.md + new text with IEEE bibliography.
+% Target length: 8-10 pages.
 
-\chapter{Estado del arte y tecnologías}
+\chapter{State of the art and technologies}
 \label{ch:estado-arte}
 
-% TODO: introducción del capítulo, ~1 página.
-% "Este capítulo posiciona UnivOrch en el espacio de soluciones de
-% orquestación existentes. Primero recorremos las categorías clásicas
-% (gestión de hipervisor, IaC, orquestación de contenedores), después
-% acotamos qué requiere el caso docente y por qué los productos del
-% mercado no encajan completos. Cerramos con las tecnologías concretas
-% adoptadas en la implementación."
+% TODO: chapter intro, ~1 page.
+% "This chapter places UnivOrch in the landscape of existing
+% orchestration solutions. We first review the classical categories
+% (hypervisor management, IaC, container orchestration), then narrow
+% down what the teaching case requires and why off-the-shelf products
+% do not fully fit. We close with the concrete technologies adopted
+% for the implementation."
 
-\section{Virtualización y orquestación}
+\section{Virtualisation and orchestration}
 \label{sec:virtualizacion-orquestacion}
 
-% TODO: redactar. Ideas:
-% - Diferencia conceptual entre "hipervisor", "gestión de hipervisor"
-%   (vCenter) y "orquestación" (vRA, OpenStack, Kubernetes).
-% - Modelo declarativo vs imperativo: Terraform como referencia.
-% - El paralelismo conceptual con Kubernetes: control plane + API
-%   declarativa + reconciliación. UnivOrch toma de aquí el modelo de
-%   recursos, sin la complejidad de Kubernetes.
+% TODO: draft. Ideas:
+% - Conceptual difference between "hypervisor", "hypervisor manager"
+%   (vCenter) and "orchestration" (vRA, OpenStack, Kubernetes).
+% - Declarative vs imperative model: Terraform as a reference.
+% - Conceptual parallel with Kubernetes: control plane + declarative
+%   API + reconciliation. UnivOrch borrows the resource model without
+%   inheriting Kubernetes' complexity.
 
-\section{Soluciones existentes}
+\section{Existing solutions}
 \label{sec:soluciones-existentes}
 
-% TODO: redactar. Tabla comparativa al final.
-% Productos:
-% - VMware vSphere (vCenter): el estándar en VMware. Pago, propietario.
-% - VMware vRealize Automation (vRA): la capa de orquestación de VMware.
-%   Compleja, cara, propietaria.
-% - OpenStack: orquestador open source de IaaS. Excesivamente complejo
-%   para entornos docentes pequeños.
-% - Proxmox VE: gestor para Proxmox. Atado a Proxmox.
-% - Foreman: provisioning open source. Más orientado a bare metal.
-% - Cloud-init / Ansible: configuración, no orquestación. Complementarios.
-% - Kubernetes: orquestación de contenedores, no de VMs. Modelo de
-%   referencia.
+% TODO: draft. Comparison table at the end.
+% Products to discuss:
+% - VMware vSphere (vCenter): the de-facto standard on VMware.
+%   Paid, proprietary.
+% - VMware vRealize Automation (vRA): VMware's orchestration layer.
+%   Complex, expensive, proprietary.
+% - OpenStack: open source IaaS orchestrator. Excessively complex for
+%   small teaching environments.
+% - Proxmox VE: management UI for Proxmox. Bound to Proxmox.
+% - Foreman: open source provisioning. More oriented to bare metal.
+% - Cloud-init / Ansible: configuration, not orchestration.
+%   Complementary, not substitutes.
+% - Kubernetes: container orchestration, not VM orchestration.
+%   Reference model.
 %
-% Para cada uno: 1 párrafo con qué resuelve y qué no encaja con el caso
-% docente.
+% For each: one paragraph stating what it solves and what does not
+% match the teaching case.
 
-\section{El caso docente: necesidades específicas}
+\section{The teaching case: specific needs}
 \label{sec:caso-docente}
 
-% TODO: redactar. Ideas:
-% - Una asignatura == una pirámide de N copias de una plantilla.
-% - Reciclaje al final del curso: undeploy masivo.
-% - Aislamiento entre alumnos (red, IPs, snapshots).
-% - El profesor no debe ser experto en VMware ni en redes para usarlo.
-% - Heterogeneidad: VMware en aulario, Proxmox en investigación. Mismo
-%   modelo conceptual.
-% - Esto deja un hueco: orquestador agnóstico al hipervisor con
-%   vocabulario propio del entorno docente.
+% TODO: draft. Ideas:
+% - One course == a pyramid of N copies of a template.
+% - Recycling at the end of the term: bulk undeploy.
+% - Isolation between students (network, IPs, snapshots).
+% - The lecturer should not need to be a VMware or networking expert.
+% - Heterogeneity: VMware in the classroom lab, Proxmox in the
+%   research lab. Same conceptual model expected.
+% - This leaves a gap: a hypervisor-agnostic orchestrator with
+%   vocabulary fitting the teaching environment.
 
-\section{Punto de partida: trabajos previos del tutor}
+\section{Starting point: supervisor's previous work}
 \label{sec:punto-partida}
 
-% TODO: redactar. Ideas:
-% - Esxobjects: librería Python que adapta vSphere SOAP API a una
-%   interfaz más manejable. Atada a VMware.
-% - Yamlinfr: lee descripciones YAML y despliega en vSphere usando
-%   esxobjects. Embrión del modelo declarativo.
-% - UnivOrch generaliza el modelo a cualquier hipervisor, reescribe
-%   desde cero los conectores con TDD, y añade una capa REST como
-%   frontera pública.
-% - En el capítulo de Desarrollo se hará una comparativa cualitativa
-%   con ambos.
+% TODO: draft. Ideas:
+% - esxobjects: Python library wrapping the vSphere SOAP API into a
+%   friendlier interface. Bound to VMware.
+% - yamlinfr: reads YAML descriptions and deploys to vSphere using
+%   esxobjects. Embryonic declarative model.
+% - UnivOrch generalises the model to any hypervisor, rewrites the
+%   connectors from scratch under TDD, and adds a REST layer as a
+%   public boundary.
+% - The Development chapter includes a qualitative comparison with
+%   both libraries.
 
-\section{Tecnologías seleccionadas y justificación}
+\section{Selected technologies and rationale}
 \label{sec:tecnologias-seleccionadas}
 
-% TODO: tabla resumen al inicio y luego justificar cada bloque.
-% Insumo: docs/technologies.md (todo el contenido).
-% Bloques:
-% - Lenguaje: Python 3.12.
-% - Marco web: FastAPI + uvicorn.
-% - Cliente HTTP: httpx (incluido el inyectable para tests).
-% - Datos: TinyDB (PoC) -> MongoDB (futuro). Documental.
-% - Modelado: Pydantic v2.
+% TODO: summary table at the top, then justify each block.
+% Source: docs/technologies.md (full content).
+% Blocks:
+% - Language: Python 3.12.
+% - Web framework: FastAPI + uvicorn.
+% - HTTP client: httpx (with injection for tests).
+% - Storage: TinyDB (PoC) -> MongoDB (future). Document database.
+% - Modelling: Pydantic v2.
 % - CLI: cmd2.
-% - Calidad: ruff, mypy estricto, pytest + Hypothesis.
-% - Empaquetado: Docker multi-stage, ghcr.io.
-% - Bibliotecas de hipervisor (futuro): pyvmomi, proxmoxer.
+% - Quality: ruff, mypy strict, pytest + Hypothesis.
+% - Packaging: multi-stage Docker, ghcr.io.
+% - Hypervisor libraries (future): pyvmomi, proxmoxer.
 %
-% Por cada bloque: para qué se usa, por qué se eligió frente a
-% alternativas, qué se descartó y por qué.
+% For each: what it is used for, why chosen over alternatives, what
+% was discarded and why.

@@ -1,39 +1,39 @@
-% Apéndice A - Manual del administrador.
-% Contenido pendiente. Insumos previstos: docs/tutorial-profesor.md
-% (instalación rápida), docs/environment.md, claude/decisiones.md
-% (filosofía resumida), referencia de comandos.
+% Appendix A - Administrator's manual.
+% Contents to be developed. Foreseen sources:
+% docs/tutorial-profesor.md (quick installation), docs/environment.md,
+% claude/decisiones.md (philosophy summary), CLI reference.
 %
-% Va dirigido al administrador / superusuario que se enfrenta a
-% UnivOrch por primera vez. Debe entender la filosofía, instalarlo
-% en su infraestructura, configurar hipervisores reales, gestionar
-% usuarios (cuando aplique) y mantenerlo.
+% Audience: the administrator / superuser facing UnivOrch for the
+% first time. They need to grasp the philosophy, install in their
+% infrastructure, configure real hypervisors, manage users (when
+% applicable) and maintain the system.
 
-\umaappendix{Manual del administrador}
+\umaappendix{Administrator's manual}
 \label{ap:manual-admin}
 
-% TODO: redactar. Estructura sugerida:
-% A.1 Filosofía resumida (1-2 páginas)
-%   - Qué es UnivOrch, modelo de árbol, herencia, dos ejes de estado.
-% A.2 Instalación rápida (basada en tutorial-profesor.md)
-%   - Requisitos, instalador de una línea, primera arranque.
-% A.3 Instalación en producción
-%   - Configuración del docker-compose para producción real.
-%   - Volumen persistente y respaldo del fichero TinyDB.
-%   - Despliegue tras proxy inverso (sin TLS en el contenedor).
-% A.4 Configuración de hipervisores reales
-%   - VMware: credenciales, certificados, plantillas base.
-%   - Proxmox: API token, nodos.
-%   - Mock para pruebas.
-% A.5 Carga de definiciones
-%   - Sintaxis del YAML: carpetas, descriptores, recursos (define/use).
-%   - Idempotencia del load, qué pasa cuando se carga dos veces.
-% A.6 Operación habitual
-%   - deploy/start/stop/undeploy desde CLI.
-%   - Lectura de Jobs y diagnóstico.
-% A.7 Mantenimiento
-%   - Logs del daemon (dónde y cómo consultar).
-%   - Histórico de operaciones desde la BD.
-%   - Copias de seguridad del volumen.
-%   - Actualización de versión (docker compose pull + restart).
+% TODO: draft. Suggested structure:
+% A.1 Philosophy summary (1-2 pages)
+%   - What UnivOrch is, the tree model, inheritance, two state axes.
+% A.2 Quick install (based on tutorial-profesor.md)
+%   - Requirements, one-line installer, first start.
+% A.3 Production install
+%   - docker-compose configuration for real production.
+%   - Persistent volume and TinyDB backup.
+%   - Deployment behind a reverse proxy (no TLS inside the container).
+% A.4 Real-hypervisor configuration
+%   - VMware: credentials, certificates, base templates.
+%   - Proxmox: API token, nodes.
+%   - Mock for tests.
+% A.5 Loading definitions
+%   - YAML syntax: folders, descriptors, resources (define/use).
+%   - load idempotency, what happens when loaded twice.
+% A.6 Day-to-day operation
+%   - deploy/start/stop/undeploy from the CLI.
+%   - Reading Jobs and diagnostics.
+% A.7 Maintenance
+%   - Daemon logs (where and how to read).
+%   - Operation history in the database.
+%   - Volume backups.
+%   - Version upgrade (docker compose pull + restart).
 
-Pendiente de redactar. Se incluirá en una versión posterior.
+To be drafted. It will be included in a later version.

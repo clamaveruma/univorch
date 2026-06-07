@@ -1,22 +1,28 @@
 % ======================================================================
-% Memoria del Trabajo Fin de Grado
-% Univorch - Orquestador universal de máquinas virtuales
-% Autor: Claudio María Martínez Velasco
-% Tutor: Guillermo Pérez Trabado
+% Bachelor's Thesis report
+% Univorch - Universal virtual machine orchestrator
+% Author: Claudio María Martínez Velasco
+% Supervisor: Guillermo Pérez Trabado
 % ETSI Informática - Universidad de Málaga
 %
-% Estructura: este fichero es el documento raíz. Los capítulos viven en
-% chapters/, los apéndices en appendices/, el frontmatter (resumen,
-% abstract, glosario) en frontmatter/. Se compone vía \input{} para que
-% cada fichero quede manejable y trazable en git.
+% Language policy (CLAUDE.md): main body in English, B2 level — clear
+% technical prose, no academic flourishes, short sentences. The
+% Conclusions chapter has an extra Spanish-language version included
+% as Appendix E, as the UMA TFG regulations require when the report is
+% written in English.
 %
-% Plantilla original: Mario Pascual González (mpascual@uma.es), v2.2,
+% Structure: this is the root document. Chapters live in chapters/,
+% appendices in appendices/, frontmatter (abstract, summary, glossary)
+% in frontmatter/. Composed via \input{} so each file stays small and
+% traceable in git.
+%
+% Original template: Mario Pascual González (mpascual@uma.es), v2.2,
 % https://github.com/MarioPasc/UMA-TFG-ETSI-Templates
 % ======================================================================
 \documentclass[12pt,a4paper,twoside,openright]{book}
 
 %───────── Template, covers, back cover ────────────────────────────────
-\usepackage{template/sty_files/template-TFGspanish-uma}
+\usepackage{template/sty_files/template-TFGenglish-uma}
 
 \usepackage{template/sty_files/plain_cover-blueuma}
 \usepackage{template/sty_files/plain_cover-whiteuma}
@@ -59,43 +65,43 @@
 \begin{document}
 
 %────────────────────── Blue front cover ───────────────────────────────
-% TODO confirmar antes de la entrega final: título exacto en inglés,
-% mención (si aplica), fecha de defensa.
+% TODO confirm before the final submission: exact mention (if any),
+% final defense date.
 \MakePlainBlueUMACover{
-  degree     = {Grado en Ingeniería de Computadores},
+  degree     = {Bachelor's Degree in Computer Engineering},
   mencion    = {},
   titleES    = {Un orquestador de máquinas virtuales para entornos docentes y de investigación. Prueba de concepto},
   titleEN    = {A virtual machine orchestrator for teaching and research environments. Proof of concept},
   author     = {Claudio María Martínez Velasco},
   tutor      = {Dr.~Guillermo Pérez Trabado},
-  dept       = {Departamento de Arquitectura de Computadores},
-  cityDate   = {Málaga, junio de 2026},
+  dept       = {Department of Computer Architecture},
+  cityDate   = {Málaga, June 2026},
   logoLeft   = {template/logos/NEG-uma-logo.png},
   logoRight  = {template/logos/NEG-etsi-logo.png}
 }
 
 %────────────────────── White front cover ──────────────────────────────
 \MakePlainWhiteUMACover{
-  degree      = {Graduado en Ingeniería de Computadores},
+  degree      = {Graduated in Computer Engineering},
   mencion     = {},
   titleES     = {Un orquestador de máquinas virtuales para entornos docentes y de investigación. Prueba de concepto},
   titleEN     = {A virtual machine orchestrator for teaching and research environments. Proof of concept},
   author      = {Claudio María Martínez Velasco},
   tutor       = {Dr.~Guillermo Pérez Trabado},
-  dept        = {Departamento de Arquitectura de Computadores},
-  cityDate    = {MÁLAGA, junio de 2026},
-  defenseDate = {Septiembre de 2026},
+  dept        = {Department of Computer Architecture},
+  cityDate    = {MÁLAGA, June 2026},
+  defenseDate = {September 2026},
   logoLeft    = {template/logos/POS-uma-logo.png},
   logoRight   = {template/logos/POS-etsi-logo.png}
 }
 
 \frontmatter
 
-%────────────────────── Abstracts ──────────────────────────────────────
-\input{frontmatter/resumen}
+%────────────────────── Abstracts (English first, Spanish next) ────────
 \input{frontmatter/abstract}
+\input{frontmatter/resumen}
 
-%──────────────── Agradecimientos ──────────────────────────────────────
+%──────────────── Acknowledgments ──────────────────────────────────────
 \input{frontmatter/agradecimientos}
 
 %────────────────────── TOC and lists ──────────────────────────────────
@@ -118,12 +124,15 @@
 \input{chapters/04-desarrollo}
 \input{chapters/05-conclusiones}
 
-%────────────────────── Apéndices ──────────────────────────────────────
+%────────────────────── Appendices ─────────────────────────────────────
+% Appendix E carries the Conclusions in Spanish, as required by the UMA
+% TFG regulations when the report is written in English.
 \begin{umaappendices}
 \input{appendices/A-manual-admin}
 \input{appendices/B-requirements}
 \input{appendices/C-decisiones}
 \input{appendices/D-cli-reference}
+\input{appendices/E-conclusiones-castellano}
 \end{umaappendices}
 
 %────────────────────── Bibliografía y contraportada ───────────────────

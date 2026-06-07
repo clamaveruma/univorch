@@ -1,63 +1,62 @@
-% Glosario / nomenclatura. La plantilla UMA proporciona el comando
-% \nomenclature{}{} y \printnomenclature. La fuente única de los
-% términos vive en docs/glossary.md; aquí los transcribimos al formato
-% LaTeX. Cuando la terminología cambie en glossary.md, hay que
-% propagarlo aquí (apuntado como deuda en claude/ideas-pendientes.md).
+% Glossary / nomenclature. The UMA template provides \nomenclature{}{}
+% and \printnomenclature. Single source of truth lives in
+% docs/glossary.md (English); this file transcribes it. When a term
+% changes in glossary.md, propagate it here.
 
-% --- Árbol de descriptores ---
-\nomenclature{\textbf{Descriptor}}{Objeto del orquestador que representa
-  una VM (definición + estado). Analogía con un descriptor de fichero en
-  un sistema operativo.}
-\nomenclature{\textbf{Carpeta}}{Nodo agrupador del árbol, contenedor de
-  descriptores y de otras carpetas. Soporta importación explícita de
-  recursos heredables.}
-\nomenclature{\textbf{Path materializado}}{Identificador único de una
-  carpeta o descriptor; cadena con la ruta completa desde la raíz
-  (e.g.\ \texttt{/lab/networks/student01}).}
+% --- Descriptor tree ---
+\nomenclature{\textbf{Descriptor}}{The orchestrator object representing
+  a VM (its definition plus its state). Analogous to a file descriptor
+  in an operating system.}
+\nomenclature{\textbf{Folder}}{Grouping node in the tree, container of
+  descriptors and other folders. Supports explicit import of inheritable
+  resources.}
+\nomenclature{\textbf{Materialized path}}{Unique identifier of a folder
+  or descriptor; the full path from the root (e.g.\
+  \texttt{/lab/networks/student01}).}
 
-% --- Recursos heredables ---
-\nomenclature{\textbf{Plantilla (template)}}{Recurso declarable con
-  \texttt{define templates:}; ofrece valores por defecto reutilizables
-  por descriptores que la referencian con \texttt{use template:}.}
-\nomenclature{\textbf{Hipervisor (recurso)}}{Recurso declarable con
-  \texttt{define hypervisors:}; nombra una instancia de hipervisor
-  concreta (con su tipo y datos de acceso) referenciable por
-  descriptores y plantillas con \texttt{use hypervisor:}.}
-\nomenclature{\textbf{Importación}}{Mecanismo por el que una carpeta
-  declara qué recursos del padre quiere hacer visibles aquí; sin
-  importación, el recurso no es accesible desde esta rama.}
-\nomenclature{\textbf{Cierre léxico}}{Regla por la que las referencias
-  internas de una plantilla se resuelven desde donde la plantilla está
-  definida, no desde donde se usa.}
+% --- Inheritable resources ---
+\nomenclature{\textbf{Template}}{Resource declarable with
+  \texttt{define templates:}; offers reusable default values that
+  descriptors reference with \texttt{use template:}.}
+\nomenclature{\textbf{Hypervisor (resource)}}{Resource declarable with
+  \texttt{define hypervisors:}; names a specific hypervisor instance
+  (with its type and connection data) that descriptors and templates
+  reference with \texttt{use hypervisor:}.}
+\nomenclature{\textbf{Import}}{Mechanism by which a folder states which
+  resources from its parent become visible here; without import, the
+  resource is not accessible from this branch.}
+\nomenclature{\textbf{Lexical closure}}{Rule by which internal
+  references inside a template are resolved from where the template is
+  defined, not from where it is used.}
 
-% --- Estado ---
-\nomenclature{\textbf{State}}{Eje de estado del descriptor desde el
-  punto de vista del orquestador: \texttt{provisioned}, \texttt{deployed}
-  (con o sin \texttt{drifted}), \texttt{broken}, \texttt{unreachable}.}
-\nomenclature{\textbf{Runtime}}{Eje de estado de la VM desde el punto de
-  vista del hipervisor: \texttt{running}, \texttt{stopped},
-  \texttt{paused}, \texttt{unknown}.}
+% --- State ---
+\nomenclature{\textbf{State}}{Descriptor state axis from the
+  orchestrator's point of view: \texttt{provisioned}, \texttt{deployed}
+  (with or without \texttt{drifted}), \texttt{broken},
+  \texttt{unreachable}.}
+\nomenclature{\textbf{Runtime}}{VM state axis from the hypervisor's
+  point of view: \texttt{running}, \texttt{stopped}, \texttt{paused},
+  \texttt{unknown}.}
 
-% --- Operaciones ---
-\nomenclature{\textbf{Job}}{Registro persistido de una operación, con su
-  identificador único, tipo, objetivo, estado y resultado. Garantiza
-  auditoría y prepara la asincronía futura.}
-\nomenclature{\textbf{Command}}{Patrón de diseño aplicado a las
-  operaciones: cada acción encapsula \texttt{validate()} y
-  \texttt{execute()}, permitiendo \emph{dry-run} (\texttt{plan}),
-  ejecución diferida y reintento.}
-\nomenclature{\textbf{Conector}}{Adaptador entre el orquestador y un
-  hipervisor concreto. Implementa el contrato ABC
-  \texttt{HypervisorConnector}.}
+% --- Operations ---
+\nomenclature{\textbf{Job}}{Persistent record of an operation, with its
+  unique identifier, type, target, status and result. Provides audit
+  and prepares for future asynchronous execution.}
+\nomenclature{\textbf{Command}}{Design pattern applied to operations:
+  each action encapsulates \texttt{validate()} and \texttt{execute()},
+  enabling dry-run (\texttt{plan}), deferred execution and retry.}
+\nomenclature{\textbf{Connector}}{Adapter between the orchestrator and
+  a concrete hypervisor. Implements the
+  \texttt{HypervisorConnector} ABC contract.}
 
-% --- Acciones del usuario ---
-\nomenclature{\textbf{load}}{Acción que carga un documento YAML de
-  definiciones en una carpeta destino.}
-\nomenclature{\textbf{deploy / undeploy}}{Crear o destruir la VM en el
-  hipervisor a partir del descriptor (transición \texttt{provisioned} a
-  \texttt{deployed} y viceversa).}
-\nomenclature{\textbf{start / stop}}{Encender o apagar la VM ya
-  desplegada (afecta al runtime, no al state).}
+% --- User actions ---
+\nomenclature{\textbf{load}}{Action that loads a YAML definition
+  document into a destination folder of the tree.}
+\nomenclature{\textbf{deploy / undeploy}}{Create or destroy the VM on
+  the hypervisor from a descriptor (transition between
+  \texttt{provisioned} and \texttt{deployed}).}
+\nomenclature{\textbf{start / stop}}{Power on or off the VM that is
+  already deployed (changes the runtime axis, not the state axis).}
 
 \printnomenclature
 \clearpage

@@ -1,100 +1,102 @@
-% Capítulo 3 - Metodología de trabajo.
-% Fuentes: docs/plan.md, docs/environment.md, claude/desarrollo.md,
-% claude/diario.md, los workflows .github/workflows/*.yml.
-% Extensión objetivo: 6-8 páginas.
+% Chapter 3 - Methodology.
+% Sources: docs/plan.md, docs/environment.md, claude/desarrollo.md,
+% claude/diario.md, .github/workflows/*.yml.
+% Target length: 6-8 pages.
 
-\chapter{Metodología de trabajo}
+\chapter{Methodology}
 \label{ch:metodologia}
 
-% TODO: introducción del capítulo, ~media página.
-% "El proyecto se ha desarrollado siguiendo un proceso por fases con
-% sprints iterativos, una disciplina estricta de calidad de código y un
-% modelo de colaboración con asistencia de IA. Este capítulo describe
-% el marco de proceso, el entorno reproducible, las herramientas de
-% calidad continua y las decisiones de método más relevantes para el
-% desarrollo y para la futura mantenibilidad."
+% TODO: chapter intro, ~half a page.
+% "The project follows a phased process with iterative sprints, a
+% strict code-quality discipline, and an AI-assisted collaboration
+% model. This chapter describes the process framework, the
+% reproducible development environment, the continuous quality
+% practices, and the most relevant methodological choices for both
+% the development and the future maintainability of the system."
 
-\section{Marco de proceso: fases y sprints}
+\section{Process framework: phases and sprints}
 \label{sec:proceso}
 
-% TODO: redactar. Insumo: docs/plan.md.
-% - 7 fases: definición del problema, requisitos, arquitectura,
-%   tecnologías, entorno, desarrollo iterativo, evaluación y memoria.
-% - Cada fase con su entregable formal (vision.md, requirements.md,
-%   architecture.md, technologies.md, environment.md, código).
-% - Dentro del desarrollo iterativo, sprints con scope acordado y
-%   cierre formal en el diario.
-% - Diario y banco de decisiones como mecanismos de trazabilidad.
+% TODO: draft. Source: docs/plan.md.
+% - Seven phases: problem definition, requirements, architecture,
+%   technologies, environment, iterative development, evaluation and
+%   report.
+% - Each phase produces a formal deliverable (vision.md,
+%   requirements.md, architecture.md, technologies.md,
+%   environment.md, code).
+% - Inside iterative development, sprints with agreed scope and a
+%   formal close in the journal.
+% - Journal and decisions log as the traceability mechanism.
 
-\section{Entorno de desarrollo reproducible}
+\section{Reproducible development environment}
 \label{sec:entorno}
 
-% TODO: redactar. Insumo: docs/environment.md.
-% - Devcontainer compartido entre máquinas y plataformas (VSCode con
-%   Dev Containers, Remote-SSH, Codespaces).
-% - El mismo devcontainer.json levanta en local, en servidor remoto y
-%   en la nube; el resultado es bit a bit equivalente.
-% - uv como gestor de dependencias y de entornos virtuales (binario
-%   Rust, configuración unificada en pyproject.toml).
-% - Imagen de desarrollo (Microsoft Python + features) distinta de la
-%   de producción (multi-stage minimal).
-% - Mecanismo recterm para que la sesión asistida pueda observar el
-%   terminal del desarrollador durante la depuración.
+% TODO: draft. Source: docs/environment.md.
+% - Shared devcontainer across machines and platforms (VSCode Dev
+%   Containers, Remote-SSH, Codespaces).
+% - The same devcontainer.json brings up local, remote server and
+%   cloud; the resulting environment is bit-for-bit equivalent.
+% - uv as the dependency and virtual-environment manager (Rust
+%   binary, single configuration in pyproject.toml).
+% - Development image (Microsoft Python + features) is different from
+%   the production image (multi-stage minimal).
+% - recterm tool so the AI-assisted session can observe the
+%   developer's terminal during debugging.
 
-\section{Disciplina de calidad}
+\section{Quality discipline}
 \label{sec:calidad}
 
-% TODO: redactar. Insumo: docs/technologies.md secciones 2 y 5, +
-% workflows.
-% - TDD desde el primer commit del código.
-% - Ruff como linter + formateador (sustituye flake8 + isort + black).
-% - mypy en modo estricto sobre src/univorch/.
-% - pytest + pytest-cov + Hypothesis (property-based para el resolver,
-%   función pura).
-% - Cobertura objetivo y alcanzada al cierre del PoC (>=95% en lógica
-%   de dominio, 244 tests verdes al cierre del Sprint 3).
-% - Tabla con tests por tipo (unidad, integración, property) y módulos.
+% TODO: draft. Source: docs/technologies.md sections 2 and 5, plus the
+% workflows in .github/workflows/.
+% - TDD from the first commit of the code base.
+% - Ruff as linter + formatter (replaces flake8 + isort + black).
+% - mypy in strict mode over src/univorch/.
+% - pytest + pytest-cov + Hypothesis (property-based testing for the
+%   resolver, which is a pure function).
+% - Target and achieved coverage at the end of the PoC (>=95% in the
+%   domain logic; 244 tests passing at the close of Sprint 3).
+% - Table of tests by type (unit, integration, property) and module.
 
-\section{Integración y entrega continua}
+\section{Continuous integration and delivery}
 \label{sec:cicd}
 
-% TODO: redactar. Insumo: .github/workflows/ci.yml + publish.yml.
-% - CI en cada push y PR a main: ruff + format + mypy + pytest.
-% - Publicación a ghcr.io disparada por tags semver: control consciente
-%   del usuario sobre cuándo hay versión nueva. Etiquetas vX.Y.Z (fija)
-%   y :latest (mutable). Política de versionado: 0.x mientras la API
-%   sea inestable.
-% - Imagen pública en el registro de paquetes de GitHub, descargable sin
-%   login. El profesor solo necesita Docker.
+% TODO: draft. Source: .github/workflows/ci.yml and publish.yml.
+% - CI on every push and PR to main: ruff + format + mypy + pytest.
+% - Publishing to ghcr.io triggered by semver tags: explicit user
+%   control over when a new version exists. Tags vX.Y.Z (immutable)
+%   and :latest (mutable). Versioning policy: 0.x while the API is
+%   unstable.
+% - Public image in the GitHub Container Registry, downloadable
+%   without login. The lecturer only needs Docker.
 
-\section{Desarrollo asistido por IA}
+\section{AI-assisted development}
 \label{sec:ia}
 
-% TODO: redactar. Esta sección es interesante para defender y es
-% material original. Ideas:
-% - Asistente: Claude (Anthropic). Modelo Opus o Sonnet según fase
-%   (decisiones críticas vs trabajo iterativo).
-% - Mecanismo de contexto persistente: ficheros claude/ versionados en
-%   el repositorio. CLAUDE.md como punto de entrada con imports.
-% - Diario (cronológico), decisiones técnicas (DEC-001 a DEC-036),
-%   banco de ideas pendientes, contexto de desarrollo: separación de
-%   intereses para que cualquier nueva sesión recupere el contexto.
-% - Patrón de trabajo: explicar -> aclarar -> confirmar -> ejecutar. El
-%   alumno mantiene el control y entiende cada decisión.
-% - Distinción: el código lo escribe el asistente, las decisiones las
-%   toma el alumno, y la responsabilidad de defender la memoria es del
-%   alumno.
+% TODO: draft. This section is original and worth defending.
+% - Assistant: Claude (Anthropic). Opus or Sonnet model depending on
+%   the phase (critical decisions vs iterative work).
+% - Persistent-context mechanism: claude/ files versioned in the
+%   repository. CLAUDE.md as the entry point with imports.
+% - Journal (chronological), decisions log (DEC-001 to DEC-036),
+%   pending-ideas bank, development context: separation of concerns
+%   so any new session can recover the full context.
+% - Working pattern: explain -> clarify -> confirm -> execute. The
+%   student keeps control and understands each decision.
+% - Boundary: the assistant writes the code, the student takes the
+%   decisions, and the responsibility for defending the report is
+%   the student's.
 
-\section{Trazabilidad y gestión del conocimiento}
+\section{Traceability and knowledge management}
 \label{sec:trazabilidad}
 
-% TODO: redactar. Insumo: claude/decisiones.md, claude/diario.md,
+% TODO: draft. Source: claude/decisiones.md, claude/diario.md,
 % claude/ideas-pendientes.md.
-% - Diario cronológico con todas las decisiones tomadas en su contexto
-%   temporal.
-% - Banco de decisiones técnicas numeradas (DEC-001 a DEC-036) con
-%   trazabilidad mutua y referencia al diario.
-% - Banco de ideas pendientes, separado por área: futuro inmediato,
-%   web GUI, capa docente, memoria del TFG, UX...
-% - Vocabulario controlado en docs/glossary.md, fuente única para el
-%   glosario de la memoria y del futuro manual del administrador.
+% - Chronological journal with every decision taken in its temporal
+%   context.
+% - Numbered technical-decisions log (DEC-001 to DEC-036) with mutual
+%   traceability and journal references.
+% - Pending-ideas bank, organised by area: near-term, web GUI,
+%   teaching layer, TFG report, UX...
+% - Controlled vocabulary in docs/glossary.md, single source of
+%   truth for the report's glossary and for the future administrator
+%   manual.

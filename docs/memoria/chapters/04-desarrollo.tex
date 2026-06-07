@@ -1,127 +1,131 @@
-% Capítulo 4 - Desarrollo, pruebas y resultados.
-% Es el capítulo más extenso. Fuentes: docs/requirements.md,
-% docs/architecture.md, docs/diagrams.md, claude/decisiones.md
-% (DEC-001 a DEC-036), código en src/, tests en tests/.
-% Extensión objetivo: 18-22 páginas.
+% Chapter 4 - Development, testing and results.
+% Largest chapter. Sources: docs/requirements.md, docs/architecture.md,
+% docs/diagrams.md, claude/decisiones.md (DEC-001 to DEC-036), code
+% under src/, tests under tests/.
+% Target length: 18-22 pages.
 
-\chapter{Desarrollo, pruebas y resultados}
+\chapter{Development, testing and results}
 \label{ch:desarrollo}
 
-% TODO: introducción del capítulo, ~media página.
-% "Este capítulo describe el ciclo completo de desarrollo del PoC,
-% organizado en seis bloques: análisis de requisitos, diseño
-% arquitectónico, implementación, estrategia de pruebas, demostración
-% funcional y comparativa cualitativa con los trabajos previos del
-% tutor. El análisis detallado de requisitos se relega al apéndice
-% \ref{ap:requirements}; aquí se presenta el resumen estructurado."
+% TODO: chapter intro, ~half a page.
+% "This chapter describes the full PoC development cycle, organised
+% in six blocks: requirements analysis, architectural design,
+% implementation, testing strategy, functional demonstration and
+% qualitative comparison with the supervisor's previous libraries.
+% The detailed requirements analysis is moved to Appendix
+% \ref{ap:requirements}; here we present the structured summary."
 
-\section{Análisis de requisitos}
+\section{Requirements analysis}
 \label{sec:analisis}
 
-% TODO: redactar. Resumen de docs/requirements.md (versión completa en
-% apéndice B). Estructura:
-% 4.1.1 Actores y casos de uso principales
-%   - Tabla de actores con roles del orquestador y de la capa docente.
-%   - Casos de uso del núcleo y de la capa docente, los más
-%     representativos (no todos).
-% 4.1.2 Requisitos funcionales (agrupados por área temática, no la
-%   lista exhaustiva).
-% 4.1.3 Requisitos no funcionales (tabla).
-% 4.1.4 Restricciones y fuera de alcance.
+% TODO: draft. Summary of docs/requirements.md (full version in
+% Appendix B). Structure:
+% 4.1.1 Actors and main use cases
+%   - Actor table covering the orchestrator core and the teaching
+%     layer roles.
+%   - Most representative use cases of core and teaching layer (not
+%     all of them).
+% 4.1.2 Functional requirements (grouped by topic, not as an
+%   exhaustive list).
+% 4.1.3 Non-functional requirements (table).
+% 4.1.4 Constraints and out of scope.
 %
-% Texto típico: "El análisis completo se desarrolla en el apéndice
-% \ref{ap:requirements}; este apartado presenta los elementos
-% estructurantes."
+% Standard text: "The full analysis is developed in Appendix
+% \ref{ap:requirements}; this section presents the structuring
+% elements."
 
-\section{Diseño arquitectónico}
+\section{Architectural design}
 \label{sec:diseno}
 
-% TODO: redactar. Insumo: docs/architecture.md + docs/diagrams.md.
-% Importante: refrescar ambos documentos antes de escribir esta sección
-% (les faltan Sprint 2 Pieza 3 y todo Sprint 3).
+% TODO: draft. Source: docs/architecture.md + docs/diagrams.md.
+% Important: refresh both documents before writing this section
+% (they still miss Sprint 2 Piece 3 and the whole Sprint 3).
 %
-% Estructura:
-% 4.2.1 Arquitectura en dos capas (DEC-004)
-%   - Diagrama de contexto C4 (figura).
-%   - Diagrama de contenedores C4 (figura).
-% 4.2.2 Modelo del dominio
-%   - Árbol de descriptores con materialized path (DEC-008).
-%   - Herencia en cascada por tipo de dato (DEC-026).
-%   - Cierre léxico de plantillas (refinamiento DEC-012, 2025-06-06).
-% 4.2.3 Patrones aplicados
+% Structure:
+% 4.2.1 Two-layer architecture (DEC-004)
+%   - C4 Context diagram (figure).
+%   - C4 Container diagram (figure).
+% 4.2.2 Domain model
+%   - Descriptor tree with materialized path (DEC-008).
+%   - Cascade inheritance by data type (DEC-026).
+%   - Template lexical closure (refinement of DEC-012, 2026-06-06).
+% 4.2.3 Patterns applied
 %   - Facade (OrchestratorService, DEC-031).
 %   - Command pattern (DEC-028).
 %   - Repository (DEC-007/030).
-%   - Strategy / ABC para conectores (DEC-029).
-%   - Protocol para la frontera CLI/cliente HTTP (DEC ...).
-% 4.2.4 Frontera REST como API pública
-%   - Argumento defendible: la API REST no se monta para que la CLI
-%     remota funcione (el admin tiene SSH), sino para que existan
-%     integraciones externas.
-%   - Cliente CLI dual mode in-process / HTTP descartado a favor del
-%     modelo cliente puro (Sprint 3.2 B-2), por coherencia con docker /
-%     kubectl.
-% 4.2.5 Diagrama de componentes (figura) y de despliegue (figura).
+%   - Strategy / ABC for connectors (DEC-029).
+%   - Protocol for the CLI / HTTP client boundary.
+% 4.2.4 REST as the public boundary
+%   - Defensible argument: the REST API does not exist for remote
+%     CLI convenience (the admin has SSH); it exists for external
+%     integrations.
+%   - CLI dual-mode in-process / HTTP was discarded in favour of the
+%     pure-client model (Sprint 3.2 B-2), to align with
+%     docker / kubectl.
+% 4.2.5 Component diagram (figure) and deployment diagram (figure).
 
-\section{Implementación}
+\section{Implementation}
 \label{sec:implementacion}
 
-% TODO: redactar. Estructura por capas, no por sprints (los sprints
-% importan para la metodología, no para la presentación del producto).
-% 4.3.1 Núcleo del orquestador
-%   - Modelos Pydantic.
-%   - Resolver puro (función + tests con Hypothesis).
-%   - Motor de Jobs y Commands.
-%   - Repositorios sobre TinyDB.
-%   - Servicio facade.
-% 4.3.2 Conector mock
-%   - Estado en memoria, plantillas demo precargadas.
-%   - Sin dependencias externas: arranca el sistema entero sin
-%     hipervisor real.
-% 4.3.3 Interfaz CLI
-%   - cmd2 con argparse, modo doble REPL/bash.
-%   - Cliente HTTP por inyección, traduce errores de transporte a
-%     OperationError con mensaje accionable.
-% 4.3.4 Daemon REST
-%   - FastAPI + uvicorn, paths como query params.
-%   - Healthcheck, codificación de errores 200/400/422.
-% 4.3.5 Empaquetado y distribución
-%   - Dockerfile multi-stage, docker-compose con volumen named.
-%   - Instalador install.sh con detección de Docker, puerto, Compose.
-%   - Imagen publicada en ghcr.io con tags semver.
+% TODO: draft. Structure by layer, not by sprint (sprints matter for
+% the methodology chapter, not for presenting the product).
+% 4.3.1 Orchestrator core
+%   - Pydantic models.
+%   - Pure resolver (function + Hypothesis tests).
+%   - Jobs engine and Commands.
+%   - TinyDB repositories.
+%   - Facade service.
+% 4.3.2 Mock connector
+%   - In-memory state, demo templates pre-loaded.
+%   - No external dependencies: the whole system runs without a real
+%     hypervisor.
+% 4.3.3 CLI interface
+%   - cmd2 with argparse, dual REPL / bash mode.
+%   - HTTP client injected, translates transport errors into
+%     OperationError with actionable messages.
+% 4.3.4 REST daemon
+%   - FastAPI + uvicorn, paths as query parameters.
+%   - Healthcheck, error coding 200/400/422.
+% 4.3.5 Packaging and distribution
+%   - Multi-stage Dockerfile, docker-compose with a named volume.
+%   - install.sh installer with Docker, port and Compose detection.
+%   - Image published in ghcr.io with semver tags.
 
-\section{Estrategia de pruebas}
+\section{Testing strategy}
 \label{sec:pruebas}
 
-% TODO: redactar.
-% 4.4.1 Pirámide de pruebas aplicada.
-% 4.4.2 Unidad: por módulo, con cobertura alta en lógica de dominio.
-% 4.4.3 Integración: con TinyDB en memoria, mock connector real.
-% 4.4.4 Property-based con Hypothesis: el resolver, función pura, es
-%   el caso ideal. Tres propiedades comprobadas.
-% 4.4.5 REST: FastAPI TestClient como cliente httpx que enruta al ASGI
-%   in-process. Caza divergencias cliente-servidor sin red.
-% 4.4.6 Métricas finales: 244 tests verdes al cierre de Sprint 3,
-%   95-100% en módulos centrales.
+% TODO: draft.
+% 4.4.1 Test pyramid applied.
+% 4.4.2 Unit tests by module, with high coverage in domain logic.
+% 4.4.3 Integration tests with in-memory TinyDB and the real mock
+%   connector.
+% 4.4.4 Property-based tests with Hypothesis: the resolver, a pure
+%   function, is the ideal case. Three properties checked.
+% 4.4.5 REST tests with FastAPI TestClient as an httpx client that
+%   routes to the ASGI app in-process. Catches client-server
+%   divergences without network.
+% 4.4.6 Final metrics: 244 tests passing at the close of Sprint 3,
+%   95-100% in central modules.
 
-\section{Demostración funcional}
+\section{Functional demonstration}
 \label{sec:demo}
 
-% TODO: redactar. Capturas a incluir (carpeta figures/).
-% - Estructura del árbol cargada desde el demo.
-% - inspect mostrando herencia y closure.
-% - Ciclo completo deploy/start/status/stop/undeploy.
-% - Comprobación HTTP desde curl y desde el navegador (/docs).
-% - Recorrido por la API en Swagger UI.
+% TODO: draft. Screenshots to include (figures/ folder).
+% - Tree structure loaded from the demo.
+% - inspect showing inheritance and closure in action.
+% - Full lifecycle deploy/start/status/stop/undeploy.
+% - HTTP health check via curl and the browser (/docs).
+% - Walk through the API in Swagger UI.
 
-\section{Comparativa con esxobjects y yamlinfr}
+\section{Comparison with esxobjects and yamlinfr}
 \label{sec:comparativa}
 
-% TODO: redactar.
-% - Tabla comparativa: alcance, dependencias, modelo de descriptores,
-%   capacidad de extensión, cobertura de pruebas, distribución.
-% - Lectura cualitativa: yamlinfr/esxobjects resolvían su caso, atado a
-%   VMware. UnivOrch generaliza y abre la puerta a otros hipervisores
-%   sin tocar el núcleo.
-% - Discusión honesta: UnivOrch no es un sustituto operativo todavía
-%   (le falta el conector real); es un PoC del modelo.
+% TODO: draft.
+% - Comparison table: scope, dependencies, descriptor model,
+%   extensibility, test coverage, distribution.
+% - Qualitative read: yamlinfr / esxobjects solved their case, bound
+%   to VMware. UnivOrch generalises and opens the door to other
+%   hypervisors without touching the core.
+% - Honest discussion: UnivOrch is not yet a drop-in operational
+%   replacement (real connector is still pending); it is a proof of
+%   concept of the model.

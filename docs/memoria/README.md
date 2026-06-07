@@ -4,6 +4,13 @@ Fuentes en LaTeX de la memoria del Trabajo Fin de Grado *Un orquestador
 de máquinas virtuales para entornos docentes y de investigación.
 Prueba de concepto*.
 
+**Idioma de la memoria: inglés**, nivel B2 (prosa técnica clara, sin
+ornamento académico, frases cortas, voz activa cuando es natural). Es
+la política fijada en `CLAUDE.md` desde el inicio del proyecto. Las
+conclusiones y líneas futuras se duplican también en castellano en el
+Anexo E, según exige la normativa de la EI UMA cuando la memoria está
+en inglés.
+
 ## Estructura
 
 ```
@@ -105,12 +112,17 @@ Antes de la entrega final, revisar en `main.tex` los placeholders:
 
 ## Estilo de redacción
 
-- Castellano académico, impersonal o primera persona del plural (no
-  primera persona del singular).
-- Términos extranjeros en cursiva la primera vez que aparecen, en
-  redonda después.
+- **Inglés técnico nivel B2**: prosa clara, frases cortas (~15-20
+  palabras de media), voz activa cuando es natural, voz pasiva sólo
+  cuando es la forma honesta de describir un proceso impersonal. Sin
+  ornamento académico ni vocabulario raro.
+- Primera persona del plural ("we") o impersonal, **nunca primera
+  persona del singular**. La plantilla y el estilo del TFG asumen ese
+  registro.
+- Préstamos del castellano técnico cuando es lo correcto (e.g.
+  *aulario* en cursiva con explicación entre paréntesis la primera vez).
 - Citas con `\cite{key}` en el orden de aparición; estilo IEEE
   (numeric, sorted by name-year-title via biblatex).
 - Figuras con `\caption` y `\label` siempre; referenciar con `\cref{}`
-  o `\Cref{}` para que el cleveref ponga "figura"/"tabla" según
+  o `\Cref{}` para que cleveref ponga "Figure" o "Table" según
   corresponda.
