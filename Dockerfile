@@ -48,7 +48,7 @@ VOLUME ["/data"]
 
 EXPOSE ${UNIVORCH_PORT}
 
-# Start the UnivOrch service process.
-# Sprint 1: keeps the container alive for CLI access via 'docker exec'.
-# Sprint 2: replaced by the NiceGUI web server.
-CMD ["python", "-m", "univorch"]
+# Start the UnivOrch REST daemon (uvicorn + FastAPI).
+# Sprint 3.1.c: the daemon is the long-lived process of the container; it
+# serves the public API and keeps the container alive for `docker exec`.
+CMD ["python", "-m", "univorch.interfaces.rest"]
