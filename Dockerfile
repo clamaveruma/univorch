@@ -34,6 +34,13 @@ WORKDIR /app
 COPY --from=builder /app/.venv /app/.venv
 COPY --from=builder /app/src   /app/src
 
+# Demo YAML(s) ship in the image at /opt/univorch/examples so a fresh
+# container has something ready to 'load'. Conventional Unix location for
+# read-only product assets (cf. /opt/<vendor>/<package>/...). Kept outside
+# /data on purpose: /data is the user's mutable volume, examples are the
+# product's read-only material.
+COPY demo/ /opt/univorch/examples/
+
 # Add the venv to PATH so 'univorch' and 'python' resolve to the right binaries.
 ENV PATH="/app/.venv/bin:$PATH"
 
