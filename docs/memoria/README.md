@@ -21,50 +21,66 @@ La plantilla `template/` es la versión 2.2 (feb 2026) de
 [MarioPasc/UMA-TFG-ETSI-Templates](https://github.com/MarioPasc/UMA-TFG-ETSI-Templates),
 sin modificar.
 
-## Flujo de trabajo: edición en el repositorio, compilación en Overleaf
+## Flujo de trabajo
 
-La fuente vive aquí, en el repositorio. Para visualizar el PDF y
-compartir con el tutor se usa Overleaf, sincronizado con el repositorio
-de GitHub.
+La fuente LaTeX vive en este repositorio (`docs/memoria/`). Cada vez
+que se actualiza, GitHub Actions compila el PDF automáticamente y lo
+deja en dos sitios:
 
-### Una sola vez: configurar el proyecto en Overleaf
+- **Enlace estable que el tutor puede abrir directamente en GitHub**:
+  [`github.com/clamaveruma/univorch/blob/pdf-preview/memoria.pdf`](https://github.com/clamaveruma/univorch/blob/pdf-preview/memoria.pdf).
+  GitHub renderiza el PDF embebido en el navegador. Apunta siempre a la
+  última versión compilada.
+- **Artefacto descargable**: en la pestaña
+  [Actions](https://github.com/clamaveruma/univorch/actions) del repo,
+  cada ejecución del workflow `memoria` deja un ZIP con el PDF.
+  Se conserva 30 días.
 
-1. Crear cuenta en [overleaf.com](https://www.overleaf.com) con correo
-   institucional UMA (terminado en `@uma.es` o `@alumno.uma.es`). Esto
-   activa la cuenta Pro gratis, necesaria para sincronizar con GitHub.
-2. Crear un proyecto nuevo en Overleaf: menú **New Project > Import from
-   GitHub**. Autorizar Overleaf en GitHub si lo pide.
-3. Seleccionar el repositorio `clamaveruma/univorch`.
-4. Cuando Overleaf abra el proyecto, en la barra lateral izquierda
-   pulsar el icono de carpeta y navegar a `docs/memoria/`.
-5. Marcar `docs/memoria/main.tex` como **Main document** (botón
-   derecho > Set as main document).
-6. En **Menu > Compiler**, seleccionar `XeLaTeX` o `LuaLaTeX` (la
-   plantilla usa fuentes OpenType Malacitana).
+### Cómo cambia algo
 
-### Día a día
+1. Yo (o tú) edito los `.tex` en el repositorio desde el devcontainer.
+2. `git push` a `main` con los cambios bajo `docs/memoria/`.
+3. El workflow `memoria.yml` arranca solo, compila con XeLaTeX y
+   reescribe la rama `pdf-preview` con el PDF nuevo. Tarda 1-2 minutos.
+4. El enlace estable de arriba ya muestra la versión actualizada.
 
-- **Yo edito** los `.tex` en el repositorio desde el devcontainer y
-  hago `git push`.
-- **Tú abres Overleaf**, pulsas **Menu > Sync > GitHub > Pull from
-  GitHub**. Overleaf descarga los cambios y recompila.
-- Si **el tutor** quiere comentar: en Overleaf, **Share > Add People**,
-  poner su correo, rol **Review** (puede comentar sin tocar el texto).
-- Si **tú** modificas algo en Overleaf, **Push to GitHub** sube los
-  cambios al repositorio. Yo los recojo con `git pull`.
+### El workflow en detalle
+
+- Definido en [`.github/workflows/memoria.yml`](../../.github/workflows/memoria.yml).
+- Imagen: la oficial de `xu-cheng/latex-action@v3` (texlive completo).
+- Compilador: XeLaTeX vía `latexmk` (necesario por las fuentes OpenType
+  Malacitana de la plantilla UMA).
+- Dispara: `push` a `main` que toque `docs/memoria/**` o el propio
+  fichero del workflow, además del botón **Run workflow** en la
+  pestaña Actions (`workflow_dispatch`).
+- Publica a la rama `pdf-preview` con un **único commit** que se
+  reescribe en cada compilación; no hay historia que mantener allí.
 
 ### Compilación local con Docker (opcional)
 
-Cuando llegue el momento, se añadirá un workflow de GitHub Actions que
-compile el PDF con la imagen oficial `texlive/texlive` y lo deje como
-artefacto del release. Mientras tanto, para compilar localmente sin
-Overleaf:
+Para previsualizar sin esperar al CI, desde el devcontainer (o
+cualquier máquina con Docker):
 
 ```bash
 cd docs/memoria
 docker run --rm -v "$PWD:/work" -w /work texlive/texlive:latest \
     latexmk -xelatex -file-line-error -interaction=nonstopmode main.tex
 ```
+
+### Overleaf (pendiente — requiere acción del tutor)
+
+La integración Git con Overleaf es función Pro/Premium. Los alumnos
+de grado de la UMA no la tenemos en el plan institucional (cubre
+doctorado y profesorado STEM). Cuando el tutor cree el proyecto desde
+su cuenta institucional Pro y te invite como Editor, podrás:
+
+- Ver el PDF compilado al instante mientras tecleas en Overleaf.
+- Recibir comentarios del tutor directamente sobre el PDF.
+
+El script [`scripts/sync-overleaf.sh`](../../scripts/sync-overleaf.sh)
+está listo para sincronizar `docs/memoria/` con un proyecto Overleaf.
+Cuando tengamos el ID del proyecto del tutor, basta con cambiar el
+valor de `PROJECT_ID` en el script.
 
 ## Datos de portada pendientes de confirmar
 

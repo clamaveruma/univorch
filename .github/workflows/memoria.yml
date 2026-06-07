@@ -1,0 +1,96 @@
+# Compila la memoria del TFG (docs/memoria/) con XeLaTeX y publica el
+# PDF en dos sitios:
+#  1. como artefacto del run, descargable desde la pestaña Actions;
+#  2. en una rama dedicada 'pdf-preview' donde GitHub renderiza el PDF
+#     directamente en el navegador. Esa rama se reescribe en cada
+#     compilación; sirve como "la última versión visible online".
+#
+# El enlace estable para el tutor (siempre apunta al último PDF) es:
+#   https://github.com/clamaveruma/univorch/blob/pdf-preview/memoria.pdf
+
+name: memoria
+
+on:
+  push:
+    branches: [main]
+    # Solo dispara si tocamos la memoria o este propio workflow. El CI
+    # de código (ci.yml) sigue corriendo en todos los push como antes.
+    paths:
+      - 'docs/memoria/**'
+      - '.github/workflows/memoria.yml'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write  # necesario para reescribir la rama pdf-preview
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Compile memoria with XeLaTeX
+        # xu-cheng/latex-action trae texlive-full y compila con
+        # latexmk; XeLaTeX porque la plantilla UMA usa fuentes OpenType
+        # Malacitana (en template/fonts/).
+        uses: xu-cheng/latex-action@v3
+        with:
+          working_directory: docs/memoria
+          root_file: main.tex
+          latexmk_use_xelatex: true
+          continue_on_error: false
+
+      - name: Rename PDF
+        run: |
+          cd docs/memoria
+          mv main.pdf memoria.pdf
+
+      - name: Upload PDF as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: memoria-pdf
+          path: docs/memoria/memoria.pdf
+          retention-days: 30
+
+      - name: Publish PDF to pdf-preview branch
+        # Orphan branch que contiene solo el PDF y un README mínimo. Se
+        # reescribe en cada compilación con un único commit, sin
+        # arrastrar historia, para que la rama sea ligera y el visor de
+        # PDF de GitHub apunte siempre a la versión más reciente.
+        run: |
+          set -euo pipefail
+          PDF="$PWD/docs/memoria/memoria.pdf"
+          STAGE=$(mktemp -d)
+          cp "$PDF" "$STAGE/memoria.pdf"
+          cat > "$STAGE/README.md" <<EOF
+          # Vista previa de la memoria del TFG
+
+          Esta rama (\`pdf-preview\`) contiene **únicamente** el PDF
+          compilado de la memoria, regenerado automáticamente por el
+          workflow \`memoria.yml\` en cada push a \`main\` que toque
+          \`docs/memoria/**\`.
+
+          - **Versión que verás**: la del commit
+            [\`${GITHUB_SHA::7}\`](https://github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}).
+          - **Compilado el**: ${GITHUB_RUN_ID} ($(date -u +%Y-%m-%d_%H:%M_UTC)).
+          - **Fuente LaTeX**: [\`docs/memoria/\`](https://github.com/${GITHUB_REPOSITORY}/tree/main/docs/memoria).
+
+          La rama se reescribe entera cada compilación; no tiene
+          historia y nunca debe editarse a mano.
+          EOF
+
+          cd "$STAGE"
+          git init --quiet --initial-branch=pdf-preview
+          git config user.name  'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add memoria.pdf README.md
+          git commit --quiet -m "PDF de la memoria — ${GITHUB_SHA::7}"
+          git push --force --quiet \
+            "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" \
+            pdf-preview
+          echo "PDF publicado en la rama pdf-preview."
+          echo "Enlace estable: https://github.com/${GITHUB_REPOSITORY}/blob/pdf-preview/memoria.pdf"
