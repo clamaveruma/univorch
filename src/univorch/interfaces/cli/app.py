@@ -21,10 +21,12 @@ import sys
 from collections.abc import Callable
 
 import cmd2
+import httpx
 from pydantic import ValidationError
 from ruamel.yaml.error import YAMLError
 from tinydb import TinyDB
 
+from univorch.interfaces.rest.client import HttpServiceClient
 from univorch.models import Descriptor, DescriptorState, Folder, Job, JobStatus
 from univorch.parser import parse_definition_file
 from univorch.persistence.tinydb.repositories import (
@@ -32,7 +34,12 @@ from univorch.persistence.tinydb.repositories import (
     FolderRepository,
     JobRepository,
 )
-from univorch.service import OperationError, OrchestratorService, TreeEntry
+from univorch.service import (
+    OperationError,
+    OrchestratorAPI,
+    OrchestratorService,
+    TreeEntry,
+)
 
 # Rich style per descriptor state (cmd2 3.x renders poutput with Rich)
 # 'deployed' uses the terminal's default colour on purpose: green would suggest
@@ -143,9 +150,12 @@ def _inspect_arg_parser() -> cmd2.Cmd2ArgumentParser:
 
 
 def build_service(db: TinyDB) -> OrchestratorService:
-    """Wire the service from a TinyDB. Connector types come from the registry
-    default (``CONNECTOR_TYPES``); live sessions spin up on demand from the
-    hypervisors declared in the tree."""
+    """Wire the in-process service from a TinyDB.
+
+    Connector types come from the registry default (``CONNECTOR_TYPES``);
+    live sessions spin up on demand from the hypervisors declared in the
+    tree.
+    """
     return OrchestratorService(
         FolderRepository(db),
         DescriptorRepository(db),
@@ -153,10 +163,25 @@ def build_service(db: TinyDB) -> OrchestratorService:
     )
 
 
+def build_api() -> OrchestratorAPI:
+    """Pick the orchestrator backend per environment (Sprint 3.2).
+
+    ``UNIVORCH_REMOTE=http://host:port`` → talk to the daemon via HTTP.
+    Otherwise → build the service in-process over a TinyDB file at
+    ``UNIVORCH_DB``. The CLI works the same either way: it only sees a
+    value that cumple ``OrchestratorAPI``.
+    """
+    remote = os.environ.get("UNIVORCH_REMOTE")
+    if remote:
+        return HttpServiceClient(httpx.Client(base_url=remote))
+    db_path = os.environ.get("UNIVORCH_DB", "univorch.tinydb.json")
+    return build_service(TinyDB(db_path))
+
+
 class UnivOrchShell(cmd2.Cmd):
     """The UnivOrch interactive shell."""
 
-    def __init__(self, service: OrchestratorService) -> None:
+    def __init__(self, service: OrchestratorAPI) -> None:
         super().__init__()
         self._service = service
         self._cwd = "/"  # current folder, like a shell working directory
@@ -393,8 +418,7 @@ class UnivOrchShell(cmd2.Cmd):
 
 
 def main() -> None:
-    db_path = os.environ.get("UNIVORCH_DB", "univorch.tinydb.json")
-    shell = UnivOrchShell(build_service(TinyDB(db_path)))
+    shell = UnivOrchShell(build_api())
     if len(sys.argv) > 1:
         shell.onecmd_plus_hooks(" ".join(sys.argv[1:]))  # bash mode: one command
     else:

@@ -7,7 +7,7 @@ then builds the Command and hands it to the Jobs engine.
 """
 
 import posixpath
-from typing import Literal
+from typing import Literal, Protocol
 
 from pydantic import BaseModel
 
@@ -81,6 +81,37 @@ class LoadResult(BaseModel):
     path: str
     ok: bool
     message: str
+
+
+class OrchestratorAPI(Protocol):
+    """The public surface of the orchestrator (Sprint 3.2).
+
+    Defines what the CLI (and any future GUI) actually calls. Two
+    implementations cumple this Protocol:
+
+    - ``OrchestratorService`` — runs the orchestrator in-process; this is
+      what the daemon embeds and what local development uses.
+    - ``HttpServiceClient`` (in ``univorch.interfaces.rest.client``) —
+      translates each call to an HTTP request against the daemon.
+
+    Structural typing (PEP 544): neither implementation has to inherit
+    from this class — they just have to expose the matching methods.
+    mypy verifies that they do.
+    """
+
+    def deploy(self, path: str) -> Job: ...
+    def undeploy(self, path: str) -> Job: ...
+    def start(self, path: str) -> Job: ...
+    def stop(self, path: str) -> Job: ...
+    def status(self, path: str) -> DescriptorStatus: ...
+    def list_tree(
+        self, path: str = "/", recursive: bool = False
+    ) -> list[TreeEntry]: ...
+    def folder_exists(self, path: str) -> bool: ...
+    def inspect(self, path: str, *, resolved: bool = True) -> Descriptor | Folder: ...
+    def load(
+        self, document: DefinitionDocument, destination: str = "/"
+    ) -> list[LoadResult]: ...
 
 
 class OrchestratorService:

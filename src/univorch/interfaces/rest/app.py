@@ -82,6 +82,15 @@ def create_app(service: OrchestratorService) -> FastAPI:
         # listing for a missing folder is silent on purpose (matches CLI).
         return service.list_tree(path, recursive=recursive)
 
+    @app.get("/api/v1/folder_exists")
+    def folder_exists(path: str) -> dict[str, bool]:
+        """True if ``path`` is the root or an existing folder.
+
+        Used by the HTTP CLI client (Sprint 3.2) to validate ``cd`` before
+        changing the working folder, matching the in-process behaviour.
+        """
+        return {"exists": service.folder_exists(path)}
+
     @app.get("/api/v1/inspect", response_model=InspectResult)
     def inspect(path: str, local: bool = False) -> InspectResult:
         """Return the entity at ``path`` (folder or descriptor).
