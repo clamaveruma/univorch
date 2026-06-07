@@ -40,6 +40,15 @@ permissions:
   contents: read
   packages: write
 
+# Opt in to Node.js 24 on the runner. Node 20 is being deprecated by GitHub
+# (warning from 2025-09-19, removed September 2026); some of the JavaScript
+# actions we use (checkout, docker/*) still declare Node 20 in their
+# manifests but run fine on Node 24. This variable forces the runner to
+# use Node 24 for all JavaScript actions, silences the deprecation warning,
+# and can be removed once every action we use ships a Node 24 manifest.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 jobs:
   publish:
     runs-on: ubuntu-latest

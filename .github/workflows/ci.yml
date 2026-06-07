@@ -8,6 +8,12 @@ on:
   pull_request:
     branches: [main]
 
+# Opt in to Node.js 24 on the runner — same reason as publish.yml: some
+# JavaScript actions still declare Node 20, which is being deprecated by
+# GitHub. Forcing Node 24 silences the warning and is forward-compatible.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 jobs:
   quality:
     name: Lint, type-check, and test

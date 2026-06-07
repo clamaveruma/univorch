@@ -266,47 +266,41 @@ navegador.
 
 ---
 
-## 10. Qué falta para el TFG
+## 10. Alcance del TFG
 
-Lo que has probado hoy es el PoC del motor de orquestación. El TFG
-añade encima tres piezas, en orden de prioridad:
+Lo que has probado hoy es el PoC del motor de orquestación, sin GUI
+y con un conector simulado. El TFG, que sigue siendo una prueba de
+concepto, añade encima tres piezas:
 
-1. **Conectores reales** — VMware (vSphere) y Proxmox. Hoy solo está
-   el mock; el contrato del conector es una clase abstracta (ABC) y
-   meter un conector nuevo es un módulo Python más una línea en el
-   registro de tipos. He empezado pruebas contra los hipervisores
-   VMware del aulario por VPN.
+1. **Conectores reales** — VMware (vSphere) y Proxmox sobre el mismo
+   contrato abstracto que ya cumple el mock. He empezado pruebas
+   contra los hipervisores VMware del aulario por VPN.
 
-2. **Interfaz web** — basada en NiceGUI sobre la misma API REST que
-   ya tienes en `/docs`. Tres vistas previstas: navegador del árbol con
-   modos local/expandida/resuelta, editor de nodos con diálogos por
-   tipo (carpeta, descriptor, hipervisor, plantilla), y una vista
-   alternativa "desde el hipervisor" que muestra qué VMs viven en qué
-   hipervisor (la operativa inversa al árbol, útil para administración
-   de infraestructura).
+2. **Interfaz web básica** — basada en NiceGUI sobre la misma API REST
+   que ya tienes en `/docs`. Navegador del árbol, edición de nodos por
+   diálogo, vista alternativa "desde el hipervisor".
 
-3. **Aplicación docente** — capa específica sobre el motor genérico,
-   con vocabulario propio: una carpeta es una "asignatura", cada
-   subcarpeta es una "mesa", el descriptor es "el ordenador" del
-   alumno. Una sola orden despliega toda la asignatura: crea las
-   carpetas de los alumnos a partir de una lista, clona las VMs desde
-   una plantilla, asigna IPs de un pool, envía correos con
-   credenciales, e informa al profesor. **Esto es la pieza que cierra
-   el TFG**: el motor existe para esto.
+3. **Aplicación docente** — capa sobre el motor genérico con
+   vocabulario propio (asignatura, mesa, alumno) que despliega una
+   asignatura entera a partir de una lista de alumnos y una plantilla
+   común. **Esta es la pieza que cierra el TFG**: el motor existe para
+   esto.
 
-**Queda fuera del TFG** (diseñado pero no implementado por tiempo):
+### Después del TFG
 
-- **Autenticación y RBAC** — usuarios con login y token persistido,
-  tres roles (admin, manager, end_user), permisos por carpeta con
-  herencia en cascada. El modelo está cerrado y los puntos de
-  extensión existen en el código: `SessionRepository` para los tokens
-  (en la abstracción de persistencia), `OrchestratorService` como
-  facade donde se aplican los chequeos, reuso del mismo Resolver de
-  definiciones para los permisos. El cliente HTTP ya recibe `httpx` por
-  inyección de dependencias, así que añadir un header
-  `Authorization: Bearer <token>` no toca código del cliente. La
-  memoria del TFG explica el modelo completo y lo que faltaría para
-  implementarlo.
+El proyecto queda planteado como una prueba de concepto. Muchas piezas
+quedan diseñadas pero no implementadas, para iteraciones posteriores
+del trabajo:
 
-El historial completo, las decisiones de diseño, y el código fuente
+- Control de usuarios, autenticación y permisos (RBAC).
+- Web más completa y cuidada (acciones, edición avanzada, dashboards).
+- Integración con sistemas de gestión de direcciones IP (IPAM).
+- Gestión de snapshots de VMs.
+- Modelado de datastores como recurso heredable.
+- Conectores adicionales (Hyper-V, KVM, plataformas cloud).
+- Alta disponibilidad del servicio (activo-pasivo, MongoDB en sustitución
+  de TinyDB).
+- Despliegue desde repositorios git (GitOps).
+
+El historial completo, las decisiones de diseño y el código fuente
 están en [github.com/clamaveruma/univorch](https://github.com/clamaveruma/univorch).
