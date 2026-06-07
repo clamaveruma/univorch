@@ -187,3 +187,84 @@ roles, implementado con superusuario en v1". Argumenta la decisión
 (scope del PoC) y explica cómo se completaría sin tocar la arquitectura.
 
 ### 4.2 (Lugar para otras notas TFG cuando aparezcan)
+
+---
+
+## 5. UX del daemon y del cliente (salido de pruebas manuales 2026-06-07)
+
+### 5.1 Default sensato para `UNIVORCH_DB_PATH`
+
+Hoy el daemon usa `/data/univorch.json` como default — perfecto dentro del
+contenedor de producción (volumen Docker montado en `/data`), pero **revienta
+con `PermissionError`** si lanzas `univorchd` en el devcontainer o en el host
+sin Docker. Caer a `~/.local/share/univorch/db.json` (o `$XDG_DATA_HOME/...`)
+cuando `/data` no existe o no es escribible. Detectar y caer, no exigir que el
+usuario sepa pasar la variable.
+
+### 5.2 Mensaje amigable cuando el cliente no encuentra al daemon
+
+Hoy `univorch tree /` sin daemon sale con:
+
+```
+ConnectError: [Errno 111] Connection refused
+```
+
+Jerga de bajo nivel. Lo razonable: que `HttpServiceClient._handle` capture
+`httpx.ConnectError` y relance un `OperationError` con algo como:
+
+> Cannot reach the UnivOrch daemon at http://localhost:8080.
+> Is it running? Try: `univorchd` (or `./univorch.sh start` in production).
+
+Crucial para el tutorial del profesor: es el primer error que verá si se
+olvida de arrancar el contenedor.
+
+### 5.3 `list --live` con streaming (ya estaba aplazado, lo confirmamos)
+
+`list`/`ls`/`tree` solo muestran el eje del descriptor por coste — N VMs son
+N llamadas al hipervisor. Cuando entre runtime por fila, debe ir por
+streaming (NDJSON / SSE) para no bloquearse en la VM lenta. Sprint posterior.
+
+---
+
+## 6. Duda del usuario para retomar mañana — logs
+
+> "se podrían usar el sistema de logs de python? Los logs del daemon irían a syslog?"
+
+**Respuesta corta:** sí a ambas, y de hecho **ya está decidido así** en
+DEC-023. Hoy no está implementado, pero el plan oficial es:
+
+- **Logs del sistema** (arranque/parada del daemon, errores no controlados,
+  trazas del programa) → módulo `logging` estándar de Python → handler que
+  escriba a syslog/journald. Rotación gestionada por el SO.
+- **Logs de operaciones** (qué Job, quién, cuándo, resultado) → tabla de
+  Jobs en TinyDB (ya está). Es lo que el usuario consultará para auditoría.
+
+Los dos canales son distintos a propósito (DEC-023): syslog no es un buen
+sitio para guardar el historial de operaciones porque rota; la BD sí.
+
+Lo que falta para que esto funcione hoy:
+- uvicorn ya usa `logging` por dentro. Sus mensajes `INFO: ...` que viste en
+  las pruebas son del logger de uvicorn — ya se pueden redirigir a syslog
+  configurando el handler raíz al arrancar.
+- Nuestro código (servicio, conectores) no usa `logging` todavía: usamos
+  `print` cero, pero tampoco loggeamos eventos importantes. Habría que ir
+  metiendo `logger = logging.getLogger(__name__)` y `logger.info(...)` en
+  los sitios clave (arranque, fallo del pool, deploy completado, etc.).
+- Un `configure_logging()` que se llame al inicio de `univorchd.main()` y
+  decida según el entorno: a stderr en desarrollo (lo que tenemos), a
+  syslog en producción.
+
+**Hoja de ruta sugerida (cuando lleguemos):**
+1. Añadir `configure_logging()` en `univorch.interfaces.rest.__main__`.
+   Variable de entorno `UNIVORCH_LOG=syslog|stderr` (default stderr para
+   facilitar debug; el contenedor de producción exporta `syslog`).
+2. Migrar uvicorn al mismo handler con su `log_config`.
+3. Ir añadiendo `logger.info/warning/error` en el código según haga falta.
+   Empezar por: arranque del daemon, fallo al instanciar conector, deploy
+   completo/failed.
+4. En el contenedor: el syslog del contenedor va al stdout/stderr de
+   Docker (es la convención `docker logs`). Si se quiere mandar al journald
+   del host real: configurar `logging.driver: journald` en compose.
+
+No es Sprint 3.3, pero encaja muy bien antes del tutorial del profesor para
+que el `docker logs univorch` enseñe algo útil.
