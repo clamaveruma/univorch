@@ -1,0 +1,64 @@
+% Capítulo 5 - Conclusiones y trabajo futuro.
+% Fuentes: claude/ideas-pendientes.md y la sección 10 del tutorial.
+% Extensión objetivo: 3-5 páginas.
+
+\chapter{Conclusiones y trabajo futuro}
+\label{ch:conclusiones}
+
+\section{Conclusiones}
+\label{sec:conclusiones}
+
+% TODO: redactar. Estructura sugerida:
+% 5.1.1 Cumplimiento de objetivos.
+%   - Repaso de los O1..O6 del capítulo 1 con marca de cumplido/parcial
+%     y referencia al apartado donde se justifica.
+% 5.1.2 Aportaciones principales.
+%   - Modelo de árbol con herencia en cascada y cierre léxico de
+%     plantillas.
+%   - Patrón cliente/servidor con frontera REST en una imagen Docker
+%     descargable.
+%   - Disciplina de calidad: ~95% cobertura, mypy estricto, CI/CD.
+%   - Comparativa con esxobjects/yamlinfr como base reutilizable.
+%   - Metodología de trabajo con asistencia IA, trazable y
+%     reproducible.
+% 5.1.3 Limitaciones conocidas (honestas).
+%   - El conector real (VMware/Proxmox) no está implementado en esta
+%     versión.
+%   - La interfaz web no entra en esta versión.
+%   - La aplicación específica para docencia (capa 2) está diseñada
+%     pero no implementada.
+%   - No hay autenticación: el servicio se asume desplegado en red de
+%     confianza.
+
+\section{Trabajo futuro dentro del TFG}
+\label{sec:futuro-tfg}
+
+% TODO: redactar. Las tres piezas que sí entran en el TFG:
+% - Conectores reales contra VMware del aulario (acceso por VPN
+%   pendiente del tutor).
+% - Interfaz web básica con NiceGUI sobre la API REST: navegador del
+%   árbol, edición por diálogos, vista alternativa "desde el
+%   hipervisor".
+% - Aplicación específica para despliegue de asignaturas (capa 2): una
+%   única orden despliega toda la asignatura a partir de una lista de
+%   alumnos y una plantilla común.
+
+\section{Trabajo futuro más allá del TFG}
+\label{sec:futuro-mas-alla}
+
+% TODO: redactar como lista, con párrafo introductorio que justifique
+% por qué quedan fuera (alcance temporal del TFG). Lista:
+% - Control de usuarios, autenticación y permisos (RBAC). Diseño
+%   completo cerrado, puntos de extensión identificados.
+% - Interfaz web más completa: acciones, edición avanzada, dashboards
+%   operacionales.
+% - Integración con sistemas de gestión de direcciones IP (IPAM).
+% - Gestión de snapshots de VMs con políticas heredables.
+% - Modelado de datastores como recurso heredable.
+% - Conectores adicionales: Hyper-V, KVM, plataformas cloud.
+% - Alta disponibilidad del servicio (activo/pasivo, MongoDB en
+%   sustitución de TinyDB).
+% - Despliegue de la configuración desde repositorios git (GitOps).
+% - Logs estructurados a syslog (módulo logging stdlib, ya diseñado en
+%   DEC-023 pero pendiente de implementar).
+% - Política de seguridad de undeploy con flag --force.

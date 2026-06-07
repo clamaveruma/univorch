@@ -1,0 +1,31 @@
+% English abstract. EI UMA expects 150-300 words and 3-5 keywords.
+% Mirrors the Spanish summary; revise together when the body stabilises.
+\renewcommand{\abstractname}{Abstract}
+\begin{abstract}
+% TODO write and trim to 150-300 words.
+This Bachelor's Thesis presents a \emph{proof of concept} of a
+universal virtual machine orchestrator targeted at teaching and
+research environments. The system provides a common abstraction layer
+that lets administrators manage virtual machines regardless of the
+underlying hypervisor, unifying in a single model a tree of resource
+descriptors with cascade inheritance, an operation engine based on the
+Command pattern, and a REST API as the public boundary. The
+architecture is layered in two: a generic, reusable core, and a
+domain-specific application for deploying course environments built as
+a client on top of the first.
+
+The system ships as a downloadable Docker container that the
+administrator installs through a single-line installer, together with a
+command-line client supporting both an interactive REPL and one-shot
+invocations. Adaptation to each hypervisor is done through connectors;
+this version includes a mock connector that exercises the full model
+without real infrastructure, providing the foundation for the real
+VMware and Proxmox connectors planned as continuation of the work.
+
+% TODO confirm final keywords.
+\medskip
+
+\noindent\textbf{Keywords:} virtual machine orchestration,
+infrastructure as code, teaching environments, cascade inheritance,
+layered architecture.
+\end{abstract}

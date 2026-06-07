@@ -1,0 +1,49 @@
+% Capítulo 1 - Introducción.
+% Fuente principal: docs/vision.md
+% Extensión objetivo: 4-6 páginas.
+
+\chapter{Introducción}
+\label{ch:introduccion}
+
+% TODO: párrafo inicial. Una página de tono "qué es UnivOrch, por qué
+% se hace, qué problema resuelve". Debe poder leerse por un tribunal
+% ajeno al proyecto y entender el porqué.
+
+\section{Motivación}
+\label{sec:motivacion}
+
+% TODO: redactar. Esqueleto de ideas:
+% - El laboratorio docente de la EI UMA tiene VMs físicas + virtuales.
+% - Cada asignatura monta su pirámide de máquinas a mano: tedioso y
+%   propenso a error.
+% - Existen orquestadores (vSphere, vRA, OpenStack...) pero ninguno
+%   resuelve el caso docente de "una asignatura, N alumnos, una
+%   plantilla, IPs por pool, snapshots, reciclaje".
+% - El tutor venía trabajando con esxobjects y yamlinfr, que cubren
+%   parte del problema pero atados a VMware.
+% - Aprovechar la experiencia y generalizar: un motor agnóstico al
+%   hipervisor + una capa específica para docencia.
+
+\section{Objetivos}
+\label{sec:objetivos}
+
+% TODO: redactar como objetivos numerados.
+% O1. Diseñar e implementar el núcleo del orquestador como capa
+%     agnóstica al hipervisor.
+% O2. Definir un modelo declarativo de los recursos a desplegar, con
+%     herencia y reutilización de plantillas.
+% O3. Establecer un contrato de conector que permita añadir hipervisores
+%     reales (VMware, Proxmox) sin tocar el núcleo.
+% O4. Exponer una API REST como frontera pública del servicio.
+% O5. Proveer un cliente de línea de órdenes y empaquetar todo como
+%     contenedor Docker descargable e instalable en una sola línea.
+% O6. Sentar las bases (puntos de extensión y modelo) para las piezas
+%     que el TFG completa más adelante: interfaz web, conectores reales,
+%     aplicación específica para docencia.
+
+\section{Estructura de la memoria}
+\label{sec:estructura}
+
+% TODO: redactar, ~media página describiendo brevemente los 5 capítulos
+% y los 4 apéndices. Patrón típico:
+% "El capítulo \ref{ch:estado-arte} presenta el contexto técnico..."

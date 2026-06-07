@@ -1,0 +1,136 @@
+% ======================================================================
+% Memoria del Trabajo Fin de Grado
+% Univorch - Orquestador universal de máquinas virtuales
+% Autor: Claudio María Martínez Velasco
+% Tutor: Guillermo Pérez Trabado
+% ETSI Informática - Universidad de Málaga
+%
+% Estructura: este fichero es el documento raíz. Los capítulos viven en
+% chapters/, los apéndices en appendices/, el frontmatter (resumen,
+% abstract, glosario) en frontmatter/. Se compone vía \input{} para que
+% cada fichero quede manejable y trazable en git.
+%
+% Plantilla original: Mario Pascual González (mpascual@uma.es), v2.2,
+% https://github.com/MarioPasc/UMA-TFG-ETSI-Templates
+% ======================================================================
+\documentclass[12pt,a4paper,twoside,openright]{book}
+
+%───────── Template, covers, back cover ────────────────────────────────
+\usepackage{template/sty_files/template-TFGspanish-uma}
+
+\usepackage{template/sty_files/plain_cover-blueuma}
+\usepackage{template/sty_files/plain_cover-whiteuma}
+
+\usepackage{template/sty_files/backcover-uma}
+
+%───────── Auxiliary packages ──────────────────────────────────────────
+\usepackage{blindtext}
+\usepackage{mwe}
+\usepackage{csquotes}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{siunitx}
+\usepackage{amsmath,amssymb}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{listings}
+\usepackage{nomencl}
+\makenomenclature
+\usepackage[
+  backend=biber,
+  style=numeric,
+  sorting=nyt
+]{biblatex}
+\addbibresource{references.bib}
+
+% Listings config
+\lstset{
+  basicstyle=\ttfamily\small,
+  numbers=left,
+  numberstyle=\tiny,
+  columns=fullflexible,
+  frame=single,
+  breaklines=true,
+  tabsize=2
+}
+
+%======================================================================
+\begin{document}
+
+%────────────────────── Blue front cover ───────────────────────────────
+% TODO confirmar antes de la entrega final: título exacto en inglés,
+% mención (si aplica), fecha de defensa.
+\MakePlainBlueUMACover{
+  degree     = {Grado en Ingeniería de Computadores},
+  mencion    = {},
+  titleES    = {Un orquestador de máquinas virtuales para entornos docentes y de investigación. Prueba de concepto},
+  titleEN    = {A virtual machine orchestrator for teaching and research environments. Proof of concept},
+  author     = {Claudio María Martínez Velasco},
+  tutor      = {Dr.~Guillermo Pérez Trabado},
+  dept       = {Departamento de Arquitectura de Computadores},
+  cityDate   = {Málaga, junio de 2026},
+  logoLeft   = {template/logos/NEG-uma-logo.png},
+  logoRight  = {template/logos/NEG-etsi-logo.png}
+}
+
+%────────────────────── White front cover ──────────────────────────────
+\MakePlainWhiteUMACover{
+  degree      = {Graduado en Ingeniería de Computadores},
+  mencion     = {},
+  titleES     = {Un orquestador de máquinas virtuales para entornos docentes y de investigación. Prueba de concepto},
+  titleEN     = {A virtual machine orchestrator for teaching and research environments. Proof of concept},
+  author      = {Claudio María Martínez Velasco},
+  tutor       = {Dr.~Guillermo Pérez Trabado},
+  dept        = {Departamento de Arquitectura de Computadores},
+  cityDate    = {MÁLAGA, junio de 2026},
+  defenseDate = {Septiembre de 2026},
+  logoLeft    = {template/logos/POS-uma-logo.png},
+  logoRight   = {template/logos/POS-etsi-logo.png}
+}
+
+\frontmatter
+
+%────────────────────── Abstracts ──────────────────────────────────────
+\input{frontmatter/resumen}
+\input{frontmatter/abstract}
+
+%──────────────── Agradecimientos ──────────────────────────────────────
+\input{frontmatter/agradecimientos}
+
+%────────────────────── TOC and lists ──────────────────────────────────
+\clearpage
+\tableofcontents
+\clearpage
+\listoffigures
+\clearpage
+\listoftables
+\clearpage
+
+%────────────────────── Glosario / nomenclatura ────────────────────────
+\input{frontmatter/glosario}
+
+\mainmatter
+%────────────────────── Cuerpo de la memoria ───────────────────────────
+\input{chapters/01-introduccion}
+\input{chapters/02-estado-arte}
+\input{chapters/03-metodologia}
+\input{chapters/04-desarrollo}
+\input{chapters/05-conclusiones}
+
+%────────────────────── Apéndices ──────────────────────────────────────
+\begin{umaappendices}
+\input{appendices/A-manual-admin}
+\input{appendices/B-requirements}
+\input{appendices/C-decisiones}
+\input{appendices/D-cli-reference}
+\end{umaappendices}
+
+%────────────────────── Bibliografía y contraportada ───────────────────
+\backmatter
+\printbibliography[title={Bibliografía}]
+\cleardoublepage
+\MakeUMABackCover
+
+\end{document}
+% ======================================================================

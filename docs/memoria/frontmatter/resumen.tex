@@ -1,0 +1,34 @@
+% Resumen en español. La normativa de la EI UMA pide 150-300 palabras y
+% entre 3 y 5 palabras clave. Este es un borrador con la idea
+% argumental; revisar y comprimir cuando los capítulos estén estables.
+\renewcommand{\abstractname}{Resumen}
+\begin{abstract}
+% TODO redactar y ajustar a 150-300 palabras.
+Este Trabajo Fin de Grado presenta una \emph{prueba de concepto} de un
+orquestador universal de máquinas virtuales, orientado a entornos
+docentes y de investigación. El sistema proporciona una capa de
+abstracción común que permite gestionar máquinas virtuales con
+independencia del hipervisor subyacente, integrando en un único modelo
+un árbol de descriptores con herencia en cascada, un motor de
+operaciones basado en el patrón Command y una API REST como frontera
+pública. La arquitectura se diseña en dos capas: un núcleo genérico
+reutilizable y una aplicación específica para despliegue de
+asignaturas, materializada como capa cliente sobre el primero.
+
+El sistema se entrega como un contenedor Docker descargable que el
+administrador despliega con un instalador de una sola línea, junto con
+un cliente de línea de órdenes que opera tanto en modo interactivo
+como por instrucciones sueltas. La adaptación a cada hipervisor se
+realiza a través de conectores; en esta versión se incluye un
+conector simulado que permite ejercitar el modelo completo sin
+infraestructura real, sirviendo como punto de partida para los
+conectores reales contra VMware y Proxmox planteados como continuación
+del trabajo.
+
+% TODO confirmar palabras clave finales.
+\medskip
+
+\noindent\textbf{Palabras clave:} orquestación de máquinas virtuales,
+infraestructura como código, entornos docentes, herencia en cascada,
+arquitectura por capas.
+\end{abstract}

@@ -1,0 +1,90 @@
+% Capítulo 2 - Estado del arte y tecnologías.
+% Fuente: docs/technologies.md + redacción nueva con bibliografía IEEE.
+% Extensión objetivo: 8-10 páginas.
+
+\chapter{Estado del arte y tecnologías}
+\label{ch:estado-arte}
+
+% TODO: introducción del capítulo, ~1 página.
+% "Este capítulo posiciona UnivOrch en el espacio de soluciones de
+% orquestación existentes. Primero recorremos las categorías clásicas
+% (gestión de hipervisor, IaC, orquestación de contenedores), después
+% acotamos qué requiere el caso docente y por qué los productos del
+% mercado no encajan completos. Cerramos con las tecnologías concretas
+% adoptadas en la implementación."
+
+\section{Virtualización y orquestación}
+\label{sec:virtualizacion-orquestacion}
+
+% TODO: redactar. Ideas:
+% - Diferencia conceptual entre "hipervisor", "gestión de hipervisor"
+%   (vCenter) y "orquestación" (vRA, OpenStack, Kubernetes).
+% - Modelo declarativo vs imperativo: Terraform como referencia.
+% - El paralelismo conceptual con Kubernetes: control plane + API
+%   declarativa + reconciliación. UnivOrch toma de aquí el modelo de
+%   recursos, sin la complejidad de Kubernetes.
+
+\section{Soluciones existentes}
+\label{sec:soluciones-existentes}
+
+% TODO: redactar. Tabla comparativa al final.
+% Productos:
+% - VMware vSphere (vCenter): el estándar en VMware. Pago, propietario.
+% - VMware vRealize Automation (vRA): la capa de orquestación de VMware.
+%   Compleja, cara, propietaria.
+% - OpenStack: orquestador open source de IaaS. Excesivamente complejo
+%   para entornos docentes pequeños.
+% - Proxmox VE: gestor para Proxmox. Atado a Proxmox.
+% - Foreman: provisioning open source. Más orientado a bare metal.
+% - Cloud-init / Ansible: configuración, no orquestación. Complementarios.
+% - Kubernetes: orquestación de contenedores, no de VMs. Modelo de
+%   referencia.
+%
+% Para cada uno: 1 párrafo con qué resuelve y qué no encaja con el caso
+% docente.
+
+\section{El caso docente: necesidades específicas}
+\label{sec:caso-docente}
+
+% TODO: redactar. Ideas:
+% - Una asignatura == una pirámide de N copias de una plantilla.
+% - Reciclaje al final del curso: undeploy masivo.
+% - Aislamiento entre alumnos (red, IPs, snapshots).
+% - El profesor no debe ser experto en VMware ni en redes para usarlo.
+% - Heterogeneidad: VMware en aulario, Proxmox en investigación. Mismo
+%   modelo conceptual.
+% - Esto deja un hueco: orquestador agnóstico al hipervisor con
+%   vocabulario propio del entorno docente.
+
+\section{Punto de partida: trabajos previos del tutor}
+\label{sec:punto-partida}
+
+% TODO: redactar. Ideas:
+% - Esxobjects: librería Python que adapta vSphere SOAP API a una
+%   interfaz más manejable. Atada a VMware.
+% - Yamlinfr: lee descripciones YAML y despliega en vSphere usando
+%   esxobjects. Embrión del modelo declarativo.
+% - UnivOrch generaliza el modelo a cualquier hipervisor, reescribe
+%   desde cero los conectores con TDD, y añade una capa REST como
+%   frontera pública.
+% - En el capítulo de Desarrollo se hará una comparativa cualitativa
+%   con ambos.
+
+\section{Tecnologías seleccionadas y justificación}
+\label{sec:tecnologias-seleccionadas}
+
+% TODO: tabla resumen al inicio y luego justificar cada bloque.
+% Insumo: docs/technologies.md (todo el contenido).
+% Bloques:
+% - Lenguaje: Python 3.12.
+% - Marco web: FastAPI + uvicorn.
+% - Cliente HTTP: httpx (incluido el inyectable para tests).
+% - Datos: TinyDB (PoC) -> MongoDB (futuro). Documental.
+% - Modelado: Pydantic v2.
+% - CLI: cmd2.
+% - Calidad: ruff, mypy estricto, pytest + Hypothesis.
+% - Empaquetado: Docker multi-stage, ghcr.io.
+% - Bibliotecas de hipervisor (futuro): pyvmomi, proxmoxer.
+%
+% Por cada bloque: para qué se usa, por qué se eligió frente a
+% alternativas, qué se descartó y por qué.

@@ -32,3 +32,35 @@ Thumbs.db
 # UnivOrch runtime data: never commit the TinyDB database file
 /data/
 *.tinydb.json
+
+# Scratch area for files we drop temporarily into the workspace (zips,
+# notes, intermediate experiments). Anything genuinely worth keeping
+# lives outside this folder.
+/tmp/
+
+# LaTeX build artefacts. Sources live in docs/memoria/, compiled PDF
+# either via Overleaf or via the future GitHub Actions workflow — never
+# committed by hand.
+*.aux
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.bbl
+*.bcf
+*.blg
+*.run.xml
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+*.nav
+*.snm
+*.vrb
+*.nlo
+*.nls
+*.ilg
+*.idx
+*.ind
+*.ist
+docs/memoria/*.pdf
