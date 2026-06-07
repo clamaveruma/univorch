@@ -9,21 +9,237 @@
 \umaappendix{Conclusiones y líneas futuras (castellano)}
 \label{ap:conclusiones-es}
 
+Este apéndice reproduce en castellano el contenido del
+\Cref{ch:conclusiones}, según exige la normativa de la EI UMA
+cuando la memoria del TFG se redacta en inglés. La estructura es
+la misma que la del capítulo original.
+
 \section{Conclusiones}
 \label{sec:conclusiones-es}
 
-% TODO: traducción al castellano del capítulo \ref{ch:conclusiones},
-% sección 5.1 una vez redactada. La estructura es la misma:
-% E.1.1 Cumplimiento de objetivos.
-% E.1.2 Aportaciones principales.
-% E.1.3 Limitaciones conocidas.
+\subsection{Cumplimiento de los objetivos}
 
-Pendiente de redactar tras cerrar el capítulo
-\ref{ch:conclusiones} en su versión inglesa. Mantener ambos textos
-sincronizados.
+Los siete objetivos declarados en \Cref{sec:objetivos} se revisan
+aquí frente a lo realmente entregado. La
+\Cref{tab:objetivos-revision-es} resume la valoración; los
+párrafos posteriores añaden las matizaciones que la tabla no puede
+recoger.
+
+\begin{table}[ht]
+  \centering
+  \small
+  \begin{tabular}{p{0.06\linewidth} p{0.50\linewidth} p{0.14\linewidth} p{0.18\linewidth}}
+    \toprule
+    \textbf{ID} & \textbf{Objetivo} & \textbf{Estado} & \textbf{Referencia} \\
+    \midrule
+    O1 & Núcleo de orquestación agnóstico del hipervisor    & Cumplido &
+       \Cref{sec:diseno,sec:implementacion} \\
+    O2 & Modelo declarativo con herencia                     & Cumplido &
+       \Cref{subsec:domain-model,subsec:load-flow} \\
+    O3 & Contrato de conector para nuevos hipervisores       & Cumplido &
+       \Cref{subsec:patterns} \\
+    O4 & API REST como frontera pública                      & Cumplido &
+       \Cref{subsec:rest-boundary} \\
+    O5 & Cliente CLI e instalación en una línea              & Cumplido &
+       \Cref{sec:implementacion} \\
+    O6 & Calidad y disciplina de ingeniería                  & Cumplido &
+       \Cref{sec:pruebas,ch:metodologia} \\
+    O7 & Bases para las piezas posteriores a la PoC          & Parcial   &
+       \Cref{sec:futuro-es} \\
+    \bottomrule
+  \end{tabular}
+  \caption{Estado de los siete objetivos al cierre de la prueba de
+    concepto.}
+  \label{tab:objetivos-revision-es}
+\end{table}
+
+Los objetivos O1 a O6 se cumplen con el sistema entregado: el motor
+funciona, el modelo declarativo con herencia en cascada y cierre
+léxico de plantillas opera de extremo a extremo, el contrato del
+conector está definido y ejercitado por la implementación de
+prueba, la API REST expone todas las operaciones públicas, la CLI
+es un cliente HTTP puro de esa misma API, y las prácticas de
+ingeniería (desarrollo dirigido por pruebas, tipado estático
+estricto, integración continua, distribución empaquetada) se
+mantienen en todo el proyecto.
+
+El objetivo O7 se marca como \emph{parcial}: todos los puntos de
+extensión están diseñados y la mayoría conectados en el código,
+pero los siguientes entregables que dependen de ellos (conectores
+reales, interfaz web, aplicación docente) no se implementan en este
+TFG. El capítulo de arquitectura y el registro de decisiones de
+diseño documentan los puntos de extensión con la precisión
+necesaria para que el trabajo posterior pueda continuar sin
+revisitar el motor.
+
+\subsection{Aportaciones principales}
+
+Las aportaciones de este trabajo son honestas respecto al estado
+del arte (\Cref{ch:estado-arte}). La prueba de concepto no
+introduce técnicas fundamentalmente nuevas; integra técnicas
+conocidas en una combinación específica que, hasta donde sabemos,
+ningún otro sistema en producción ofrece:
+
+\begin{description}
+  \item[Árbol de descriptores con plantillas de cierre léxico.]
+        La combinación de herencia en cascada por tipo de dato y
+        resolución por cierre léxico de las plantillas importadas
+        es la aportación más distintiva. El patrón, familiar en
+        los lenguajes de programación, se aplica aquí a un modelo
+        concreto de infraestructura.
+  \item[Separación limpia entre motor y capa de dominio.]
+        La arquitectura en dos capas permite reutilizar el mismo
+        motor para docencia, competiciones CTF, laboratorios de
+        investigación o cualquier otro caso que pueda expresarse
+        como un árbol de descriptores de VM. El patrón se asemeja
+        al de Crossplane sobre Kubernetes; la aportación es
+        demostrar que un desacoplamiento equivalente es alcanzable
+        en un despliegue ligero de un solo contenedor.
+  \item[Modelo de usuario específico del dominio.]
+        El usuario final (el alumno) opera VMs a través de una
+        metáfora específica del dominio (\emph{mesas} y
+        \emph{ordenadores}) que oculta no solo el hipervisor, sino
+        también el propio concepto de árbol del orquestador. Es una
+        aportación de experiencia de usuario más que de
+        ingeniería, y así se reconoce en la memoria.
+  \item[Prueba de concepto con disciplina completa de ingeniería.]
+        El código entregado, a pesar de ser una PoC, se acompaña de
+        244 pruebas automáticas, cobertura de ramas superior al
+        95\% en la lógica de dominio, tipado estático estricto,
+        controles de calidad en integración continua, una imagen
+        publicada en el GitHub Container Registry y un tutorial
+        para el operador. La disciplina es en sí misma un
+        entregable: las iteraciones futuras del proyecto heredarán
+        un código realmente mantenible.
+\end{description}
+
+\subsection{Limitaciones conocidas}
+
+Las limitaciones de la prueba de concepto se enumeran abiertamente
+para que la valoración del trabajo no se base en supuestos
+optimistas.
+
+\begin{itemize}
+  \item \textbf{Sin conector real de hipervisor.} El conector de
+        prueba (mock) demuestra el contrato, pero un despliegue
+        contra un host real de VMware o Proxmox no está
+        implementado. El cuello de botella es externo: el acceso
+        VPN al cluster VMware docente no estuvo disponible durante
+        el periodo de desarrollo. El conector VMware es la
+        siguiente tarea inmediata cuando se conceda el acceso.
+  \item \textbf{Sin interfaz gráfica.} La CLI es el único cliente
+        entregado. La interfaz web se difirió al siguiente sprint
+        porque la frontera REST, la CLI y el motor tenían
+        prioridad para la PoC.
+  \item \textbf{Aplicación docente no implementada.} La aplicación
+        docente de capa 2 está completamente diseñada pero la
+        implementación queda para un sprint posterior. El flujo
+        operativo actual pasa por la CLI genérica; un despliegue
+        operativo de una asignatura real no es por tanto tan
+        directo como pretende el diseño.
+  \item \textbf{Autenticación no implementada.} El modelo de RBAC
+        está completamente diseñado (DEC-011, DEC-021, DEC-026) y
+        solo el rol de superusuario es realista en la v1. El
+        servicio asume que se ejecuta en una red de confianza. La
+        autenticación forma parte de la lista de trabajo futuro.
+  \item \textbf{Persistencia best-effort.} TinyDB no soporta
+        transacciones multidocumento. El coste de una caída en
+        mitad de una escritura multidocumento se acepta
+        explícitamente en DEC-030; la sustitución por MongoDB
+        elimina esta limitación.
+  \item \textbf{Servicio en un solo host.} La PoC asume un único
+        host ejecutando el demonio. La alta disponibilidad
+        activo/pasivo está diseñada pero no implementada.
+\end{itemize}
 
 \section{Trabajo futuro}
 \label{sec:futuro-es}
 
-% TODO: traducción al castellano de la sección \ref{sec:futuro}.
-% Lista de extensiones futuras.
+Las siguientes extensiones son la continuación natural del trabajo,
+ordenadas desde las más inmediatas a las más ambiciosas. La mayoría
+estaban anticipadas en el diseño y tienen sus puntos de extensión
+preparados; se han documentado en \texttt{claude/ideas-pendientes.md}
+a lo largo del desarrollo.
+
+\subsection{Siguientes sprints (inmediato)}
+
+\textbf{Conectores reales de hipervisor.} El conector VMware es la
+máxima prioridad, tanto porque desbloquea un despliegue operativo
+contra el laboratorio docente existente como porque valida el
+contrato abstracto del conector contra la API más compleja de las
+dos previstas (vSphere SOAP). El conector Proxmox sigue el mismo
+plan una vez que VMware esté en marcha.
+
+\textbf{Interfaz web básica.} Una interfaz basada en NiceGUI que
+use la API REST como cliente fino. La primera versión se centra en
+la navegación de solo lectura del árbol, los detalles del
+descriptor, el historial de Jobs y el estado a primera vista. Las
+operaciones de escritura (crear, editar, desplegar) se añaden en
+una segunda iteración.
+
+\textbf{Aplicación docente (capa 2).} Un solo comando toma una lista
+de alumnos y una plantilla base y produce un despliegue completo
+de la asignatura: una carpeta por alumno, un descriptor por alumno,
+la configuración de cascada correcta. Un segundo comando recicla
+toda la asignatura al final del curso.
+
+\textbf{Autenticación y RBAC.} Implementar el control de acceso
+basado en roles ya diseñado. Usuarios en un fichero YAML en la v1;
+un backend LDAP / Active Directory detrás de la abstracción
+\texttt{UserRepository} en la v2. Tokens de sesión persistidos en
+la base de datos, tal y como prevé DEC-031.
+
+\subsection{Más allá del horizonte inmediato}
+
+\textbf{Interfaz web más rica.} Cuadros de mando operativos,
+edición avanzada del árbol, vistas alternativas desde el lado del
+hipervisor.
+
+\textbf{Integración con IPAM.} Un IPAM real (por ejemplo phpIPAM,
+NetBox) reemplaza al modelo interno de \emph{pools} de IPs. El
+\texttt{IPPoolRepository} es el punto de costura.
+
+\textbf{Gestión de snapshots.} Snapshots a través del orquestador
+con políticas heredables (retención, disparadores automáticos de
+snapshot).
+
+\textbf{Datastores modelados como recursos heredables.} La prueba
+de concepto actual codifica el datastore por defecto de cada
+hipervisor. Un modelo de datastore de primera clase con
+referencias por alias, similar al modelo de plantillas existente,
+incorpora la política de almacenamiento a la capa declarativa.
+
+\textbf{Conectores adicionales.} Hyper-V, KVM, proveedores de
+nube pública (AWS EC2, Azure VM). Cada uno es un conector
+independiente que implementa la misma clase base abstracta.
+
+\textbf{Alta disponibilidad.} Despliegue activo/pasivo del
+demonio, con MongoDB sustituyendo a TinyDB para proporcionar
+transacciones multidocumento y replicación. Los modelos de sesión
+y Jobs se diseñaron con este futuro en mente.
+
+\textbf{GitOps sobre VMs.} El modelo declarativo YAML se presta
+a un flujo de trabajo respaldado por Git: el árbol de definiciones
+vive en un repositorio Git, un \emph{push} dispara \texttt{load} y
+el orquestador se convierte en el motor de convergencia. Equivalente
+a lo que hacen ArgoCD o Flux para Kubernetes, pero para
+infraestructura de VMs.
+
+\textbf{Logging estructurado a syslog.} El registro actual es
+\emph{ad-hoc} a la salida estándar. Una canalización estructurada
+mediante el módulo \texttt{logging} de Python hacia syslog está
+diseñada en DEC-023 y pendiente de implementar.
+
+\textbf{Políticas de seguridad en operaciones destructivas.}
+\texttt{undeploy} actualmente tiene éxito sobre una VM en
+ejecución parándola antes. Un \emph{flag} \texttt{--force} y una
+política de rechazo por defecto sobre VMs en ejecución forman
+parte del trabajo de seguridad futuro documentado en
+\texttt{claude/ideas-pendientes.md}.
+
+%==================================================================
+
+La prueba de concepto demuestra el modelo. El camino hasta un
+sistema en producción pasa por los puntos anteriores,
+aproximadamente en el orden listado. El motor está preparado para
+recibirlos.

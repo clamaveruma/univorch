@@ -1,6 +1,5 @@
 % Chapter 5 - Conclusions and future work.
-% Sources: claude/ideas-pendientes.md and section 10 of the
-% tutorial-profesor.md.
+% Sources: claude/ideas-pendientes.md and the journal closing entries.
 % Target length: 3-5 pages.
 %
 % Note: as the report is written in English, UMA EI regulations
@@ -10,47 +9,229 @@
 \chapter{Conclusions and future work}
 \label{ch:conclusiones}
 
+This chapter closes the report. It reviews the proof of concept
+against the objectives set in \Cref{ch:introduccion}, summarizes the
+main contributions and the known limitations, and outlines the
+natural extensions of the work beyond this TFG. The chapter is short
+on purpose: most of the underlying material has already been
+defended throughout the report, so the conclusions can stay tight.
+
+%==================================================================
 \section{Conclusions}
 \label{sec:conclusiones}
 
-% TODO: draft. Suggested structure:
-% 5.1.1 Fulfilment of objectives.
-%   - Review of O1..O6 from Chapter 1 with done / partial mark and
-%     reference to the section where it is justified.
-% 5.1.2 Main contributions.
-%   - Tree model with cascade inheritance and lexical closure of
-%     templates.
-%   - Client / server pattern with a REST boundary in a downloadable
-%     Docker image.
-%   - Quality discipline: ~95% coverage, strict mypy, CI/CD.
-%   - Comparison with esxobjects / yamlinfr as a reusable basis.
-%   - Working methodology with AI assistance, traceable and
-%     reproducible.
-% 5.1.3 Known limitations (honest).
-%   - The real connector (VMware / Proxmox) is not implemented in
-%     this version.
-%   - The web interface does not enter this version.
-%   - The teaching-specific application (layer 2) is designed but
-%     not implemented.
-%   - No authentication: the service is assumed to live in a trusted
-%     network.
+\subsection{Fulfilment of objectives}
 
+The seven objectives declared in \Cref{sec:objetivos} are reviewed
+here against what was actually delivered. \Cref{tab:objectives-review}
+summarizes the assessment; the following paragraphs add the
+qualifications that the table cannot capture.
+
+\begin{table}[ht]
+  \centering
+  \small
+  \begin{tabular}{p{0.06\linewidth} p{0.50\linewidth} p{0.14\linewidth} p{0.18\linewidth}}
+    \toprule
+    \textbf{ID} & \textbf{Objective} & \textbf{Status} & \textbf{Reference} \\
+    \midrule
+    O1 & Hypervisor-agnostic orchestrator core           & Delivered &
+       \Cref{sec:diseno,sec:implementacion} \\
+    O2 & Declarative model with inheritance              & Delivered &
+       \Cref{subsec:domain-model,subsec:load-flow} \\
+    O3 & Connector contract for new hypervisors          & Delivered &
+       \Cref{subsec:patterns} \\
+    O4 & REST API as the public boundary                 & Delivered &
+       \Cref{subsec:rest-boundary} \\
+    O5 & CLI client and single-line installation         & Delivered &
+       \Cref{sec:implementacion} \\
+    O6 & Engineering quality and discipline              & Delivered &
+       \Cref{sec:pruebas,ch:metodologia} \\
+    O7 & Groundwork for the pieces beyond this PoC       & Partial   &
+       \Cref{sec:futuro} \\
+    \bottomrule
+  \end{tabular}
+  \caption{Status of the seven objectives at the close of the proof
+    of concept.}
+  \label{tab:objectives-review}
+\end{table}
+
+Objectives O1 through O6 are met by the delivered system: the
+engine runs, the declarative model with cascade inheritance and
+template closure works end-to-end, the connector contract is
+defined and exercised by the mock implementation, the REST API
+exposes every public operation, the CLI is a pure HTTP client of
+the same API, and the engineering practices (test-driven
+development, strict static typing, continuous integration, packaged
+distribution) hold across the whole project.
+
+Objective O7 is marked \emph{partial}: every extension point is
+designed and most of them are wired in code, but the next
+deliverables that depend on them (real connectors, web GUI, teaching
+application) are not implemented in this TFG. The architecture
+chapter and the design-decisions log document the extension points
+precisely enough that the work to come can proceed without
+revisiting the engine.
+
+\subsection{Main contributions}
+
+The contributions of this work are honest about the state of the
+art (\Cref{ch:estado-arte}). The PoC does not introduce
+fundamentally new techniques; it integrates known techniques in a
+specific combination that, to our knowledge, no other production
+system provides:
+
+\begin{description}
+  \item[A descriptor tree with lexical-closure templates.]
+        The combination of cascade inheritance by data type and
+        lexical-closure resolution of imported templates is the
+        single most distinctive contribution. The pattern, familiar
+        from programming languages, is applied here to a concrete
+        infrastructure model.
+  \item[A clean separation between engine and domain layer.]
+        The two-layer architecture allows the same engine to be
+        used for teaching, CTF competitions, research labs or any
+        other use case that can be expressed as a tree of VM
+        descriptors. The pattern is similar in spirit to
+        Crossplane on Kubernetes; the contribution is to show that
+        an equivalent decoupling is achievable in a lightweight
+        single-container deployment.
+  \item[A domain-specific user model.]
+        The end user (student) operates VMs through a
+        domain-specific metaphor (\emph{desks} and
+        \emph{computers}) that hides not only the hypervisor but the
+        orchestrator's own concept of a tree. This is a
+        user-experience contribution rather than an engineering one,
+        and the report acknowledges it as such.
+  \item[A proof of concept with full engineering discipline.]
+        The delivered code base, despite being a PoC, ships with
+        244 automated tests, branch coverage above 95\% on the
+        domain logic, strict static typing, continuous integration
+        gates, a published image in the GitHub Container Registry
+        and a tutorial for the operator. The discipline is itself a
+        deliverable: the future iterations of the project will
+        inherit a code base that is genuinely maintainable.
+\end{description}
+
+\subsection{Known limitations}
+
+The limitations of the proof of concept are listed openly so that
+the assessment of the work is not based on optimistic assumptions.
+
+\begin{itemize}
+  \item \textbf{No real hypervisor connector.} The mock connector
+        proves the contract, but a deployment against a real VMware
+        or Proxmox host is not implemented. The bottleneck is
+        external: VPN access to the teaching VMware cluster was
+        not available during the development period. The VMware
+        connector is the immediate next task once access is
+        granted.
+  \item \textbf{No graphical interface.} The CLI is the only client
+        delivered. The web GUI was deferred to the next sprint
+        because the REST boundary, the CLI and the engine had
+        higher priority for the PoC.
+  \item \textbf{Teaching application not implemented.} The
+        layer-2 teaching application is fully designed but the
+        implementation is left for a later sprint. The current
+        operator workflow goes through the generic CLI; an
+        operational deployment of a real course is therefore not
+        as smooth as the design intends.
+  \item \textbf{Authentication not implemented.} The RBAC model is
+        fully designed (DEC-011, DEC-021, DEC-026) and only the
+        superuser role is realistic in v1. The service assumes it
+        runs in a trusted network. Authentication is part of the
+        future-work list.
+  \item \textbf{Best-effort persistence.} TinyDB does not support
+        multi-document transactions. The cost of a crash in the
+        middle of a multi-document write is accepted explicitly in
+        DEC-030; the replacement by MongoDB lifts this limitation.
+  \item \textbf{Single-host service.} The PoC assumes a single
+        host running the daemon. Active/passive high availability
+        is designed but not implemented.
+\end{itemize}
+
+%==================================================================
 \section{Future work}
 \label{sec:futuro}
 
-% TODO: draft as a list with an introductory paragraph justifying why
-% these are out of scope (TFG time budget). List:
-% - User management, authentication and permissions (RBAC). Full
-%   design closed, extension points identified.
-% - Richer web interface: actions, advanced editing, operational
-%   dashboards.
-% - Integration with IP-address management systems (IPAM).
-% - Snapshot management for VMs with inheritable policies.
-% - Datastore modelling as an inheritable resource.
-% - Extra connectors: Hyper-V, KVM, cloud platforms.
-% - High availability of the service (active/standby, MongoDB
-%   replacing TinyDB).
-% - GitOps-style deployment from git repositories.
-% - Structured logging to syslog (Python stdlib logging, designed in
-%   DEC-023 but still to be implemented).
-% - Undeploy safety policy with --force flag.
+The following extensions are the natural continuation of the work,
+ordered from the most immediate to the most ambitious. Most of them
+were anticipated in the design and have their extension points in
+place; they have been documented in
+\texttt{claude/ideas-pendientes.md} throughout the development.
+
+\subsection{Next sprints (immediate)}
+
+\textbf{Real hypervisor connectors.} The VMware connector is the
+highest priority, both because it unblocks an operational deployment
+against the existing teaching lab and because it validates the
+abstract connector contract against the messiest of the two target
+APIs (vSphere SOAP). The Proxmox connector follows the same plan
+once VMware is in.
+
+\textbf{Basic web interface.} A NiceGUI-based interface that uses
+the REST API as a thin client. The first version focuses on
+read-only navigation of the tree, descriptor details, job log and
+state at a glance. Write operations (create, edit, deploy) are added
+in a second iteration.
+
+\textbf{Teaching application (layer 2).} A single command takes a
+list of students and a base template and produces a complete
+subject deployment: one folder per student, one descriptor per
+student, the right cascade configuration. A second command recycles
+the whole subject at the end of the term.
+
+\textbf{Authentication and RBAC.} Implement the role-based access
+control already designed. Users in a YAML file in v1; an LDAP /
+Active Directory backend behind the \texttt{UserRepository}
+abstraction in v2. Session tokens persisted in the database, as
+designed in DEC-031.
+
+\subsection{Beyond the immediate roadmap}
+
+\textbf{Richer web interface.} Operational dashboards, advanced
+editing of the tree, alternative views from the hypervisor side.
+
+\textbf{IPAM integration.} A real IPAM (\emph{e.g.}\ phpIPAM,
+NetBox) replaces the internal IP-pool model. The
+\texttt{IPPoolRepository} is the seam.
+
+\textbf{Snapshot management.} Snapshots through the orchestrator
+with inheritable policies (retention, automatic-snapshot triggers).
+
+\textbf{Datastores modelled as inheritable resources.} The current
+proof of concept hardcodes the default datastore of each
+hypervisor. A first-class datastore model with alias-based
+references, similar to the existing template model, brings storage
+policy into the declarative layer.
+
+\textbf{Additional connectors.} Hyper-V, KVM, public-cloud
+providers (AWS EC2, Azure VM). Each is a separate connector
+implementing the same abstract base class.
+
+\textbf{High availability.} Active/standby deployment of the
+daemon, with MongoDB replacing TinyDB to provide multi-document
+transactions and replication. The session and job models were
+designed with this future in mind.
+
+\textbf{GitOps over VMs.} The declarative YAML model lends itself
+to a Git-backed workflow: the tree of definitions lives in a Git
+repository, a push triggers \texttt{load}, and the orchestrator
+becomes the convergence engine. Equivalent to what ArgoCD or Flux
+do for Kubernetes, but for VM infrastructure.
+
+\textbf{Structured logging to syslog.} The current logging is
+ad-hoc to standard output. A structured pipeline through the
+Python \texttt{logging} module to syslog is designed in DEC-023
+and pending implementation.
+
+\textbf{Safety policies on destructive operations.}
+\texttt{undeploy} currently succeeds on a running VM by stopping
+it first. A \texttt{--force} flag and a refuse-by-default policy
+on running VMs is part of the future safety work documented in
+\texttt{claude/ideas-pendientes.md}.
+
+%==================================================================
+
+The proof of concept proves the model. The path to a production
+system goes through the items above, in roughly the order listed.
+The engine is ready to receive them.
