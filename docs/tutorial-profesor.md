@@ -16,7 +16,7 @@ Tiempo estimado: 10 minutos.
 
 El sistema sin GUI, en modo cliente/servidor:
 
-- Un **demonio** (en inglés "daemon") que corre dentro de un contenedor
+- Un "daemon" que corre dentro de un contenedor
   Docker, expone una API REST en `localhost:8080` y persiste el estado
   en un volumen.
 - Un **cliente CLI** que habla con ese demonio por HTTP. Acepta dos
@@ -56,6 +56,14 @@ curl http://localhost:8080/api/v1/health
 ```
 
 Debe devolver `{"status":"ok"}`.
+
+Para verlo de forma más visual, abre el navegador en cualquiera de
+estas dos páginas que FastAPI genera automáticamente:
+
+- `http://localhost:8080/docs` — **Swagger UI**: API entera explorable,
+  con botones para probar cada endpoint sin escribir `curl`.
+- `http://localhost:8080/redoc` — **ReDoc**: misma información en
+  formato más narrativo, útil para leer la especificación de un vistazo.
 
 > Si tu usuario no está en el grupo `docker`, prefija las órdenes con
 > `sudo` o añádete al grupo (`sudo usermod -aG docker $USER`) y vuelve
@@ -162,26 +170,31 @@ Dos ejes de estado en juego:
 - **`runtime`** de la VM (lado del hipervisor): parado/encendido/
   pausado.
 
+Cambia primero a la carpeta de los alumnos para no escribir el path
+absoluto en cada orden — el cliente acepta paths relativos al cwd igual
+que una shell de Linux:
+
 ```
-univorch /> deploy /lab/networks/student01
+univorch /> cd /lab/networks
+univorch /lab/networks/> deploy student01
 deployed as mock-vm-1
 
-univorch /> status /lab/networks/student01
+univorch /lab/networks/> status student01
 /lab/networks/student01  state=deployed  runtime=stopped  vm_id=mock-vm-1
 
-univorch /> start /lab/networks/student01
+univorch /lab/networks/> start student01
 started
 
-univorch /> status /lab/networks/student01
+univorch /lab/networks/> status student01
 /lab/networks/student01  state=deployed  runtime=running  vm_id=mock-vm-1
 
-univorch /> stop /lab/networks/student01
+univorch /lab/networks/> stop student01
 stopped
 
-univorch /> undeploy /lab/networks/student01
+univorch /lab/networks/> undeploy student01
 undeployed
 
-univorch /> status /lab/networks/student01
+univorch /lab/networks/> status student01
 /lab/networks/student01  state=provisioned  runtime=-  vm_id=-
 ```
 
@@ -255,33 +268,24 @@ navegador.
 
 ## 10. Qué falta para el TFG
 
-Esto es **lo importante**. Lo que has probado hoy es un PoC del motor
-de orquestación. El TFG completo añade encima cuatro piezas:
+Lo que has probado hoy es el PoC del motor de orquestación. El TFG
+añade encima tres piezas, en orden de prioridad:
 
-1. **Conectores reales** — VMware (vSphere) y Proxmox. Hoy solo está el
-   mock; el contrato del conector es una clase abstracta (ABC) y meter
-   un conector nuevo es un módulo Python + una línea en el registro de
-   tipos. He empezado pruebas contra los hipervisores VMware del
-   aulario por VPN.
+1. **Conectores reales** — VMware (vSphere) y Proxmox. Hoy solo está
+   el mock; el contrato del conector es una clase abstracta (ABC) y
+   meter un conector nuevo es un módulo Python más una línea en el
+   registro de tipos. He empezado pruebas contra los hipervisores
+   VMware del aulario por VPN.
 
-2. **Autenticación y RBAC** — usuarios con login y token persistido,
-   tres roles (admin, manager, end_user), permisos por carpeta con
-   herencia en cascada. **El modelo está diseñado y los puntos de
-   extensión existen**: `SessionRepository` para los tokens,
-   `OrchestratorService` como facade donde se aplican los chequeos,
-   reuso del mismo Resolver de definiciones para los permisos. Lo que
-   queda es la implementación. El CLI ya recibe el cliente HTTP por
-   inyección de dependencias: añadir un header `Authorization: Bearer
-   <token>` no toca código del cliente.
+2. **Interfaz web** — basada en NiceGUI sobre la misma API REST que
+   ya tienes en `/docs`. Tres vistas previstas: navegador del árbol con
+   modos local/expandida/resuelta, editor de nodos con diálogos por
+   tipo (carpeta, descriptor, hipervisor, plantilla), y una vista
+   alternativa "desde el hipervisor" que muestra qué VMs viven en qué
+   hipervisor (la operativa inversa al árbol, útil para administración
+   de infraestructura).
 
-3. **Interfaz web** — NiceGUI sobre la misma API REST. Tres vistas
-   previstas: navegador del árbol con tres modos (local, expandida,
-   resuelta), editor de nodos con diálogos por tipo, y vista
-   alternativa "desde el hipervisor" (qué VMs viven en qué hipervisor).
-   Inspiración visual desde [V0.app](https://v0.app), implementación
-   con tema Material.
-
-4. **Aplicación docente** — capa específica sobre el motor genérico,
+3. **Aplicación docente** — capa específica sobre el motor genérico,
    con vocabulario propio: una carpeta es una "asignatura", cada
    subcarpeta es una "mesa", el descriptor es "el ordenador" del
    alumno. Una sola orden despliega toda la asignatura: crea las
@@ -289,6 +293,20 @@ de orquestación. El TFG completo añade encima cuatro piezas:
    una plantilla, asigna IPs de un pool, envía correos con
    credenciales, e informa al profesor. **Esto es la pieza que cierra
    el TFG**: el motor existe para esto.
+
+**Queda fuera del TFG** (diseñado pero no implementado por tiempo):
+
+- **Autenticación y RBAC** — usuarios con login y token persistido,
+  tres roles (admin, manager, end_user), permisos por carpeta con
+  herencia en cascada. El modelo está cerrado y los puntos de
+  extensión existen en el código: `SessionRepository` para los tokens
+  (en la abstracción de persistencia), `OrchestratorService` como
+  facade donde se aplican los chequeos, reuso del mismo Resolver de
+  definiciones para los permisos. El cliente HTTP ya recibe `httpx` por
+  inyección de dependencias, así que añadir un header
+  `Authorization: Bearer <token>` no toca código del cliente. La
+  memoria del TFG explica el modelo completo y lo que faltaría para
+  implementarlo.
 
 El historial completo, las decisiones de diseño, y el código fuente
 están en [github.com/clamaveruma/univorch](https://github.com/clamaveruma/univorch).
