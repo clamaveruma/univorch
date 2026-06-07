@@ -204,11 +204,76 @@ no existe o no es escribible. Tests unitarios para los cuatro casos.
 arrancar el daemon. `httpx.RequestError` (timeout, network) traducido
 también con mensaje genérico de transporte.
 
+### 5.4 Tutorial del profesor — puntos a cubrir (Sprint 3.4)
+
+Recopilado de la prueba real en orca (2026-06-07, primer pull de la
+imagen `v0.1.0`). Lo que el tutorial DEBE explicar al profesor:
+
+- **Conflicto de puertos**: si el 8080 del host está ocupado (Syncthing,
+  Grafana, Plex, lo que sea), cambiar el mapeo con `-p 9090:8080`. Mostrar
+  cómo comprobarlo con `ss -tlnp | grep :8080` (Linux) o el equivalente
+  Mac. Caer en esto sin aviso es el primer obstáculo serio.
+- **Grupo `docker` o `sudo`**: el primer `docker pull` falla con
+  "permission denied to /var/run/docker.sock" si el usuario no está en
+  el grupo `docker`. Explicar la solución rápida (`sudo`) y la
+  permanente (`usermod -aG docker`), con la salvedad de que estar en el
+  grupo equivale a root.
+- **Cómo cargar el YAML del demo**: la imagen viene sin datos (limpia)
+  y SIN el fichero `demo/setup.yml` dentro. El tutorial debe incluir
+  el YAML del demo y enseñar a meterlo en el contenedor con
+  `docker exec ... sh -c 'cat > /tmp/demo.yml << EOF ... EOF'` o
+  `docker cp`. Pedagógico: el profesor ve qué carga.
+- **Limpieza al terminar**: `docker stop` + `docker rm` para no dejar
+  contenedores muertos ni nombres ocupados.
+
+Aplazado a Sprint 3.4 (tutorial PDF con `pandoc`).
+
 ### 5.3 `list --live` con streaming (ya estaba aplazado, lo confirmamos)
 
 `list`/`ls`/`tree` solo muestran el eje del descriptor por coste — N VMs son
 N llamadas al hipervisor. Cuando entre runtime por fila, debe ir por
 streaming (NDJSON / SSE) para no bloquearse en la VM lenta. Sprint posterior.
+
+### 5.5 `undeploy` permisivo sobre VM en `running` — diseño correcto fuera del TFG
+
+Detectado en pruebas manuales 2026-06-07 (orca). Hoy `UndeployCommand.validate()`
+solo rechaza si la VM está en estado `broken` o no existe; **no comprueba el
+runtime**. Resultado: `undeploy` sobre una VM en `running` "funciona" — el
+mock conector apaga implícitamente y borra. En un hipervisor real (VMware,
+Proxmox), `delete` sobre VM encendida hace un power-off forzado antes de
+destruir. Funcional, pero pedagógicamente peligroso: en un entorno docente,
+un manager podría destruir la VM de un alumno mientras la usa.
+
+Decisión de diseño correcto: **rechazo por defecto + flag `--force` explícito**.
+Convención de herramientas serias (`kubectl delete --force`, `docker rm -f`,
+`terraform destroy --auto-approve`).
+
+Comportamiento esperado:
+- `undeploy /lab/vm` con la VM en `running` o `paused` → rechazo con mensaje
+  "VM is running; stop it first or use --force".
+- `undeploy --force /lab/vm` → motor hace `connector.force_stop()` (si hace
+  falta) y luego `connector.delete()`.
+
+Implementación esbozada:
+1. `UndeployCommand.__init__` acepta `force: bool = False`.
+2. `validate()` consulta `connector.get_status(vm_id)`; si es `RUNNING` o
+   `PAUSED` y `not force`, rechaza.
+3. `execute()`: si la VM no está parada y `force`, `connector.force_stop()`
+   antes de `delete()`.
+4. CLI `do_undeploy` añade `-f/--force` en el argparse.
+5. REST: `POST /api/v1/undeploy?path=X&force=true`.
+6. `HttpServiceClient.undeploy(path, force=False)`.
+7. Protocol `OrchestratorAPI.undeploy` añade `force`.
+8. Tests unitarios (`UndeployCommand` con runtime y con/sin force) +
+   integración (REST con y sin force).
+
+Aplazado a iteración posterior al TFG. El TFG defiende honestamente lo
+actual: "el PoC adopta semántica de hipervisor permisivo; el diseño completo
+introduciría la política de --force, ver sección X".
+
+Coherente con DEC-035 (idempotencia, límite del camino feliz): undeploy
+sobre estados incompatibles (`broken`, `unreachable`) ya es error hoy;
+añadir `running`/`paused` al conjunto sigue la misma regla.
 
 ---
 
