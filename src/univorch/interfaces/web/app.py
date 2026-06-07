@@ -20,7 +20,8 @@ from typing import Any
 from fastapi import FastAPI
 from nicegui import ui
 
-from univorch.service import OrchestratorService, TreeEntry
+from univorch.models import Descriptor
+from univorch.service import OperationError, OrchestratorService, TreeEntry
 
 
 def _build_tree_nodes(entries: list[TreeEntry]) -> list[dict[str, Any]]:
@@ -80,6 +81,7 @@ def mount_web(app: FastAPI, service: OrchestratorService) -> None:
 
         entries = service.list_tree("/", recursive=True)
         nodes = _build_tree_nodes(entries)
+        descriptor_paths = {e.path for e in entries if e.kind == "descriptor"}
 
         with ui.card().classes("q-ma-md").style("min-width: 480px"):
             ui.label("Descriptor tree").classes("text-h6 q-mb-sm")
@@ -93,6 +95,11 @@ def mount_web(app: FastAPI, service: OrchestratorService) -> None:
                 label_key="label",
                 children_key="children",
                 node_key="id",
+                on_select=lambda e: (
+                    ui.navigate.to(f"/descriptor?path={e.value}")
+                    if e.value in descriptor_paths
+                    else None
+                ),
             )
             tree.add_slot(
                 "default-header",
@@ -125,6 +132,59 @@ def mount_web(app: FastAPI, service: OrchestratorService) -> None:
                 </span>
                 """,
             )
+
+    @ui.page("/descriptor")
+    def descriptor_detail(path: str = "/") -> None:
+        with ui.header().classes("bg-primary text-white"):
+            ui.button(icon="arrow_back", on_click=lambda: ui.navigate.to("/")).props(
+                "flat round"
+            )
+            ui.label("Descriptor detail").classes("text-h5 q-ml-sm")
+
+        try:
+            entity = service.inspect(path, resolved=True)
+            descriptor_status = service.status(path)
+        except OperationError as exc:
+            with ui.card().classes("q-ma-md"):
+                ui.label("Error").classes("text-h6 text-negative")
+                ui.label("; ".join(exc.errors)).classes("text-body1")
+            return
+
+        if not isinstance(entity, Descriptor):
+            with ui.card().classes("q-ma-md"):
+                ui.label(f"{path} is a folder, not a descriptor.").classes(
+                    "text-grey-7"
+                )
+            return
+
+        rt = descriptor_status.runtime_state
+        fields: list[tuple[str, str]] = [
+            ("Path", entity.path),
+            ("Description", entity.description or "—"),
+            ("State", descriptor_status.state.value),
+            ("Runtime state", rt.value if rt is not None else "—"),
+            ("VM id (hypervisor)", descriptor_status.vm_id or "—"),
+            ("Hypervisor", entity.hypervisor or "—"),
+            ("Base VM", entity.base_vm or "—"),
+            ("Template (use template)", entity.template or "—"),
+            ("CPU", str(entity.cpu) if entity.cpu is not None else "—"),
+            (
+                "Memory (MB)",
+                str(entity.memory_mb) if entity.memory_mb is not None else "—",
+            ),
+            ("Disk (GB)", str(entity.disk_gb) if entity.disk_gb is not None else "—"),
+        ]
+
+        with ui.card().classes("q-ma-md").style("min-width: 540px"):
+            ui.label(basename(entity.path)).classes("text-h6")
+            ui.label(
+                "Effective definition (resolved through cascade + closure)"
+            ).classes("text-grey-7 text-caption")
+            ui.separator().classes("q-my-sm")
+            with ui.grid(columns=2).classes("q-gutter-sm"):
+                for label, value in fields:
+                    ui.label(label).classes("text-grey-7")
+                    ui.label(value).classes("text-body1")
 
     ui.run_with(
         app,
