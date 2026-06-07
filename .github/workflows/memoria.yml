@@ -44,6 +44,22 @@ jobs:
           latexmk_use_xelatex: true
           continue_on_error: false
 
+      # Logs sirven para diagnosticar al fallar; los subimos siempre,
+      # con if: always() para que aparezcan incluso si el paso anterior
+      # rompió la ejecución. Retención corta porque son volátiles.
+      - name: Upload LaTeX logs (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: memoria-logs
+          path: |
+            docs/memoria/main.log
+            docs/memoria/main.blg
+            docs/memoria/main.bcf
+            docs/memoria/main.fls
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Rename PDF
         run: |
           cd docs/memoria
