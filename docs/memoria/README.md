@@ -26,7 +26,17 @@ docs/memoria/
 
 La plantilla `template/` es la versión 2.2 (feb 2026) de
 [MarioPasc/UMA-TFG-ETSI-Templates](https://github.com/MarioPasc/UMA-TFG-ETSI-Templates),
-sin modificar.
+con un único parche local documentado más abajo.
+
+### Parches locales sobre la plantilla
+
+- `template/sty_files/plain_cover-whiteuma.sty` (2026-06-07): el bloque
+  que pinta "Fecha defensa: ..." en la esquina inferior derecha de la
+  portada interior blanca se envuelve en `\ifdefempty{\uma@defenseDate}{}{...}`.
+  Si el campo `defenseDate` se pasa vacío, no se imprime nada (antes
+  imprimía literalmente "Fecha defensa: " a secas). Es el mismo patrón
+  que ya trae `cotutor_cover-whiteuma.sty` de la plantilla original.
+  Motivo: aún no tenemos fecha de defensa confirmada.
 
 ## Flujo de trabajo
 

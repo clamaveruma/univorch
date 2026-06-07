@@ -112,12 +112,18 @@
       {\large UNIVERSIDAD DE MÁLAGA\par}
       {\large \MakeUppercase{\uma@cityDate}\par}
 
-      % lower-right: defense date
-      \begin{tikzpicture}[remember picture,overlay]
-        \node[anchor=south east,xshift=-2cm,yshift=1cm]
-          at (current page.south east)
-          {\large Fecha defensa: \uma@defenseDate};
-      \end{tikzpicture}
+      % lower-right: defense date (omitted if defenseDate is empty).
+      % Local patch (2026-06-07): match the behaviour of
+      % cotutor_cover-whiteuma.sty, which already wraps this block in
+      % \ifdefempty so an empty defenseDate is not printed as
+      % "Fecha defensa: " with nothing after.
+      \ifdefempty{\uma@defenseDate}{}{%
+        \begin{tikzpicture}[remember picture,overlay]
+          \node[anchor=south east,xshift=-2cm,yshift=1cm]
+            at (current page.south east)
+            {\large Fecha defensa: \uma@defenseDate};
+        \end{tikzpicture}%
+      }
     \end{titlepage}
 
   \endgroup
