@@ -25,8 +25,9 @@ case "${1:-}" in
     start)
         docker compose -f "$COMPOSE_FILE" up -d
         echo "UnivOrch started."
-        echo "Web UI (Sprint 2+): http://localhost:${UNIVORCH_PORT:-8080}"
-        echo "CLI: ./univorch.sh cli"
+        echo "REST API:   http://localhost:${UNIVORCH_PORT:-8080}/api/v1/"
+        echo "Health:     http://localhost:${UNIVORCH_PORT:-8080}/api/v1/health"
+        echo "Interactive CLI: ./univorch.sh cli"
         ;;
     stop)
         docker compose -f "$COMPOSE_FILE" down
@@ -43,6 +44,9 @@ case "${1:-}" in
     cli)
         # Open an interactive CLI session inside the running container.
         # The container must already be started with './univorch.sh start'.
+        # The CLI talks HTTP to the daemon at http://localhost:8080
+        # (the default _DEFAULT_REMOTE in cli/app.py), which is exactly
+        # the daemon running as PID 1 of this container.
         docker exec -it univorch univorch
         ;;
     *)

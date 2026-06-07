@@ -1,45 +1,42 @@
-"""Command-line interface (cmd2): a single dual-mode shell.
+"""Command-line interface (cmd2): a pure HTTP client (Sprint 3.2, B-2).
 
-A thin interface (DEC-031): each command translates user input into a call to the
-``OrchestratorService`` and renders the result. The same ``do_*`` methods serve
-both the interactive REPL (a shell with a prompt and history) and bash mode (a
-single command passed as arguments).
+A thin interface (DEC-031): each command translates user input into a call
+to the orchestrator backend and renders the result. The same ``do_*``
+methods serve both the interactive REPL and bash mode (a single command
+passed as arguments).
 
-Each command declares an argparse parser via ``@cmd2.with_argparser``; cmd2 then
-parses the arguments and autogenerates structured, coloured help (``help <cmd>``).
+Sprint 3.2 made the CLI **HTTP-only**. It does not embed the orchestrator;
+it always talks to a daemon (``univorchd``) via the REST API. The daemon
+URL is picked by precedence: ``--remote URL`` > ``UNIVORCH_REMOTE`` env var
+> ``http://localhost:8080`` (the default — matches the daemon running
+alongside in the production container). The in-REPL ``connect`` command
+lets the user switch the target without restarting the shell.
 
-In Sprint 1 the CLI assembles the service itself, in its own process (the
-composition root): a disk-backed TinyDB plus the in-memory mock connector. Each
-CLI process therefore has its own mock state — fine within one REPL session
-(the demo), reset across separate invocations. A persistent daemon is Sprint 2.
+Each command declares an argparse parser via ``@cmd2.with_argparser``;
+cmd2 then parses the arguments and autogenerates structured, coloured
+help (``help <cmd>``).
 """
 
 import argparse
 import os
 import posixpath
-import sys
 from collections.abc import Callable
 
 import cmd2
 import httpx
 from pydantic import ValidationError
 from ruamel.yaml.error import YAMLError
-from tinydb import TinyDB
 
 from univorch.interfaces.rest.client import HttpServiceClient
 from univorch.models import Descriptor, DescriptorState, Folder, Job, JobStatus
 from univorch.parser import parse_definition_file
-from univorch.persistence.tinydb.repositories import (
-    DescriptorRepository,
-    FolderRepository,
-    JobRepository,
-)
-from univorch.service import (
-    OperationError,
-    OrchestratorAPI,
-    OrchestratorService,
-    TreeEntry,
-)
+from univorch.service import OperationError, OrchestratorAPI, TreeEntry
+
+# The orchestrator daemon the CLI talks to by default. When the CLI runs
+# inside the production container (Sprint 3.1), the daemon is at this
+# address; outside the container the user can override with --remote,
+# the UNIVORCH_REMOTE env var, or the in-REPL ``connect`` command.
+_DEFAULT_REMOTE = "http://localhost:8080"
 
 # Rich style per descriptor state (cmd2 3.x renders poutput with Rich)
 # 'deployed' uses the terminal's default colour on purpose: green would suggest
@@ -130,6 +127,18 @@ def _folder_label(path: str) -> str:
     return path if path == "/" else f"{path}/"
 
 
+def _make_connect_parser() -> cmd2.Cmd2ArgumentParser:
+    parser = cmd2.Cmd2ArgumentParser(
+        description=(
+            "Switch the live REPL session to a different daemon URL "
+            "(e.g. http://aulario.uma.es:8080). The prompt updates to "
+            "show the new target."
+        )
+    )
+    parser.add_argument("url", help="full daemon URL including scheme and port")
+    return parser
+
+
 def _inspect_arg_parser() -> cmd2.Cmd2ArgumentParser:
     """Build the parser for 'inspect' (a tree path + the --local flag)."""
     parser = cmd2.Cmd2ArgumentParser(
@@ -149,46 +158,48 @@ def _inspect_arg_parser() -> cmd2.Cmd2ArgumentParser:
     return parser
 
 
-def build_service(db: TinyDB) -> OrchestratorService:
-    """Wire the in-process service from a TinyDB.
+def _resolve_remote(cli_arg: str | None) -> str:
+    """Pick which daemon URL the CLI will talk to.
 
-    Connector types come from the registry default (``CONNECTOR_TYPES``);
-    live sessions spin up on demand from the hypervisors declared in the
-    tree.
+    Precedence: ``--remote`` argument > ``UNIVORCH_REMOTE`` env var >
+    the built-in default (``http://localhost:8080``). The in-REPL
+    ``connect`` command overrides this **after** startup.
     """
-    return OrchestratorService(
-        FolderRepository(db),
-        DescriptorRepository(db),
-        JobRepository(db),
-    )
+    return cli_arg or os.environ.get("UNIVORCH_REMOTE") or _DEFAULT_REMOTE
 
 
-def build_api() -> OrchestratorAPI:
-    """Pick the orchestrator backend per environment (Sprint 3.2).
+def build_api(remote: str) -> OrchestratorAPI:
+    """Build an HTTP client to the daemon at ``remote``.
 
-    ``UNIVORCH_REMOTE=http://host:port`` → talk to the daemon via HTTP.
-    Otherwise → build the service in-process over a TinyDB file at
-    ``UNIVORCH_DB``. The CLI works the same either way: it only sees a
-    value that cumple ``OrchestratorAPI``.
+    Sprint 3.2 (B-2): the CLI is now a pure client. There is no
+    in-process mode — the daemon (``univorchd``) is always responsible
+    for the orchestrator's state, the CLI just calls its REST API.
     """
-    remote = os.environ.get("UNIVORCH_REMOTE")
-    if remote:
-        return HttpServiceClient(httpx.Client(base_url=remote))
-    db_path = os.environ.get("UNIVORCH_DB", "univorch.tinydb.json")
-    return build_service(TinyDB(db_path))
+    return HttpServiceClient(httpx.Client(base_url=remote))
 
 
 class UnivOrchShell(cmd2.Cmd):
     """The UnivOrch interactive shell."""
 
-    def __init__(self, service: OrchestratorAPI) -> None:
+    def __init__(self, service: OrchestratorAPI, remote: str) -> None:
         super().__init__()
         self._service = service
+        self._remote = remote  # what to show in the prompt; ``connect`` mutates it
         self._cwd = "/"  # current folder, like a shell working directory
         self.prompt = self._prompt()
 
     def _prompt(self) -> str:
-        return f"univorch {_folder_label(self._cwd)}> "
+        """Prompt shape: ``univorch [remote] /cwd>``.
+
+        The remote is hidden when it is the built-in default — the typical
+        case (running inside the production container talking to its own
+        local daemon). When the user is hitting another instance, it is
+        always visible so they don't act on the wrong one.
+        """
+        suffix = f"univorch {_folder_label(self._cwd)}> "
+        if self._remote == _DEFAULT_REMOTE:
+            return suffix
+        return f"univorch [{self._remote}] {_folder_label(self._cwd)}> "
 
     def _resolve(self, path: str) -> str:
         """Normalize a path argument to an absolute tree path.
@@ -223,6 +234,20 @@ class UnivOrchShell(cmd2.Cmd):
     )
     def do_pwd(self, args: argparse.Namespace) -> None:
         self.poutput(_folder_label(self._cwd))
+
+    @cmd2.with_argparser(_make_connect_parser())
+    def do_connect(self, args: argparse.Namespace) -> None:
+        """Switch the live REPL session to a different daemon URL.
+
+        Rebuilds the underlying HTTP client without leaving the shell, so
+        an admin can flip between e.g. ``localhost`` and a campus instance
+        without restarting. The prompt updates to reflect the new target.
+        """
+        new_remote = args.url.strip()
+        self._service = build_api(new_remote)
+        self._remote = new_remote
+        self.prompt = self._prompt()
+        self.poutput(f"connected to {new_remote}")
 
     @cmd2.with_argparser(_path_arg_parser(_LIST_DESC, required=False))
     def do_list(self, args: argparse.Namespace) -> None:
@@ -418,8 +443,31 @@ class UnivOrchShell(cmd2.Cmd):
 
 
 def main() -> None:
-    shell = UnivOrchShell(build_api())
-    if len(sys.argv) > 1:
-        shell.onecmd_plus_hooks(" ".join(sys.argv[1:]))  # bash mode: one command
+    """CLI entry point.
+
+    Parses ``--remote`` early (before cmd2 sees the rest of the argv),
+    so a remaining ``shell.onecmd_plus_hooks`` invocation can still
+    take a sub-command in bash mode. Everything after ``--remote URL``
+    is treated as the user command (or none, for REPL mode).
+    """
+    parser = argparse.ArgumentParser(
+        prog="univorch",
+        description="UnivOrch CLI client.",
+        add_help=False,  # let cmd2 handle 'help' inside the REPL
+    )
+    parser.add_argument(
+        "-r",
+        "--remote",
+        metavar="URL",
+        help=(
+            f"daemon URL (default: ${{UNIVORCH_REMOTE}} or {_DEFAULT_REMOTE}). "
+            f"Precedence: --remote > UNIVORCH_REMOTE > built-in default."
+        ),
+    )
+    args, rest = parser.parse_known_args()
+    remote = _resolve_remote(args.remote)
+    shell = UnivOrchShell(build_api(remote), remote)
+    if rest:
+        shell.onecmd_plus_hooks(" ".join(rest))  # bash mode: one command
     else:
         shell.cmdloop()  # interactive REPL

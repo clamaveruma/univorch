@@ -49,6 +49,7 @@ VOLUME ["/data"]
 EXPOSE ${UNIVORCH_PORT}
 
 # Start the UnivOrch REST daemon (uvicorn + FastAPI).
-# Sprint 3.1.c: the daemon is the long-lived process of the container; it
-# serves the public API and keeps the container alive for `docker exec`.
-CMD ["python", "-m", "univorch.interfaces.rest"]
+# Sprint 3.2 (B-2): named entry point `univorchd` registered in
+# pyproject.toml. Equivalent to `python -m univorch.interfaces.rest` but
+# shorter and self-documenting in `docker ps` and the logs.
+CMD ["univorchd"]

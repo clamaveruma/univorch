@@ -4,21 +4,41 @@ import io
 from pathlib import Path
 
 import pytest
+from fastapi.testclient import TestClient
 from tinydb import TinyDB
 from tinydb.storages import MemoryStorage
 
-from univorch.interfaces.cli.app import UnivOrchShell, build_service
+from univorch.interfaces.cli.app import UnivOrchShell
+from univorch.interfaces.rest.app import create_app
+from univorch.interfaces.rest.client import HttpServiceClient
 from univorch.models import (
     DefinitionDocument,
     DescriptorDef,
     FolderDef,
     HypervisorDef,
 )
+from univorch.persistence.tinydb.repositories import (
+    DescriptorRepository,
+    FolderRepository,
+    JobRepository,
+)
+from univorch.service import OrchestratorService
 
 
 @pytest.fixture
 def shell() -> UnivOrchShell:
-    return UnivOrchShell(build_service(TinyDB(storage=MemoryStorage)))
+    # Sprint 3.2 (B-2): the CLI is HTTP-only. The shell talks to an
+    # HttpServiceClient bound to a FastAPI TestClient that routes calls
+    # to a real OrchestratorService over in-memory TinyDB. The whole
+    # client/server slice runs in-process — no socket, no uvicorn.
+    db = TinyDB(storage=MemoryStorage)
+    service = OrchestratorService(
+        FolderRepository(db),
+        DescriptorRepository(db),
+        JobRepository(db),
+    )
+    http = HttpServiceClient(TestClient(create_app(service)))
+    return UnivOrchShell(http, "http://test")
 
 
 def _run(shell: UnivOrchShell, line: str) -> str:

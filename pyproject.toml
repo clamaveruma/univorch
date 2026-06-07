@@ -24,8 +24,10 @@ dependencies = [
 ]
 
 [project.scripts]
-# 'univorch' command available inside the container and the dev environment
+# CLI client (Sprint 3.2 onwards: HTTP-only, no embedded service).
 univorch = "univorch.interfaces.cli.app:main"
+# REST daemon — the server process the container's CMD runs.
+univorchd = "univorch.interfaces.rest.__main__:main"
 
 # ---------------------------------------------------------------------------
 # Optional dependency groups
