@@ -20,8 +20,31 @@ from typing import Any
 from fastapi import FastAPI
 from nicegui import ui
 
-from univorch.models import Descriptor
+from univorch.models import Descriptor, DescriptorState
 from univorch.service import OperationError, OrchestratorService, TreeEntry
+
+
+def _descriptor_counts(entries: list[TreeEntry]) -> dict[str, int]:
+    """Count descriptors by state for the summary cards at the top.
+
+    Returns a dict with one entry per ``DescriptorState`` value plus
+    ``"total"``. Folders are ignored.
+    """
+    counts: dict[str, int] = {state.value: 0 for state in DescriptorState}
+    counts["total"] = 0
+    for entry in entries:
+        if entry.kind != "descriptor" or entry.state is None:
+            continue
+        counts["total"] += 1
+        counts[entry.state.value] += 1
+    return counts
+
+
+def _stat_card(label: str, value: int, color: str) -> None:
+    """One number-on-top, label-below tile for the summary row."""
+    with ui.card().classes("q-pa-md").style("min-width: 140px"):
+        ui.label(str(value)).classes(f"text-h3 text-{color}")
+        ui.label(label).classes("text-grey-7 text-caption")
 
 
 def _build_tree_nodes(entries: list[TreeEntry]) -> list[dict[str, Any]]:
@@ -82,6 +105,14 @@ def mount_web(app: FastAPI, service: OrchestratorService) -> None:
         entries = service.list_tree("/", recursive=True)
         nodes = _build_tree_nodes(entries)
         descriptor_paths = {e.path for e in entries if e.kind == "descriptor"}
+        counts = _descriptor_counts(entries)
+        bad = counts["broken"] + counts["unreachable"]
+
+        with ui.row().classes("q-gutter-md q-ma-md"):
+            _stat_card("Total VMs", counts["total"], "primary")
+            _stat_card("Provisioned", counts["provisioned"], "grey-6")
+            _stat_card("Deployed", counts["deployed"], "positive")
+            _stat_card("Broken or unreachable", bad, "negative" if bad else "grey-6")
 
         with ui.card().classes("q-ma-md").style("min-width: 480px"):
             ui.label("Descriptor tree").classes("text-h6 q-mb-sm")
