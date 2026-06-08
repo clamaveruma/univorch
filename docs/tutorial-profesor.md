@@ -343,12 +343,12 @@ versión final, conectada a la API real, se parecerá a esto.
 - **Vista del administrador / profesor** (árbol de descriptores con
   filtro, panel de detalle por nodo, badges para plantillas e
   hipervisores, acciones contextuales por estado):
-  [admin-standalone.html](https://htmlpreview.github.io/?https://raw.githubusercontent.com/clamaveruma/univorch/main/demo/ui_kits/admin-standalone.html)
+  [admin-standalone.html](https://raw.githack.com/clamaveruma/univorch/main/demo/ui_kits/admin-standalone.html)
 
 - **Vista del alumno** (la metáfora "mesa con ordenadores" — las VMs
   aparecen como iconos de PC sobre una mesa, con iconos SVG por
   estado y acciones por VM):
-  [user-standalone.html](https://htmlpreview.github.io/?https://raw.githubusercontent.com/clamaveruma/univorch/main/demo/ui_kits/user-standalone.html)
+  [user-standalone.html](https://raw.githack.com/clamaveruma/univorch/main/demo/ui_kits/user-standalone.html)
 
 > Como son páginas estáticas, los botones no producen efecto: están
 > ahí solo para mostrar la disposición y la iconografía. Lo que sí
