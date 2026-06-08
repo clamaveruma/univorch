@@ -52,10 +52,26 @@ EOF
 case "${1:-}" in
     start)
         "${COMPOSE[@]}" -f "$COMPOSE_FILE" up -d
+        port="${UNIVORCH_PORT:-8080}"
+        # Best-effort detection of the host's primary IPv4. Used when the
+        # browser opening UnivOrch lives on a different machine than the
+        # one running this container (typical: daemon on a server, user
+        # on a laptop). Falls back silently if we cannot guess.
+        host_ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
+        host_name="$(hostname 2>/dev/null)"
         echo "UnivOrch started."
-        echo "Web GUI:    http://localhost:${UNIVORCH_PORT:-8080}/"
-        echo "REST API:   http://localhost:${UNIVORCH_PORT:-8080}/api/v1/"
-        echo "Health:     http://localhost:${UNIVORCH_PORT:-8080}/api/v1/health"
+        echo
+        echo "From this machine:"
+        echo "  Web GUI:    http://localhost:${port}/"
+        echo "  REST API:   http://localhost:${port}/api/v1/"
+        echo "  Health:     http://localhost:${port}/api/v1/health"
+        if [ -n "${host_ip}" ] || [ -n "${host_name}" ]; then
+            echo
+            echo "From another machine on the network:"
+            [ -n "${host_ip}" ]   && echo "  Web GUI:    http://${host_ip}:${port}/"
+            [ -n "${host_name}" ] && echo "  Web GUI:    http://${host_name}:${port}/  (if DNS resolves it)"
+        fi
+        echo
         echo "Interactive CLI: ./univorch.sh cli"
         ;;
     stop)
