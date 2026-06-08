@@ -225,6 +225,16 @@ Los datos persisten en el volumen `univorch_univorch_data`. Para
 empezar de cero, `sudo docker volume rm univorch_univorch_data` antes
 del siguiente `start`.
 
+Para **borrar todo** (contenedor, volumen con la base de datos, imagen
+y directorio local), ejecuta el desinstalador:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/clamaveruma/univorch/main/uninstall.sh | sudo bash -s -- --yes
+```
+
+Para conservar la base de datos o la imagen entre desinstalaciones,
+añade `--keep-data` o `--keep-image` (o ambos) al final.
+
 ---
 
 ## 8. Si algo falla

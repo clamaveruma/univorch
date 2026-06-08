@@ -63,6 +63,7 @@ case "${1:-}" in
         echo
         echo "From this machine:"
         echo "  Web GUI:    http://localhost:${port}/"
+        echo "  Swagger UI: http://localhost:${port}/docs"
         echo "  REST API:   http://localhost:${port}/api/v1/"
         echo "  Health:     http://localhost:${port}/api/v1/health"
         if [ -n "${host_ip}" ] || [ -n "${host_name}" ]; then
