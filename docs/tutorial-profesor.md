@@ -226,14 +226,21 @@ empezar de cero, `sudo docker volume rm univorch_univorch_data` antes
 del siguiente `start`.
 
 Para **borrar todo** (contenedor, volumen con la base de datos, imagen
-y directorio local), ejecuta el desinstalador:
+y directorio local), el instalador deja un `uninstall.sh` listo en el
+mismo directorio:
+
+```bash
+sudo ./uninstall.sh
+```
+
+Te pide confirmación una sola vez. Si quieres conservar la base de
+datos o la imagen entre desinstalaciones, añade `--keep-data` o
+`--keep-image` (o ambos). Equivalente si ya borraste el directorio a
+mano:
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/clamaveruma/univorch/main/uninstall.sh | sudo bash -s -- --yes
 ```
-
-Para conservar la base de datos o la imagen entre desinstalaciones,
-añade `--keep-data` o `--keep-image` (o ambos) al final.
 
 ---
 

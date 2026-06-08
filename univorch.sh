@@ -74,6 +74,8 @@ case "${1:-}" in
         fi
         echo
         echo "Interactive CLI: ./univorch.sh cli"
+        echo "Stop:            ./univorch.sh stop"
+        echo "Uninstall (todo): ./uninstall.sh"
         ;;
     stop)
         "${COMPOSE[@]}" -f "$COMPOSE_FILE" down

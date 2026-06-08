@@ -168,7 +168,12 @@ fi
 
 if [ -d "${INSTALL_DIR}" ]; then
     info "Borrando ${INSTALL_DIR}/..."
-    rm -rf "${INSTALL_DIR}"
+    # Use a subshell anchored at /tmp so that 'rm -rf' works even when the
+    # script was invoked from inside ${INSTALL_DIR} itself (typical: 'sudo
+    # ./uninstall.sh' from the directory we are about to delete). Bash's
+    # cwd is allowed to be a deleted directory but new commands may fail;
+    # anchoring to /tmp avoids the trap altogether.
+    ( cd /tmp && rm -rf "${INSTALL_DIR}" )
     ok "Directorio eliminado."
 fi
 

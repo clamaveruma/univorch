@@ -166,8 +166,14 @@ main() {
 
     download "${REPO_RAW}/univorch.sh"        "${INSTALL_DIR}/univorch.sh"
     download "${REPO_RAW}/docker-compose.yml" "${INSTALL_DIR}/docker-compose.yml"
+    # The uninstaller ships next to univorch.sh so a user who lists the
+    # directory sees it without having to remember a URL. Keeping the
+    # remote 'curl | sudo bash' invocation is also valid (covers the
+    # case where the directory has been removed by hand already).
+    download "${REPO_RAW}/uninstall.sh"        "${INSTALL_DIR}/uninstall.sh"
     chmod +x "${INSTALL_DIR}/univorch.sh"
-    ok "univorch.sh y docker-compose.yml listos."
+    chmod +x "${INSTALL_DIR}/uninstall.sh"
+    ok "univorch.sh, uninstall.sh y docker-compose.yml listos."
 
     # Persist the chosen port so 'univorch.sh start' uses it on first run.
     # Writing into .env keeps the choice across reboots without surprising
@@ -183,8 +189,9 @@ main() {
     echo "  cd ${INSTALL_DIR}"
     echo "  ./univorch.sh start          ${BLUE}# arranca el contenedor${RESET}"
     echo "  ./univorch.sh cli            ${BLUE}# entra al REPL${RESET}"
+    echo "  ./uninstall.sh               ${BLUE}# borra todo (contenedor, volumen, imagen, directorio)${RESET}"
     echo
-    echo "Si tu usuario no está en el grupo 'docker', usa 'sudo ./univorch.sh start'."
+    echo "Si tu usuario no está en el grupo 'docker', prefija con 'sudo' (ej. 'sudo ./univorch.sh start')."
     echo "El tutorial completo: https://github.com/clamaveruma/univorch/blob/main/docs/tutorial-profesor.md"
 }
 
