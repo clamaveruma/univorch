@@ -1,0 +1,217 @@
+<!-- @dsCard group="Web GUI" viewport="1280x720" name="Admin tree (Vue + Quasar)" subtitle="Descriptor tree + detail with Vue 3 & Quasar components — no build needed" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>UnivOrch Admin — Vue + Quasar</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700,900|Material+Icons" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quasar@2.14.0/dist/quasar.prod.css" />
+<link rel="stylesheet" href="../../styles.css" />
+<link rel="icon" href="../../assets/logo-mark.svg" />
+<style>
+  html, body { margin: 0; background: var(--color-background); font-family: var(--font-sans); }
+  .brand-bar { height: 64px; background: var(--color-primary); color: var(--color-on-primary); display: flex; align-items: center; gap: 16px; padding: 0 16px; box-shadow: 0 2px 8px rgba(0,0,0,.12); position: relative; }
+  .brand-bar::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: linear-gradient(90deg, var(--brand-line-warm) 0 50%, var(--brand-line-gold) 50% 100%); }
+  .logo-mark { width: 32px; height: 32px; background: rgba(255,255,255,.94); border-radius: 4px; display: flex; align-items: center; justify-content: center; }
+  .logo-mark img { width: 20px; height: 20px; }
+  .spacer { flex: 1; }
+  .row { display: flex; flex: 1; min-height: 0; }
+  .sidebar { width: 360px; display: flex; flex-direction: column; gap: 16px; padding: 16px; background: var(--color-surface); border-right: 1px solid var(--color-outline-variant); overflow-y: auto; }
+  .content { flex: 1; display: flex; flex-direction: column; padding: 16px; overflow-y: auto; }
+  .tree-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 12px; }
+  .tree-head .q-title { margin: 0; }
+  .brand-rule { height: 3px; width: 120px; background: linear-gradient(90deg, var(--brand-line-warm) 0 50%, var(--brand-line-gold) 50% 100%); border-radius: 2px; }
+  .filter-box { margin-bottom: 12px; }
+  .tree { flex: 1; min-height: 0; overflow-y: auto; border: 1px solid var(--color-outline-variant); border-radius: 8px; background: var(--color-surface-container-low); padding: 8px; }
+  .tree-node { cursor: pointer; padding: 6px 8px; border-radius: 6px; margin: 2px 0; font-size: 13px; transition: background .15s; }
+  .tree-node:hover { background: var(--color-surface-container); }
+  .tree-node.sel { background: var(--color-primary-container); color: var(--color-on-primary-container); }
+  .tree-node.folder { font-weight: 500; color: var(--color-folder); margin-top: 8px; }
+  .tree-node.descriptor { margin-left: 16px; font-family: var(--font-mono); }
+  .detail-card { background: var(--color-surface); border-radius: 12px; box-shadow: var(--elevation-1); padding: 24px; position: relative; }
+  .detail-card::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, var(--brand-line-warm) 0 50%, var(--brand-line-gold) 50% 100%); border-radius: 12px 12px 0 0; }
+  .detail-title { font-size: 20px; font-weight: 500; margin: 0 0 4px; }
+  .detail-path { font-size: 12px; color: var(--color-on-surface-faint); font-family: var(--font-mono); }
+  .detail-section { margin: 16px 0 0; }
+  .detail-row { display: grid; grid-template-columns: 160px 1fr; gap: 16px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--color-outline-variant); }
+  .detail-row:last-child { border-bottom: none; }
+  .detail-label { color: var(--color-on-surface-muted); font-size: 13px; font-weight: 500; }
+  .detail-value { font-family: var(--font-mono); }
+  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 500; }
+  .badge.hyp { background: var(--teal-90); color: var(--teal-20); }
+  .badge.tmpl { background: var(--violet-90); color: var(--violet-20); }
+  .jump { cursor: pointer; margin-left: 4px; opacity: 0.6; font-size: 14px; }
+</style>
+</head>
+<body>
+  <div id="app">
+    <div class="brand-bar">
+      <div class="logo-mark"><img src="../../assets/logo-mark.svg" alt="" /></div>
+      <span style="font-weight: 500; font-size: 18px;">UnivOrch</span>
+      <div class="spacer"></div>
+      <q-icon name="terminal" size="sm" />
+      <q-icon name="refresh" size="sm" />
+    </div>
+
+    <div class="row">
+      <div class="sidebar">
+        <div class="tree-head">
+          <q-item-label class="q-title" style="margin: 0;">Descriptor tree</q-item-label>
+        </div>
+        <div class="brand-rule"></div>
+        <div class="filter-box">
+          <q-input outlined dense v-model="filter" label="Filter…" hint="* and ? wildcards" @update:model-value="onFilter">
+            <template #prepend><q-icon name="search" /></template>
+            <template v-if="filter" #append><q-icon name="close" class="cursor-pointer" @click="filter = ''" /></template>
+          </q-input>
+          <div v-if="filter" style="font-size: 11px; color: var(--color-on-surface-faint); margin-top: 4px;">{{ visibleCount }}/{{ order.length }}</div>
+        </div>
+        <div class="tree">
+          <div v-for="n in visibleTree" :key="n.id" :class="{ 'tree-node': true, folder: n.kind === 'folder', descriptor: n.kind === 'descriptor', sel: sel === n.id }" @click="sel = n.id">
+            {{ n.label }}{{ n.kind === 'folder' ? '/' : '' }}
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div v-if="selNode && selNode.kind === 'descriptor'" class="detail-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;">
+            <div>
+              <div class="detail-title">{{ selNode.label }}</div>
+              <div class="detail-path">{{ selNode.id }}</div>
+            </div>
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; flex: none;">
+              <vm-status-icon :state="rec.state" :runtime="rec.runtime" :size="52"></vm-status-icon>
+              <span style="font-size: 11px; color: var(--color-on-surface-faint); font-family: var(--font-mono);">{{ rec.state }}{{ rec.runtime ? ' · ' + rec.runtime : '' }}</span>
+            </div>
+          </div>
+          <div class="detail-section">
+            <div class="detail-row">
+              <span class="detail-label">IP address</span>
+              <span class="detail-value">{{ rec.ip || '—' }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">VM id</span>
+              <span class="detail-value">{{ rec.vm_id || '—' }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Template</span>
+              <span v-if="rec.template" class="badge tmpl">{{ rec.template }}<span class="jump">→</span></span>
+              <span v-else>—</span>
+            </div>
+          </div>
+          <div style="margin-top: 16px; display: flex; gap: 8px; flex-wrap: wrap;">
+            <q-btn v-if="rec.state === 'provisioned'" outline icon="rocket_launch" label="Deploy" />
+            <q-btn v-else-if="rec.state === 'deployed' && rec.runtime !== 'running'" outline icon="play_arrow" label="Start" />
+            <q-btn v-else-if="rec.runtime === 'running'" outline icon="stop" label="Stop" />
+            <q-btn v-if="rec.state === 'deployed'" flat icon="undo" label="Undeploy" />
+          </div>
+        </div>
+
+        <div v-else-if="selNode && selNode.kind === 'folder'" class="detail-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;">
+            <div>
+              <div class="detail-title">{{ selNode.label }}/</div>
+              <div class="detail-path">{{ selNode.id }}</div>
+            </div>
+            <q-icon name="folder" size="44px" color="var(--color-folder)" style="flex: none;" />
+          </div>
+          <div class="detail-section">
+            <div v-if="folder.description" class="detail-row">
+              <span class="detail-label">Description</span>
+              <span>{{ folder.description }}</span>
+            </div>
+            <div v-if="folder.imports && folder.imports.length" class="detail-row">
+              <span class="detail-label">Import</span>
+              <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                <span v-for="im in folder.imports" :key="im" class="badge" :class="kindOf(im) === 'hypervisor' ? 'hyp' : 'tmpl'">{{ im }}<span class="jump">→</span></span>
+              </div>
+            </div>
+          </div>
+          <div v-if="Object.keys(folder.hypervisors || {}).length" class="detail-section">
+            <div style="font-weight: 500; margin-bottom: 8px;">Define hypervisors</div>
+            <div v-for="(h, n) in folder.hypervisors" :key="n" style="padding: 8px; background: var(--color-surface-container); border-radius: 6px; margin-bottom: 6px;">
+              <div style="font-family: var(--font-mono); font-weight: 500;">{{ n }}</div>
+              <div style="font-size: 12px; color: var(--color-on-surface-muted);">type: {{ h.type }}</div>
+            </div>
+          </div>
+          <div v-if="Object.keys(folder.templates || {}).length" class="detail-section">
+            <div style="font-weight: 500; margin-bottom: 8px;">Define templates</div>
+            <div v-for="(t, n) in folder.templates" :key="n" style="padding: 8px; background: var(--color-surface-container); border-radius: 6px; margin-bottom: 6px;">
+              <div style="font-family: var(--font-mono); font-weight: 500;">{{ n }}</div>
+              <div style="font-size: 12px; color: var(--color-on-surface-muted);">{{ t.cpu }} CPU · {{ t.memory_mb }} MB · {{ t.disk_gb }} GB</div>
+            </div>
+          </div>
+        </div>
+
+        <div v-else style="display: flex; align-items: center; justify-content: center; height: 100%; color: var(--color-on-surface-faint);">
+          <q-icon name="account_tree" size="lg" style="margin-right: 16px;" />
+          <span>Select a node from the tree</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/quasar@2.14.0/dist/quasar.umd.prod.js"></script>
+
+  <script>
+    const { createApp } = Vue;
+    const { Quasar } = window;
+    Quasar.Dark.set(false);
+
+    const VmStatusIcon = {
+      props: { state: String, runtime: { type: String, default: null }, size: { type: Number, default: 22 } },
+      template: `<svg :width="size" :height="size" viewBox="0 0 24 24" role="img" :aria-label="state" style="display: block;"><template v-if="state === 'provisioned'"><rect x="2" y="2.5" width="20" height="14.5" rx="1.2" fill="none" stroke="#A8A4AE" stroke-width="1.4" stroke-dasharray="2.4 1.8"/><g fill="none" stroke="#A8A4AE" stroke-width="1.4" stroke-dasharray="2.4 1.8"><rect x="10.6" y="17" width="2.8" height="2.1" rx="0.3"/><rect x="6.8" y="18.8" width="10.4" height="1.9" rx="0.5"/></g></template><template v-else-if="state === 'broken'"><path d="M12 3.2 L22 20 H2 Z" fill="#C5221A" stroke="#fff" stroke-width="0.6" stroke-linejoin="round"/><rect x="11" y="9" width="2" height="5.4" rx="1" fill="#fff"/><circle cx="12" cy="17.2" r="1.25" fill="#fff"/></template><template v-else-if="state === 'unreachable'"><text x="12" y="19" text-anchor="middle" fill="#D2CED8" style="font-family:Roboto,sans-serif;font-weight:700;font-size:21px">?</text><rect x="1.4" y="10.2" width="8.2" height="3.6" rx="1.4" fill="#5E5A66"/><rect x="14.4" y="10.2" width="8.2" height="3.6" rx="1.4" fill="#5E5A66"/><path d="M12.7 8.4 L10.2 12.4 L11.9 12.4 L11.1 15.6 L13.9 11.4 L12.1 11.4 L13.2 8.4 Z" fill="#C5221A" stroke="#fff" stroke-width="0.5" stroke-linejoin="round"/></template><template v-else><rect x="2" y="2.5" width="20" height="14.5" rx="1.2" fill="#8E8A96"/><template v-if="runtime === 'running'"><rect x="4" y="4.3" width="16" height="8.7" rx="0.6" fill="#2A6FDB"/><rect x="6.4" y="6.2" width="8.4" height="5.2" rx="0.5" fill="#AFCBFF"/><rect x="6.4" y="6.2" width="8.4" height="1.5" rx="0.5" fill="#7FA8F0"/></template><template v-else-if="runtime === 'paused'"><rect x="4" y="4.3" width="16" height="8.7" rx="0.6" fill="#15233E"/><rect x="9.3" y="6.2" width="1.7" height="4.9" rx="0.4" fill="#CBD8EE"/><rect x="13" y="6.2" width="1.7" height="4.9" rx="0.4" fill="#CBD8EE"/></template><template v-else><rect x="4" y="4.3" width="16" height="8.7" rx="0.6" fill="#1B1A20"/></template><rect x="13.4" y="14.4" width="6.4" height="1.8" :fill="runtime === 'running' ? '#23C766' : runtime === 'paused' ? '#EDB02E' : '#ADA9B3'"/><g fill="#8E8A96"><rect x="10.6" y="17" width="2.8" height="2.1" rx="0.3"/><rect x="6.8" y="18.8" width="10.4" height="1.9" rx="0.5"/></g></template></svg>`,
+    };
+
+    const FOLDERS = {
+      '/lab': { description: 'Computer Science Lab', imports: [], hypervisors: { mock01: { type: 'mock', description: 'In-memory mock' } }, templates: { 'linux-vm': { cpu: 2, memory_mb: 2048, disk_gb: 20 } } },
+      '/lab/networks': { description: 'Networks course', imports: ['linux-vm'], hypervisors: {}, templates: {} },
+      '/lab/research': { description: 'Research lab', imports: ['mock01'], hypervisors: {}, templates: {} },
+      '/cloud/region-eu': { description: 'EU region', imports: ['vmware01', 'vmware02'], hypervisors: { vmware01: { type: 'vmware' }, vmware02: { type: 'vmware' }, proxmox01: { type: 'proxmox' } }, templates: {} },
+      '/cloud/region-eu/catalog': { description: 'Catalog', imports: ['vmware01', 'vmware02', 'proxmox01'], hypervisors: {}, templates: { 'ubuntu-small': { cpu: 2, memory_mb: 2048, disk_gb: 25 }, 'ubuntu-large': { cpu: 4, memory_mb: 8192, disk_gb: 80 } } },
+    };
+    const DESCRIPTORS = {
+      '/lab/networks/student01': { path: '/lab/networks/student01', ip: '10.0.12.21', state: 'deployed', vm_id: 'mock-7f3a91', runtime: 'running', template: 'linux-vm', local: {} },
+      '/lab/networks/student02': { path: '/lab/networks/student02', ip: '10.0.12.22', state: 'provisioned', vm_id: null, runtime: null, template: 'linux-vm', local: {} },
+      '/lab/research/sim-node': { path: '/lab/research/sim-node', ip: '10.0.40.7', state: 'unreachable', vm_id: 'mock-44c1', runtime: null, template: null, local: {} },
+    };
+    const TREE = [
+      { id: '/lab', label: 'lab', kind: 'folder', children: [
+        { id: '/lab/networks', label: 'networks', kind: 'folder', children: [
+          { id: '/lab/networks/student01', label: 'student01', kind: 'descriptor' },
+          { id: '/lab/networks/student02', label: 'student02', kind: 'descriptor' },
+        ]},
+        { id: '/lab/research', label: 'research', kind: 'folder', children: [
+          { id: '/lab/research/sim-node', label: 'sim-node', kind: 'descriptor' },
+        ]},
+      ]},
+      { id: '/cloud/region-eu', label: 'region-eu', kind: 'folder', children: [
+        { id: '/cloud/region-eu/catalog', label: 'catalog', kind: 'folder', children: [] },
+      ]},
+    ];
+
+    createApp({
+      components: { VmStatusIcon },
+      data() {
+        return { sel: '/lab/networks/student01', filter: '', tree: TREE, order: Object.keys(DESCRIPTORS) };
+      },
+      computed: {
+        selNode() { return this.findNode(this.tree, this.sel); },
+        rec() { return DESCRIPTORS[this.sel] || {}; },
+        folder() { return FOLDERS[this.sel] || {}; },
+        visibleTree() { return this.filter ? this.filterTree(this.tree, new RegExp(this.filter.trim().replace(/[.*+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.'), 'i')) : this.tree; },
+        visibleCount() { const c = (nodes) => nodes.reduce((a, n) => a + (n.kind === 'folder' ? c(n.children || []) : 1), 0); return c(this.visibleTree); },
+      },
+      methods: {
+        findNode(nodes, id) { for (const n of nodes) { if (n.id === id) return n; if (n.children) { const r = this.findNode(n.children, id); if (r) return r; } } return null; },
+        filterTree(nodes, re) { const out = []; for (const n of nodes) { if (n.kind === 'folder') { const kids = this.filterTree(n.children || [], re); if (kids.length || re.test(n.label)) out.push({...n, children: kids}); } else if (re.test(n.label)) out.push(n); } return out; },
+        onFilter() {},
+        kindOf(name) { for (const p of Object.keys(FOLDERS)) { if (FOLDERS[p].hypervisors && FOLDERS[p].hypervisors[name]) return 'hypervisor'; } return 'template'; },
+      },
+    }).use(Quasar).mount('#app');
+  </script>
+</body>
+</html>
