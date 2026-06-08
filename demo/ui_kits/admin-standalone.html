@@ -1,0 +1,1355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>UnivOrch — Admin (Vue + Quasar, standalone)</title>
+<link rel="icon" href="data:image/svg+xml;utf8,%3Csvg%20width%3D%2282%22%20height%3D%2245%22%20viewBox%3D%220%200%2082%2045%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20role%3D%22img%22%20aria-label%3D%22UnivOrch%22%3E%0A%20%20%0A%20%20%3Crect%20x%3D%226.5%22%20y%3D%226%22%20width%3D%2215%22%20height%3D%2215%22%20rx%3D%224%22%20fill%3D%22%23BDB9C4%22%3E%3C%2Frect%3E%0A%20%20%3Crect%20x%3D%229.5%22%20y%3D%229%22%20width%3D%229%22%20height%3D%229%22%20rx%3D%222.5%22%20fill%3D%22%23EADDFF%22%3E%3C%2Frect%3E%0A%20%20%3Crect%20x%3D%2224.5%22%20y%3D%226%22%20width%3D%2215%22%20height%3D%2215%22%20rx%3D%224%22%20fill%3D%22%23F4A937%22%3E%3C%2Frect%3E%0A%20%20%3Crect%20x%3D%2227.5%22%20y%3D%229%22%20width%3D%229%22%20height%3D%229%22%20rx%3D%222.5%22%20fill%3D%22%23EADDFF%22%3E%3C%2Frect%3E%0A%20%20%3Crect%20x%3D%2242.5%22%20y%3D%226%22%20width%3D%2215%22%20height%3D%2215%22%20rx%3D%224%22%20fill%3D%22%23F4A937%22%3E%3C%2Frect%3E%0A%20%20%3Crect%20x%3D%2245.5%22%20y%3D%229%22%20width%3D%229%22%20height%3D%229%22%20rx%3D%222.5%22%20fill%3D%22%23EADDFF%22%3E%3C%2Frect%3E%0A%20%20%3Crect%20x%3D%2260.5%22%20y%3D%226%22%20width%3D%2215%22%20height%3D%2215%22%20rx%3D%224%22%20fill%3D%22%23E8552F%22%3E%3C%2Frect%3E%0A%20%20%3Crect%20x%3D%2263.5%22%20y%3D%229%22%20width%3D%229%22%20height%3D%229%22%20rx%3D%222.5%22%20fill%3D%22%23EADDFF%22%3E%3C%2Frect%3E%0A%20%20%0A%20%20%3Cpath%20d%3D%22M6.5%2022.5%20H75.5%20Q78%2022.5%2078%2025%20V41%20Q78%2042.5%2076.5%2042.5%20H72.5%20Q71%2042.5%2071%2041%20V31%20H11%20V41%20Q11%2042.5%209.5%2042.5%20H5.5%20Q4%2042.5%204%2041%20V25%20Q4%2022.5%206.5%2022.5%20Z%22%20fill%3D%22%237B1015%22%3E%3C%2Fpath%3E%0A%3C%2Fsvg%3E" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quasar@2.16.9/dist/quasar.prod.css" />
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0,0&display=block');
+
+/* === tokens/fonts.css === */
+/* ==========================================================================
+   UnivOrch — Webfonts
+   Material Design ships on Roboto; the product renders through Quasar/NiceGUI
+   which uses Roboto as its system typeface. We honour that. Roboto Mono backs
+   the CLI / YAML / code surfaces, which are central to a CLI-first orchestrator.
+   Loaded from Google Fonts (the canonical source for both families).
+   ========================================================================== */
+
+
+
+/* Material Symbols Rounded — Quasar/NiceGUI's icon system (the product's
+   native iconography). Used by IconButton, StateChip, AppBar, etc. */
+
+
+/* Material Symbols base class */
+.material-symbols-rounded {
+  font-family: 'Material Symbols Rounded';
+  font-weight: normal;
+  font-style: normal;
+  display: inline-block;
+  line-height: 1;
+  text-transform: none;
+  letter-spacing: normal;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+.material-symbols-rounded.fill { font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+
+/* === tokens/colors.css === */
+/* ==========================================================================
+   UnivOrch — Color tokens
+   --------------------------------------------------------------------------
+   Built on the Material Design 3 baseline (the product is "Diseño basado en
+   Google materials", rendered via Quasar/NiceGUI). The baseline M3 scheme is
+   a violet primary — which also gives us the requested "gris claro con un
+   toque morado sutil": surfaces are near-white greys tinted toward the
+   primary violet.
+
+   The DISTINCTIVE BRAND MARK is the double rule: two thick stacked lines, one
+   reddish-orange and one yellowish-orange, used as separators / signatures.
+   Those two oranges are first-class brand tokens (--brand-line-*).
+
+   Semantic state colors mirror the product code (web app.py / cli app.py):
+     provisioned  □  grey      (definition exists, no VM)
+     deployed     ■  primary   (VM exists; intentionally NOT green — green is
+                                reserved for runtime "running")
+     broken       ✗  error/red
+     unreachable  ▲  warning/amber
+     folders         blue      (ls-style dircolors)
+   ========================================================================== */
+
+:root {
+  /* ---- Violet — accent: the "deployed/active" state + surface tint ------- */
+  --violet-10: #21005d;
+  --violet-20: #381e72;
+  --violet-30: #4f378b;
+  --violet-40: #6750a4;   /* primary */
+  --violet-50: #7f67be;
+  --violet-60: #9a82db;
+  --violet-80: #d0bcff;
+  --violet-90: #eaddff;   /* primary container */
+  --violet-95: #f6edff;
+  --violet-99: #fffbfe;
+
+  /* ---- Primary (warm orange) — the brand leads with orange --------------- */
+  --orange-10: #3a0d00;
+  --orange-20: #5e1c00;
+  --orange-30: #8a2f0e;
+  --orange-40: #c8451f;   /* primary surface (white text ~5.8:1) */
+  --orange-50: #e8552f;   /* brand warm (vivid) */
+  --orange-60: #f4733f;
+  --orange-80: #ffb59a;
+  --orange-90: #ffdbcb;   /* primary container */
+  --orange-95: #ffede6;
+
+  --color-primary:            var(--orange-40);
+  --color-primary-hover:      var(--orange-30);
+  --color-primary-pressed:    var(--orange-20);
+  --color-on-primary:         #ffffff;
+  --color-primary-container:  var(--orange-90);
+  --color-on-primary-container: var(--orange-10);
+
+  /* ---- Secondary (warm gold accent) -------------------------------------- */
+  --color-secondary:           #7a5900;
+  --color-on-secondary:        #ffffff;
+  --color-secondary-container: #ffe2a3;
+  --color-on-secondary-container: #261a00;
+
+  /* ---- Brand signature — the double rule --------------------------------- */
+  --brand-line-warm:  #e8552f;   /* reddish-orange  (top rule) */
+  --brand-line-gold:  #f4a937;   /* yellowish-orange (bottom rule) */
+  --brand-line-warm-strong: #c8431f;
+  --brand-line-gold-strong: #dd9012;
+
+  /* ---- Surfaces — light grey tinted toward violet ------------------------ */
+  --color-background:        #f5f2f9;   /* app canvas: light grey, subtle purple */
+  --color-surface:           #fdfbff;   /* cards / sheets */
+  --color-surface-dim:       #ded8e1;
+  --color-surface-bright:    #fdfbff;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low:    #f7f2fa;
+  --color-surface-container:        #f2ecf4;
+  --color-surface-container-high:   #ece6ee;
+  --color-surface-container-highest:#e6e0e9;
+  --color-surface-variant:   #e7e0ec;   /* chips, inputs, tonal fills */
+  --color-on-surface-variant:#49454f;
+
+  /* ---- Text / on-surface ------------------------------------------------- */
+  --color-on-surface:        #1c1b1f;   /* primary text */
+  --color-on-surface-muted:  #49454f;   /* secondary text */
+  --color-on-surface-faint:  #79747e;   /* hints, captions, disabled label */
+  --color-on-primary-dark:   #ffffff;
+
+  /* ---- Outline / dividers ------------------------------------------------ */
+  --color-outline:           #79747e;
+  --color-outline-variant:   #cac4d0;   /* hairline dividers */
+
+  /* ---- Semantic state colors (descriptor states) ------------------------- */
+  --state-provisioned:        #79747e;  /* grey  □ */
+  --state-provisioned-bg:     #ece6ee;
+  --state-deployed:           var(--violet-40);   /* violet ■ (deployed = active) */
+  --state-deployed-bg:        var(--violet-90);
+  --state-broken:             #ba1a1a;  /* red   ✗ */
+  --state-broken-bg:          #ffdad6;
+  --state-unreachable:        #9a6700;  /* amber ▲ (accessible text tone) */
+  --state-unreachable-bg:     #ffeccf;
+
+  --color-error:             #ba1a1a;
+  --color-on-error:          #ffffff;
+  --color-error-container:   #ffdad6;
+  --color-on-error-container:#410002;
+  --color-warning:           #9a6700;
+  --color-success:           #2e7d32;   /* runtime "running" / job completed */
+
+  /* ---- Folder accent (tree, ls-style) ------------------------------------ */
+  --color-folder:            #1565c0;   /* blue */
+  --color-folder-container:  #d6e3ff;
+
+  /* ---- Terminal / console palette (CLI surface) -------------------------- */
+  --term-bg:        #1c1b22;
+  --term-surface:   #26242e;
+  --term-fg:        #e6e1e9;
+  --term-dim:       #938f99;
+  --term-prompt:    #d0bcff;   /* violet prompt */
+  --term-folder:    #82aaff;   /* blue */
+  --term-green:     #7ee787;   /* job ok */
+  --term-red:       #ff7a73;   /* broken / fail */
+  --term-yellow:    #f4c66b;   /* unreachable */
+
+  /* ---- Scrim / overlay --------------------------------------------------- */
+  --color-scrim:     rgba(28, 27, 31, 0.4);
+}
+
+/* === tokens/typography.css === */
+/* ==========================================================================
+   UnivOrch — Typography tokens
+   --------------------------------------------------------------------------
+   Material Design 3 type scale on Roboto (Quasar's typeface). Roboto Mono for
+   code / YAML / CLI. Quasar class names map to these roles:
+     text-h5  -> headline-small   text-h6 -> title-large
+     text-subtitle2 -> title-small   text-body1 -> body-large
+     text-caption  -> body-small / label
+   ========================================================================== */
+
+:root {
+  /* ---- Families ---------------------------------------------------------- */
+  --font-sans: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'Roboto Mono', ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, Consolas, monospace;
+
+  /* ---- Weights ----------------------------------------------------------- */
+  --weight-light:   300;
+  --weight-regular: 400;
+  --weight-medium:  500;
+  --weight-bold:    700;
+
+  /* ---- M3 type scale (size / line-height / tracking) --------------------- */
+  /* Display */
+  --type-display-large-size:   57px;
+  --type-display-large-line:   64px;
+  --type-display-large-track:  -0.25px;
+
+  /* Headline */
+  --type-headline-large-size:  32px;
+  --type-headline-large-line:  40px;
+  --type-headline-medium-size: 28px;
+  --type-headline-medium-line: 36px;
+  --type-headline-small-size:  24px;   /* text-h5 */
+  --type-headline-small-line:  32px;
+
+  /* Title */
+  --type-title-large-size:     22px;   /* text-h6 */
+  --type-title-large-line:     28px;
+  --type-title-medium-size:    16px;
+  --type-title-medium-line:    24px;
+  --type-title-medium-track:   0.15px;
+  --type-title-small-size:     14px;   /* text-subtitle2 */
+  --type-title-small-line:     20px;
+  --type-title-small-track:    0.1px;
+
+  /* Body */
+  --type-body-large-size:      16px;   /* text-body1 */
+  --type-body-large-line:      24px;
+  --type-body-large-track:     0.5px;
+  --type-body-medium-size:     14px;
+  --type-body-medium-line:     20px;
+  --type-body-medium-track:    0.25px;
+  --type-body-small-size:      12px;   /* text-caption */
+  --type-body-small-line:      16px;
+  --type-body-small-track:     0.4px;
+
+  /* Label (buttons, chips, badges) */
+  --type-label-large-size:     14px;
+  --type-label-large-line:     20px;
+  --type-label-large-track:    0.1px;
+  --type-label-medium-size:    12px;
+  --type-label-medium-line:    16px;
+  --type-label-medium-track:   0.5px;
+  --type-label-small-size:     11px;
+  --type-label-small-line:     16px;
+  --type-label-small-track:    0.5px;
+
+  /* Mono (CLI / YAML / code) */
+  --type-mono-size:            13px;
+  --type-mono-line:            20px;
+}
+
+/* === tokens/spacing.css === */
+/* ==========================================================================
+   UnivOrch — Spacing tokens
+   --------------------------------------------------------------------------
+   Material's 8dp grid (with a 4dp half-step), matching the Quasar spacing
+   classes the product uses (q-*-xs=4, sm=8, md=16, lg=24, xl=32).
+   ========================================================================== */
+
+:root {
+  --space-0:   0;
+  --space-xxs: 2px;
+  --space-xs:  4px;    /* q-*-xs */
+  --space-sm:  8px;    /* q-*-sm */
+  --space-md:  16px;   /* q-*-md  (default gutter) */
+  --space-lg:  24px;   /* q-*-lg */
+  --space-xl:  32px;   /* q-*-xl */
+  --space-2xl: 48px;
+  --space-3xl: 64px;
+
+  /* ---- Layout rails ------------------------------------------------------ */
+  --layout-header-height: 64px;   /* Material top app bar */
+  --layout-gutter:        16px;
+  --layout-page-max:      1280px;
+  --layout-sidebar-width: 320px;
+}
+
+/* === tokens/elevation.css === */
+/* ==========================================================================
+   UnivOrch — Shape & Elevation tokens
+   --------------------------------------------------------------------------
+   Material Design 3 corner radii + the 5-level elevation shadow system.
+   M3 uses umbra+penumbra dual shadows; values below are the standard dp set.
+   ========================================================================== */
+
+:root {
+  /* ---- Corner radii (M3 shape scale) ------------------------------------- */
+  --radius-none:  0;
+  --radius-xs:    4px;
+  --radius-sm:    8px;     /* buttons, text fields */
+  --radius-md:    12px;    /* cards */
+  --radius-lg:    16px;    /* large cards, sheets */
+  --radius-xl:    28px;    /* dialogs, FAB */
+  --radius-full:  999px;   /* chips, badges, avatars, pills */
+
+  /* ---- Elevation (M3 / Quasar shadow dp levels) -------------------------- */
+  --elevation-0: none;
+  --elevation-1:
+    0 1px 2px 0 rgba(0, 0, 0, 0.30),
+    0 1px 3px 1px rgba(0, 0, 0, 0.15);
+  --elevation-2:
+    0 1px 2px 0 rgba(0, 0, 0, 0.30),
+    0 2px 6px 2px rgba(0, 0, 0, 0.15);
+  --elevation-3:
+    0 4px 8px 3px rgba(0, 0, 0, 0.15),
+    0 1px 3px 0 rgba(0, 0, 0, 0.30);
+  --elevation-4:
+    0 6px 10px 4px rgba(0, 0, 0, 0.15),
+    0 2px 3px 0 rgba(0, 0, 0, 0.30);
+  --elevation-5:
+    0 8px 12px 6px rgba(0, 0, 0, 0.15),
+    0 4px 4px 0 rgba(0, 0, 0, 0.30);
+
+  /* ---- Focus ring -------------------------------------------------------- */
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--color-primary) 40%, transparent);
+
+  /* ---- Motion (Material easing & durations) ------------------------------ */
+  --ease-standard:      cubic-bezier(0.2, 0, 0, 1);   /* @kind other */
+  --ease-emphasized:    cubic-bezier(0.2, 0, 0, 1);   /* @kind other */
+  --ease-decelerate:    cubic-bezier(0, 0, 0, 1);     /* @kind other */
+  --ease-accelerate:    cubic-bezier(0.3, 0, 1, 1);   /* @kind other */
+  --duration-short:     150ms;   /* @kind other */
+  --duration-medium:    250ms;   /* @kind other */
+  --duration-long:      400ms;   /* @kind other */
+
+  /* ---- Brand double-rule geometry (the signature separator) -------------- */
+  --rule-thickness: 4px;   /* each of the two stacked lines */
+  --rule-gap:       3px;   /* gap between the warm and gold lines */
+}
+
+/* === tokens/base.css === */
+/* ==========================================================================
+   UnivOrch — Base & brand utilities
+   --------------------------------------------------------------------------
+   Light resets that bind the tokens to real elements, plus the signature
+   "double rule" brand mark as a reusable utility. Imported by styles.css after
+   the tokens so the custom properties are available.
+   ========================================================================== */
+
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--type-body-large-size);
+  line-height: var(--type-body-large-line);
+  color: var(--color-on-surface);
+  background: var(--color-background);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ---- Type role utilities ------------------------------------------------- */
+.u-headline-large { font: var(--weight-regular) var(--type-headline-large-size)/var(--type-headline-large-line) var(--font-sans); letter-spacing: 0; margin: 0; }
+.u-headline-small { font: var(--weight-regular) var(--type-headline-small-size)/var(--type-headline-small-line) var(--font-sans); letter-spacing: 0; margin: 0; }
+.u-title-large    { font: var(--weight-medium)  var(--type-title-large-size)/var(--type-title-large-line) var(--font-sans); margin: 0; }
+.u-title-medium   { font: var(--weight-medium)  var(--type-title-medium-size)/var(--type-title-medium-line) var(--font-sans); letter-spacing: var(--type-title-medium-track); margin: 0; }
+.u-body-large     { font: var(--weight-regular) var(--type-body-large-size)/var(--type-body-large-line) var(--font-sans); letter-spacing: var(--type-body-large-track); margin: 0; }
+.u-body-medium    { font: var(--weight-regular) var(--type-body-medium-size)/var(--type-body-medium-line) var(--font-sans); letter-spacing: var(--type-body-medium-track); margin: 0; }
+.u-label          { font: var(--weight-medium)  var(--type-label-large-size)/var(--type-label-large-line) var(--font-sans); letter-spacing: var(--type-label-large-track); margin: 0; }
+.u-mono           { font: var(--weight-regular) var(--type-mono-size)/var(--type-mono-line) var(--font-mono); }
+
+/* ==========================================================================
+   THE BRAND MARK — double rule
+   Two thick stacked lines: a reddish-orange one above a yellowish-orange one.
+   Use as a section separator, header underline, or standalone signature.
+
+   Horizontal:  <div class="brand-rule"></div>
+   Short tab:   <div class="brand-rule brand-rule--tab"></div>
+   Vertical:    <div class="brand-rule brand-rule--vertical"></div>
+   ========================================================================== */
+.brand-rule {
+  --_warm: var(--brand-line-warm);
+  --_gold: var(--brand-line-gold);
+  display: block;
+  width: 100%;
+  height: calc(var(--rule-thickness) * 2 + var(--rule-gap));
+  background-image:
+    linear-gradient(var(--_warm), var(--_warm)),
+    linear-gradient(var(--_gold), var(--_gold));
+  background-repeat: no-repeat;
+  background-size:
+    100% var(--rule-thickness),
+    100% var(--rule-thickness);
+  background-position:
+    top left,
+    bottom left;
+  border-radius: var(--radius-full);
+}
+
+/* A short signature tab (e.g. above a section title) */
+.brand-rule--tab { width: 48px; }
+
+/* Vertical variant — two side-by-side bars (e.g. left edge of a hero panel) */
+.brand-rule--vertical {
+  width: calc(var(--rule-thickness) * 2 + var(--rule-gap));
+  height: 100%;
+  background-size:
+    var(--rule-thickness) 100%,
+    var(--rule-thickness) 100%;
+  background-position:
+    left top,
+    right top;
+}
+
+/* === page === */
+
+  /* Quasar brand tint → UnivOrch orange */
+  :root { --q-primary: #c8451f; --q-negative: #ba1a1a; --q-positive: #2e7d32; }
+  html, body { margin: 0; padding: 0; background: var(--color-background); }
+  /* Icons are inline SVG (see icons-svg.js) — no icon webfont, so they render
+     in every context including html-to-image thumbnails / exports. */
+  .uo-svgico { display: inline-block; vertical-align: middle; flex: none; fill: currentColor; }
+  #app { height: 100vh; }
+  .uo-app { height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+    font-family: var(--font-sans); color: var(--color-on-surface); }
+
+  /* App bar */
+  .uo-appbar { height: 60px; flex: none; background: var(--color-primary); color: #fff;
+    display: flex; align-items: center; justify-content: space-between; padding: 0 16px; box-shadow: var(--elevation-2); }
+  .uo-brand { display: flex; align-items: center; gap: 10px; }
+  .uo-brand img { height: 30px; display: block; }
+  .uo-brand span { font-size: 20px; font-weight: 500; letter-spacing: 0.2px; }
+
+  /* Page layout */
+  .uo-page { flex: 1; min-height: 0; display: flex; max-width: var(--layout-page-max, 1280px); width: 100%;
+    margin: 0 auto; padding: var(--space-lg); box-sizing: border-box; }
+  .uo-row { flex: 1; min-height: 0; display: flex; align-items: stretch; }
+  .uo-tree-panel { flex: none; min-width: 0; display: flex; flex-direction: column; gap: var(--space-sm); }
+  .uo-detail-panel { flex: 1; min-width: 0; min-height: 0; overflow: auto; }
+
+  .uo-title-lg { font-size: 22px; font-weight: 500; }
+  .uo-title-md { font-size: 16px; font-weight: 500; }
+  .uo-headline { font-size: 24px; font-weight: 500; }
+  .uo-body-lg { font-size: 16px; }
+  .uo-mono { font-family: var(--font-mono); }
+  .uo-faint { color: var(--color-on-surface-faint); }
+  .uo-muted { color: var(--color-on-surface-muted); }
+  .uo-clickable { cursor: pointer; }
+
+  /* Brand double rule (single gradient bar variant used as a signature) */
+  .uo-brand-rule { height: 4px; border-radius: var(--radius-full);
+    background: linear-gradient(90deg, var(--brand-line-warm) 0 50%, var(--brand-line-gold) 50% 100%); }
+
+  /* Filter */
+  .uo-filter :deep(.q-field__control), .uo-filter .q-field__control { background: var(--color-surface); }
+  .uo-count { font: 500 12px/1 var(--font-mono); color: var(--color-primary); margin-right: 4px; }
+
+  /* Tree */
+  .uo-tree-card { flex: 1; min-height: 0; overflow: auto; padding: 6px; background: var(--color-surface); }
+  .uo-treerow { display: flex; align-items: center; gap: 8px; height: 34px; padding-right: 8px;
+    border-radius: var(--radius-sm); cursor: pointer; position: relative; }
+  .uo-treerow:hover { background: var(--color-surface-container); }
+  .uo-treerow--sel { background: var(--color-primary-container) !important; }
+  .uo-chevron { color: var(--color-on-surface-faint); transition: transform .15s var(--ease-standard); cursor: pointer; }
+  .uo-chevron--open { transform: rotate(90deg); }
+  .uo-chevron-spacer { width: 20px; flex: none; }
+  .uo-folder-icon { display: inline-flex; color: var(--color-folder); }
+  .uo-treelabel { flex: 1 1 auto; min-width: 0; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .uo-slash { color: var(--color-on-surface-faint); }
+  .uo-treeip { margin-left: auto; font: 12px/1 var(--font-mono); color: var(--color-on-surface-faint); }
+  .uo-actions { display: inline-flex; gap: 2px; margin-left: auto; opacity: 0; transition: opacity .12s; }
+  .uo-treerow:hover .uo-actions { opacity: 1; }
+  .uo-treeip + .uo-actions { margin-left: 8px; }
+  .uo-action { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px;
+    border-radius: var(--radius-full); color: var(--color-on-surface-variant); }
+  .uo-action:hover { background: color-mix(in srgb, var(--color-primary) 12%, transparent); color: var(--color-primary); }
+
+  /* Splitter */
+  .uo-splitter { flex: none; width: 18px; cursor: col-resize; display: flex; align-items: stretch; justify-content: center; }
+  .uo-splitter-grip { width: 4px; align-self: stretch; border-radius: var(--radius-full);
+    background: linear-gradient(180deg, var(--brand-line-warm), var(--brand-line-gold)); transition: width .15s; }
+  .uo-splitter:hover .uo-splitter-grip { width: 6px; box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-line-warm) 28%, transparent); }
+
+  /* Detail card */
+  .uo-detail-card { position: relative; padding: var(--space-lg) var(--space-lg) var(--space-lg) calc(var(--space-lg) + 4px);
+    display: flex; flex-direction: column; gap: var(--space-md); background: var(--color-surface); overflow: hidden; }
+  .uo-detail-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+    background: linear-gradient(180deg, var(--brand-line-warm), var(--brand-line-gold)); }
+  .uo-empty { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 12px; color: var(--color-on-surface-faint); background: var(--color-surface); }
+  .uo-detail-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+  .uo-path { font: 14px/1.3 var(--font-mono); color: var(--color-on-surface-faint); margin-top: 4px;
+    overflow: hidden; text-overflow: ellipsis; }
+  .uo-statelabel { font: 500 12px/1 var(--font-mono); color: var(--color-on-surface-faint); white-space: nowrap; }
+  .uo-hr { border-top: 1px solid var(--color-outline-variant); }
+  .uo-hint { font: 13px/1.4 var(--font-sans); color: var(--color-on-surface-faint); margin-top: -6px; }
+
+  /* KV grid */
+  .uo-kv { display: grid; grid-template-columns: 170px 1fr; column-gap: 16px; row-gap: 12px; align-items: start; }
+  .uo-kv-label { color: var(--color-on-surface-faint); font-size: 14px; line-height: 1.5; }
+  .uo-defval { display: flex; align-items: center; gap: 8px; }
+  .uo-defval > span:first-child { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+  .uo-origin { flex: none; }
+
+  /* badges / origin / pills */
+  .uo-badge { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: var(--radius-full);
+    font: 500 12px/1 var(--font-mono); }
+  .uo-badge--success { background: #cdeccb; color: #1f6b27; }
+  .uo-badge--neutral { background: var(--color-surface-variant); color: var(--color-on-surface-variant); }
+  .uo-origin { padding: 1px 7px; border-radius: var(--radius-full); font: 500 12px/1 var(--font-mono); white-space: nowrap; }
+  .uo-origin--local { background: var(--color-primary-container); color: var(--color-on-primary-container); }
+  .uo-origin--tmpl { background: var(--violet-90); color: var(--violet-20); }
+
+  /* resource ref / chip */
+  .uo-resref { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-mono); font-weight: 600; }
+  .uo-resref-go { display: inline-flex; align-items: center; cursor: pointer; opacity: 0.6; margin-left: 1px; }
+  .uo-reschip { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 7px;
+    border-radius: var(--radius-full); font: 500 12px/1 var(--font-mono); }
+  .uo-reschip-go { display: inline-flex; align-items: center; cursor: pointer; opacity: 0.7; }
+
+  /* def box */
+  .uo-defbox { border: 1px solid var(--color-outline-variant); border-radius: var(--radius-sm); overflow: hidden; background: var(--color-surface); }
+  .uo-defbox-head { display: flex; align-items: center; gap: 8px; padding: 7px 10px; cursor: pointer; background: var(--color-surface-container); }
+  .uo-defbox-name { font-family: var(--font-mono); font-weight: 600; }
+  .uo-defbox-count { margin-left: auto; font: 12px/1 var(--font-mono); color: var(--color-on-surface-faint); }
+  .uo-defbox-body { padding: 9px 12px; display: grid; grid-template-columns: auto 1fr; column-gap: 14px; row-gap: 4px;
+    border-top: 1px solid var(--color-outline-variant); }
+  .uo-defbox-k { font: 13px/1.5 var(--font-mono); color: var(--color-on-surface-faint); white-space: nowrap; }
+  .uo-defbox-v { font: 13px/1.5 var(--font-mono); color: var(--color-on-surface); }
+  .uo-deflist-title { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); }
+  .uo-folder-big { display: inline-flex; color: var(--color-folder); margin-left: 4px; }
+
+  /* buttons */
+  .uo-btn-tonal { background: var(--color-primary-container) !important; color: var(--color-primary) !important; font-weight: 500; }
+  .uo-btn-tonal .q-btn__content { color: var(--color-primary); }
+  .uo-seg { border: 1px solid var(--color-outline-variant); }
+
+  /* modal */
+  .uo-modal { width: min(580px, 96vw); border-radius: var(--radius-lg); display: flex; flex-direction: column; max-height: 85vh; }
+  .uo-modal-head { padding: 14px 20px; border-bottom: 1px solid var(--color-outline-variant);
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .uo-title-lg { font-size: 20px; font-weight: 500; }
+  .uo-modal-body { padding: 14px 20px; overflow: auto; }
+  .uo-modal-foot { padding: 12px 20px; border-top: 1px solid var(--color-outline-variant);
+    display: flex; justify-content: flex-end; gap: 10px; }
+  .uo-textarea { width: 100%; box-sizing: border-box; resize: vertical; border: 1px solid var(--color-outline-variant);
+    border-radius: var(--radius-sm); padding: 10px; font: 13px/1.5 var(--font-mono); color: var(--color-on-surface);
+    background: var(--color-surface-container-low); }
+  .uo-body { font-size: 14px; }
+
+</style>
+</head>
+<body>
+  <div id="app"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.4.38/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/quasar@2.16.9/dist/quasar.umd.prod.js"></script>
+  <script>
+/* UnivOrch admin — seed data + pure helpers (shared by the Quasar app).
+   Identical model to the React kit: templates carry defaults, descriptors hold
+   only local overrides + a template ref; the "resolved" view merges them. */
+(function (global) {
+  const TEMPLATES = {
+    'linux-vm':     { description: 'Standard student Linux workstation', hypervisor: 'mock01',   base_vm: 'linux-base',      cpu: 2, memory_mb: 2048,  disk_gb: 20 },
+    'ubuntu-small': { description: 'Ubuntu 22.04 — small',  hypervisor: 'vmware01',  base_vm: 'ubuntu-22',       cpu: 2, memory_mb: 2048,  disk_gb: 25 },
+    'ubuntu-large': { basedOn: 'ubuntu-small', description: 'Ubuntu 22.04 — large', cpu: 4, memory_mb: 8192, disk_gb: 80 },
+    'gpu-node':     { basedOn: 'ubuntu-large', description: 'GPU compute node', hypervisor: 'proxmox01', base_vm: 'ubuntu-22-cuda', cpu: 8, memory_mb: 32768, disk_gb: 200 },
+    'db-node':      { basedOn: 'ubuntu-small', description: 'PostgreSQL database', cpu: 4, memory_mb: 16384, disk_gb: 100 },
+    'debian-min':   { description: 'Debian 12 — minimal',   hypervisor: 'proxmox01', base_vm: 'debian-12',       cpu: 1, memory_mb: 1024,  disk_gb: 10 },
+    'windows-srv':  { description: 'Windows Server 2022',    hypervisor: 'vmware02',  base_vm: 'win-2022',        cpu: 4, memory_mb: 8192,  disk_gb: 120 },
+    'web-node':     { description: 'Nginx web node',         hypervisor: 'vmware02',  base_vm: 'alpine-3',        cpu: 1, memory_mb: 1024,  disk_gb: 8 },
+    'cache-node':   { description: 'Redis cache node',       hypervisor: 'mock01',    base_vm: 'alpine-3',        cpu: 2, memory_mb: 4096,  disk_gb: 12 },
+  };
+  const DEF_FIELDS = [
+    ['description', 'Description'], ['hypervisor', 'Hypervisor'], ['base_vm', 'Base VM'],
+    ['cpu', 'CPU'], ['memory_mb', 'Memory (MB)'], ['disk_gb', 'Disk (GB)'],
+  ];
+  const MODE_HINT = {
+    local: 'Only what is written at this node.',
+    extended: 'Effective values, annotated with where each came from.',
+    resolved: 'Final values after the cascade + template closure, with each field\u2019s origin.',
+  };
+  const resolveTemplate = (name) => {
+    const t = TEMPLATES[name]; if (!t) return {};
+    const { basedOn, ...own } = t;
+    return basedOn ? { ...resolveTemplate(basedOn), ...own } : { ...own };
+  };
+  const resolved = (rec) => ({ ...(rec.template ? resolveTemplate(rec.template) : {}), ...rec.local });
+
+  const CATALOG_TMPLS = ['ubuntu-small', 'ubuntu-large', 'debian-min', 'windows-srv', 'gpu-node', 'db-node', 'web-node', 'cache-node'];
+  const STATES = ['deployed', 'deployed', 'provisioned', 'broken', 'deployed', 'unreachable'];
+  const RUNTIMES = ['running', 'stopped', 'paused'];
+  function genGroup(folderPath, prefix, count, ipBase) {
+    const nodes = [], descriptors = {};
+    for (let i = 1; i <= count; i++) {
+      const label = prefix + String(i).padStart(2, '0');
+      const id = folderPath + '/' + label;
+      const st = STATES[i % STATES.length];
+      const rt = st === 'deployed' ? RUNTIMES[i % RUNTIMES.length] : null;
+      const tmpl = CATALOG_TMPLS[i % CATALOG_TMPLS.length];
+      descriptors[id] = { path: id, ip: ipBase + '.' + (10 + i), state: st, vm_id: st === 'provisioned' ? null : 'mock-' + (0xa00 + i).toString(16), runtime: rt, template: tmpl, local: (i % 5 === 0 ? { cpu: 16 } : {}) };
+      nodes.push({ id, label, kind: 'descriptor' });
+    }
+    return { nodes, descriptors };
+  }
+  const classA = genGroup('/cloud/region-eu/catalog/class-a', 'vm-a', 12, '10.20.1');
+  const classB = genGroup('/cloud/region-eu/catalog/class-b', 'vm-b', 10, '10.20.2');
+  const CATALOG_TEMPLATES = {};
+  CATALOG_TMPLS.forEach((t) => { CATALOG_TEMPLATES[t] = TEMPLATES[t]; });
+
+  const DESCRIPTORS0 = {
+    '/lab/networks/student01': { path: '/lab/networks/student01', ip: '10.0.12.21', state: 'deployed', vm_id: 'mock-7f3a91', runtime: 'running', template: 'linux-vm', local: {} },
+    '/lab/networks/student02': { path: '/lab/networks/student02', ip: '10.0.12.22', state: 'provisioned', vm_id: null, runtime: null, template: 'linux-vm', local: {} },
+    '/lab/networks/student03': { path: '/lab/networks/student03', ip: '10.0.12.23', state: 'broken', vm_id: 'mock-002b', runtime: null, template: 'linux-vm', local: { cpu: 4 } },
+    '/lab/research/sim-node': { path: '/lab/research/sim-node', ip: '10.0.40.7', state: 'unreachable', vm_id: 'mock-44c1', runtime: null, template: null, local: { description: 'Long-running simulation node', hypervisor: 'mock01', base_vm: 'debian-base', cpu: 8, memory_mb: 16384, disk_gb: 120 } },
+    ...classA.descriptors,
+    ...classB.descriptors,
+  };
+  const FOLDERS = {
+    '/lab': { path: '/lab', description: 'Computer Science Lab', imports: [], hypervisors: { mock01: { type: 'mock', description: 'In-memory mock hypervisor for the demo' } }, templates: { 'linux-vm': TEMPLATES['linux-vm'] } },
+    '/lab/networks': { path: '/lab/networks', description: 'Computer Networks — Fall 2026', imports: ['linux-vm'], hypervisors: {}, templates: {} },
+    '/lab/research': { path: '/lab/research', description: 'Research lab — long-running simulation nodes', imports: ['mock01'], hypervisors: {}, templates: {} },
+    '/cloud': { path: '/cloud', description: 'Cloud estate', imports: [], hypervisors: {}, templates: {} },
+    '/cloud/region-eu': { path: '/cloud/region-eu', description: 'EU region — production', imports: [], hypervisors: { vmware01: { type: 'vmware', description: 'VMware vSphere — cluster A' }, vmware02: { type: 'vmware', description: 'VMware vSphere — cluster B' }, proxmox01: { type: 'proxmox', description: 'Proxmox VE cluster' }, mock01: { type: 'mock', description: 'Mock hypervisor (staging)' } }, templates: {} },
+    '/cloud/region-eu/catalog': { path: '/cloud/region-eu/catalog', description: 'VM template catalog', imports: ['vmware01', 'vmware02', 'proxmox01', 'mock01'], hypervisors: {}, templates: CATALOG_TEMPLATES },
+    '/cloud/region-eu/catalog/class-a': { path: '/cloud/region-eu/catalog/class-a', description: 'Pool A — 12 machines', imports: CATALOG_TMPLS, hypervisors: {}, templates: {} },
+    '/cloud/region-eu/catalog/class-b': { path: '/cloud/region-eu/catalog/class-b', description: 'Pool B — 10 machines', imports: CATALOG_TMPLS, hypervisors: {}, templates: {} },
+  };
+  const TREE = [
+    { id: '/lab', label: 'lab', kind: 'folder', children: [
+      { id: '/lab/networks', label: 'networks', kind: 'folder', children: [
+        { id: '/lab/networks/student01', label: 'student01', kind: 'descriptor' },
+        { id: '/lab/networks/student02', label: 'student02', kind: 'descriptor' },
+        { id: '/lab/networks/student03', label: 'student03', kind: 'descriptor' },
+      ]},
+      { id: '/lab/research', label: 'research', kind: 'folder', children: [
+        { id: '/lab/research/sim-node', label: 'sim-node', kind: 'descriptor' },
+      ]},
+    ]},
+    { id: '/cloud', label: 'cloud', kind: 'folder', children: [
+      { id: '/cloud/region-eu', label: 'region-eu', kind: 'folder', children: [
+        { id: '/cloud/region-eu/catalog', label: 'catalog', kind: 'folder', children: [
+          { id: '/cloud/region-eu/catalog/class-a', label: 'class-a', kind: 'folder', children: classA.nodes },
+          { id: '/cloud/region-eu/catalog/class-b', label: 'class-b', kind: 'folder', children: classB.nodes },
+        ]},
+      ]},
+    ]},
+  ];
+
+  // ---- helpers --------------------------------------------------------------
+  const globToRegex = (q) => new RegExp(q.trim().replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.'), 'i');
+  function filterTree(nodes, re) {
+    const out = [];
+    for (const n of nodes) {
+      if (n.kind === 'folder') {
+        const kids = filterTree(n.children || [], re);
+        if (kids.length || re.test(n.label)) out.push({ ...n, children: kids });
+      } else if (re.test(n.label) || re.test(n.id)) {
+        out.push(n);
+      }
+    }
+    return out;
+  }
+  const countLeaves = (nodes) => nodes.reduce((a, n) => a + (n.kind === 'folder' ? countLeaves(n.children || []) : 1), 0);
+
+  function allowedOps(rec) {
+    if (!rec) return [];
+    if (rec.state === 'provisioned') return ['deploy'];
+    if (rec.state === 'deployed') return rec.runtime === 'running' ? ['stop', 'undeploy'] : ['start', 'undeploy'];
+    return ['undeploy'];
+  }
+  function findDefiner(kind, name) {
+    const key = kind === 'hypervisor' ? 'hypervisors' : 'templates';
+    for (const path of Object.keys(FOLDERS)) {
+      const def = FOLDERS[path][key];
+      if (def && def[name]) return path;
+    }
+    return null;
+  }
+  function kindOf(name) {
+    for (const path of Object.keys(FOLDERS)) {
+      if (FOLDERS[path].hypervisors && FOLDERS[path].hypervisors[name]) return 'hypervisor';
+    }
+    return 'template';
+  }
+
+  // ---- YAML serialisation (Save branch) ------------------------------------
+  function findTreeNode(nodes, id) {
+    for (const n of nodes) {
+      if (n.id === id) return n;
+      if (n.children) { const r = findTreeNode(n.children, id); if (r) return r; }
+    }
+    return null;
+  }
+  function descriptorLine(node, descriptors, indent) {
+    const pad = '  '.repeat(indent);
+    const name = node.id.split('/').pop();
+    const d = descriptors[node.id] || { local: {} };
+    const loc = d.local || {};
+    const parts = [];
+    if (d.template) parts.push('use template: ' + d.template);
+    if (loc.description) parts.push('description: "' + loc.description + '"');
+    if (loc.hypervisor) parts.push('use hypervisor: ' + loc.hypervisor);
+    if (loc.base_vm) parts.push('base_vm: ' + loc.base_vm);
+    ['cpu', 'memory_mb', 'disk_gb'].forEach((k) => { if (loc[k] != null) parts.push(k + ': ' + loc[k]); });
+    return pad + name + ': { ' + parts.join(', ') + ' }\n';
+  }
+  function folderBlock(node, rec, descriptors, indent) {
+    const pad = '  '.repeat(indent), ip = pad + '  ';
+    const name = node.id.split('/').pop();
+    let s = pad + name + '/:\n';
+    if (rec) {
+      if (rec.description) s += ip + 'description: "' + rec.description + '"\n';
+      if (rec.imports && rec.imports.length) s += ip + 'import: [' + rec.imports.join(', ') + ']\n';
+      const hyps = Object.entries(rec.hypervisors || {});
+      if (hyps.length) { s += ip + 'define hypervisors:\n'; hyps.forEach(([n, h]) => { s += ip + '  ' + n + ':\n' + ip + '    type: ' + h.type + '\n'; if (h.description) s += ip + '    description: "' + h.description + '"\n'; }); }
+      const tmpls = Object.entries(rec.templates || {});
+      if (tmpls.length) { s += ip + 'define templates:\n'; tmpls.forEach(([n, t]) => { s += ip + '  ' + n + ':\n'; if (t.basedOn) s += ip + '    based on: ' + t.basedOn + '\n'; if (t.description) s += ip + '    description: "' + t.description + '"\n'; if (t.hypervisor) s += ip + '    use hypervisor: ' + t.hypervisor + '\n'; if (t.base_vm) s += ip + '    base_vm: ' + t.base_vm + '\n'; ['cpu', 'memory_mb', 'disk_gb'].forEach((k) => { if (t[k] != null) s += ip + '    ' + k + ': ' + t[k] + '\n'; }); }); }
+    }
+    for (const c of (node.children || [])) {
+      if (c.kind === 'folder') s += folderBlock(c, FOLDERS[c.id], descriptors, indent + 1);
+      else s += descriptorLine(c, descriptors, indent + 1);
+    }
+    return s;
+  }
+  function branchYaml(folderPath, descriptors) {
+    const node = findTreeNode(TREE, folderPath);
+    if (!node) return '';
+    return 'kind: definition\nversion: "1"\n\n' + folderBlock(node, FOLDERS[folderPath], descriptors, 0);
+  }
+  const SAMPLE_LOAD = 'kind: definition\nversion: "1"\n\nstudent04: { use template: linux-vm }\nstudent05: { use template: linux-vm, cpu: 4 }\n';
+
+  global.UO_DATA = {
+    TEMPLATES, DEF_FIELDS, MODE_HINT, resolveTemplate, resolved,
+    DESCRIPTORS0, FOLDERS, TREE,
+    globToRegex, filterTree, countLeaves, allowedOps, findDefiner, kindOf,
+    branchYaml, SAMPLE_LOAD,
+  };
+})(window);
+
+  </script>
+  <script>
+/* VM status icon as an SVG string (rendered via v-html) — exact port of the
+   React VMStatusIcon: illustrated grey PC whose screen+LED show runtime;
+   dashed ghost for provisioned; warning triangle for broken; cut cable +
+   question mark for unreachable. */
+(function (global) {
+  const C = {
+    body: '#8E8A96', ghost: '#A8A4AE', screenOff: '#1B1A20', screenBlue: '#2A6FDB',
+    window: '#AFCBFF', screenPause: '#15233E', pauseBar: '#CBD8EE',
+    ledOff: '#ADA9B3', ledGreen: '#23C766', ledYellow: '#EDB02E', error: '#C5221A', cable: '#5E5A66',
+  };
+  const stand = (dashed) => dashed
+    ? '<g fill="none" stroke="' + C.ghost + '" stroke-width="1.4" stroke-dasharray="2.4 1.8"><rect x="10.6" y="17" width="2.8" height="2.1" rx="0.3"/><rect x="6.8" y="18.8" width="10.4" height="1.9" rx="0.5"/></g>'
+    : '<g fill="' + C.body + '"><rect x="10.6" y="17" width="2.8" height="2.1" rx="0.3"/><rect x="6.8" y="18.8" width="10.4" height="1.9" rx="0.5"/></g>';
+
+  function vmStatusSvg(state, runtime, size) {
+    runtime = runtime || 'stopped';
+    size = size || 22;
+    const open = '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">';
+    if (state === 'provisioned') {
+      return open + '<rect x="2" y="2.5" width="20" height="14.5" rx="1.2" fill="none" stroke="' + C.ghost + '" stroke-width="1.4" stroke-dasharray="2.4 1.8"/>' + stand(true) + '</svg>';
+    }
+    if (state === 'broken') {
+      return open + '<path d="M12 3.2 L22 20 H2 Z" fill="' + C.error + '" stroke="#fff" stroke-width="0.6" stroke-linejoin="round"/><rect x="11" y="9" width="2" height="5.4" rx="1" fill="#fff"/><circle cx="12" cy="17.2" r="1.25" fill="#fff"/></svg>';
+    }
+    if (state === 'unreachable') {
+      return open + '<text x="12" y="19" text-anchor="middle" fill="#D2CED8" font-family="Roboto, sans-serif" font-weight="700" font-size="22px">?</text>' +
+        '<rect x="1.4" y="10.2" width="8.2" height="3.6" rx="1.4" fill="' + C.cable + '"/><rect x="14.4" y="10.2" width="8.2" height="3.6" rx="1.4" fill="' + C.cable + '"/>' +
+        '<path d="M12.7 8.4 L10.2 12.4 L11.9 12.4 L11.1 15.6 L13.9 11.4 L12.1 11.4 L13.2 8.4 Z" fill="' + C.error + '" stroke="#fff" stroke-width="0.5" stroke-linejoin="round"/></svg>';
+    }
+    // deployed
+    let screen, led = C.ledOff;
+    if (runtime === 'running') {
+      screen = '<rect x="4" y="4.3" width="16" height="8.7" rx="0.6" fill="' + C.screenBlue + '"/><rect x="6.4" y="6.2" width="8.4" height="5.2" rx="0.5" fill="' + C.window + '"/><rect x="6.4" y="6.2" width="8.4" height="1.5" rx="0.5" fill="#7FA8F0"/>';
+      led = C.ledGreen;
+    } else if (runtime === 'paused') {
+      screen = '<rect x="4" y="4.3" width="16" height="8.7" rx="0.6" fill="' + C.screenPause + '"/><rect x="9.3" y="6.2" width="1.7" height="4.9" rx="0.4" fill="' + C.pauseBar + '"/><rect x="13" y="6.2" width="1.7" height="4.9" rx="0.4" fill="' + C.pauseBar + '"/>';
+    } else {
+      screen = '<rect x="4" y="4.3" width="16" height="8.7" rx="0.6" fill="' + C.screenOff + '"/>';
+    }
+    return open + '<rect x="2" y="2.5" width="20" height="14.5" rx="1.2" fill="' + C.body + '"/>' + screen +
+      '<rect x="13.4" y="14.4" width="6.4" height="1.8" fill="' + led + '"/>' + stand(false) + '</svg>';
+  }
+  global.vmStatusSvg = vmStatusSvg;
+})(window);
+
+  </script>
+  <script>
+/* Inline SVG icon set (official Material Icons 24×24 paths).  Used instead of
+   an icon webfont so glyphs render in every context — live browser, html-to-image
+   rasterisation (DS card thumbnails / exports), PDF, and offline. */
+(function (global) {
+  global.UO_ICONS = {
+    folder: 'M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z',
+    chevron_right: 'M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z',
+    search: 'M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z',
+    close: 'M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z',
+    refresh: 'M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z',
+    terminal: 'M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V8h16v10zm-2-1h-6v-1h6v1zM7.5 17l-1.41-1.41L8.67 13 6.09 10.41 7.5 9l4 4z',
+    play_arrow: 'M8 5v14l11-7z',
+    stop: 'M6 6h12v12H6z',
+    undo: 'M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z',
+    rocket_launch: 'M9.19 6.35c-2.04 2.29-3.44 5.58-3.57 5.89L2 10.69l4.05-4.05c.47-.47 1.15-.69 1.81-.55l1.33.26zm6.48 6.48c-2.29 2.04-5.58 3.44-5.89 3.57L13.31 22l4.05-4.05c.47-.47.69-1.15.55-1.81l-.26-1.33zM11.17 17S14.91 15.45 17.06 13.3c5.4-5.4 4.5-9.62 4.21-10.57-.95-.3-5.17-1.19-10.57 4.21C8.55 9.09 7 12.83 7 12.83L11.17 17zM5 16c-1.66 0-3 1.34-3 3 0 1.31-1.16 2-2 2 .92 1.22 2.49 2 4 2 2.21 0 4-1.79 4-4 0-1.66-1.34-3-3-3z',
+    account_tree: 'M22 11V3h-7v3H9V3H2v8h7V8h2v10h4v3h7v-8h-7v3h-2V8h2v3z',
+    dns: 'M20 13H4c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h16c.55 0 1-.45 1-1v-6c0-.55-.45-1-1-1zM7 19c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zM20 3H4c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h16c.55 0 1-.45 1-1V4c0-.55-.45-1-1-1zM7 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z',
+    inventory_2: 'M20 2H4c-1.1 0-2 .9-2 2v3.01c0 .72.43 1.34 1 1.69V20c0 1.1 1.1 2 2 2h14c.9 0 2-.9 2-2V8.7c.57-.35 1-.97 1-1.69V4c0-1.1-.9-2-2-2zm-5 12H9c-.55 0-1-.45-1-1s.45-1 1-1h6c.55 0 1 .45 1 1s-.45 1-1 1zm5-7H4V4h16v3z',
+    north_east: 'M9 5v2h6.59L4 18.59 5.41 20 17 8.41V15h2V5z',
+    upload: 'M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z',
+    download: 'M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z',
+    attach_file: 'M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5c0-1.38 1.12-2.5 2.5-2.5s2.5 1.12 2.5 2.5v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5c0 1.38 1.12 2.5 2.5 2.5s2.5-1.12 2.5-2.5V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z',
+    unfold_more: 'M12 5.83L15.17 9l1.41-1.41L12 3 7.41 7.59 8.83 9 12 5.83zm0 12.34L8.83 15l-1.41 1.41L12 21l4.59-4.59L15.17 15 12 18.17z',
+    unfold_less: 'M7.41 18.59L8.83 20 12 16.83 15.17 20l1.41-1.41L12 14l-4.59 4.59zm9.18-13.18L15.17 4 12 7.17 8.83 4 7.41 5.41 12 10l4.59-4.59z',
+    cast: 'M1 18v3h3c0-1.66-1.34-3-3-3zm0-4v2c2.76 0 5 2.24 5 5h2c0-3.87-3.13-7-7-7zm18-7H5v1.63c3.96 1.28 7.09 4.41 8.37 8.37H19V7zM1 10v2c4.97 0 9 4.03 9 9h2c0-6.08-4.93-11-11-11zm20-7H3c-1.1 0-2 .9-2 2v3h2V5h18v14h-7v2h7c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z',
+    restart_alt: 'M12 5V2L8 6l4 4V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z',
+    power_settings_new: 'M13 3h-2v10h2V3zm4.83 2.17l-1.42 1.42C17.99 7.86 19 9.81 19 12c0 3.87-3.13 7-7 7s-7-3.13-7-7c0-2.19 1.01-4.14 2.58-5.42L6.17 5.17C4.23 6.82 3 9.26 3 12c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.74-1.23-5.18-3.17-6.83z',
+    account_circle: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z',
+    info: 'M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z',
+  };
+})(window);
+
+  </script>
+  <script>
+/* UnivOrch admin — Vue 3 + Quasar.  Faithful port of the React kit:
+   AppBar · filterable descriptor tree with per-row actions · draggable
+   orange splitter · folder/descriptor detail with Local/Extended/Resolved,
+   collapsible resource definitions, clickable resource links, Load/Save YAML. */
+(function () {
+  const { createApp, ref, reactive, computed, inject, provide, h } = Vue;
+  const D = window.UO_DATA;
+  const vmStatusSvg = window.vmStatusSvg;
+
+  const RES = {
+    hypervisor: { icon: 'dns', color: '#0F766E', bg: '#D2EBE6' },
+    template: { icon: 'inventory_2', color: '#6750A4', bg: '#EADDFF' },
+  };
+  const OP_ICON = { deploy: 'rocket_launch', undeploy: 'undo', start: 'play_arrow', stop: 'stop' };
+  const OP_LABEL = { deploy: 'Deploy', undeploy: 'Undeploy', start: 'Start', stop: 'Stop' };
+
+  const app = createApp({
+    setup() {
+      const descriptors = reactive(JSON.parse(JSON.stringify(D.DESCRIPTORS0)));
+      const selected = ref('/lab/networks/student01');
+      const query = ref('');
+      const treeW = ref(340);
+      const expanded = reactive({ '/lab': true, '/lab/networks': true, '/lab/research': true, '/cloud': true });
+
+      const re = computed(() => query.value.trim() ? D.globToRegex(query.value) : null);
+      const shown = computed(() => re.value ? D.filterTree(D.TREE, re.value) : D.TREE);
+      const total = computed(() => D.countLeaves(D.TREE));
+      const count = computed(() => re.value ? D.countLeaves(shown.value) : total.value);
+
+      function act(op, path) {
+        const r = descriptors[path]; if (!r) return;
+        if (op === 'deploy') { r.state = 'deployed'; r.vm_id = 'mock-' + Math.random().toString(16).slice(2, 8); r.runtime = 'stopped'; }
+        if (op === 'undeploy') { r.state = 'provisioned'; r.vm_id = null; r.runtime = null; }
+        if (op === 'start') { r.runtime = 'running'; }
+        if (op === 'stop') { r.runtime = 'stopped'; }
+      }
+      function toggle(id) { expanded[id] = !expanded[id]; }
+
+      const ui = {
+        descriptors, selected, expanded, act, toggle,
+        forceOpen: computed(() => !!re.value),
+        select: (id) => { selected.value = id; },
+        navFind: D.findDefiner,
+        navGo: (id) => { selected.value = id; },
+      };
+      provide('ui', ui);
+
+      // drag splitter
+      const rowRef = ref(null);
+      function startDrag(e) {
+        e.preventDefault();
+        const onMove = (ev) => {
+          const left = rowRef.value.getBoundingClientRect().left;
+          treeW.value = Math.max(250, Math.min(560, ev.clientX - left));
+        };
+        const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); document.body.style.userSelect = ''; };
+        document.body.style.userSelect = 'none';
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+      }
+
+      const folder = computed(() => D.FOLDERS[selected.value]);
+      const rec = computed(() => descriptors[selected.value]);
+
+      return { descriptors, selected, query, treeW, shown, total, count, startDrag, rowRef, folder, rec };
+    },
+    template: `
+      <div class="uo-app">
+        <header class="uo-appbar">
+          <div class="uo-brand">
+            <img src="data:image/svg+xml;utf8,%3Csvg%20width%3D%2282%22%20height%3D%2245%22%20viewBox%3D%220%200%2082%2045%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20role%3D%22img%22%20aria-label%3D%22UnivOrch%22%3E%0A%20%20%0A%20%20%3Crect%20x%3D%226.5%22%20y%3D%226%22%20width%3D%2215%22%20height%3D%2215%22%20rx%3D%224%22%20fill%3D%22%23BDB9C4%22%3E%3C%2Frect%3E%0A%20%20%3Crect%20x%3D%229.5%22%20y%3D%229%22%20width%3D%229%22%20height%3D%229%22%20rx%3D%222.5%22%20fill%3D%22%23EADDFF%22%3E%3C%2Frect%3E%0A%20%20%3Crect%20x%3D%2224.5%22%20y%3D%226%22%20width%3D%2215%22%20height%3D%2215%22%20rx%3D%224%22%20fill%3D%22%23F4A937%22%3E%3C%2Frect%3E%0A%20%20%3Crect%20x%3D%2227.5%22%20y%3D%229%22%20width%3D%229%22%20height%3D%229%22%20rx%3D%222.5%22%20fill%3D%22%23EADDFF%22%3E%3C%2Frect%3E%0A%20%20%3Crect%20x%3D%2242.5%22%20y%3D%226%22%20width%3D%2215%22%20height%3D%2215%22%20rx%3D%224%22%20fill%3D%22%23F4A937%22%3E%3C%2Frect%3E%0A%20%20%3Crect%20x%3D%2245.5%22%20y%3D%229%22%20width%3D%229%22%20height%3D%229%22%20rx%3D%222.5%22%20fill%3D%22%23EADDFF%22%3E%3C%2Frect%3E%0A%20%20%3Crect%20x%3D%2260.5%22%20y%3D%226%22%20width%3D%2215%22%20height%3D%2215%22%20rx%3D%224%22%20fill%3D%22%23E8552F%22%3E%3C%2Frect%3E%0A%20%20%3Crect%20x%3D%2263.5%22%20y%3D%229%22%20width%3D%229%22%20height%3D%229%22%20rx%3D%222.5%22%20fill%3D%22%23EADDFF%22%3E%3C%2Frect%3E%0A%20%20%0A%20%20%3Cpath%20d%3D%22M6.5%2022.5%20H75.5%20Q78%2022.5%2078%2025%20V41%20Q78%2042.5%2076.5%2042.5%20H72.5%20Q71%2042.5%2071%2041%20V31%20H11%20V41%20Q11%2042.5%209.5%2042.5%20H5.5%20Q4%2042.5%204%2041%20V25%20Q4%2022.5%206.5%2022.5%20Z%22%20fill%3D%22%237B1015%22%3E%3C%2Fpath%3E%0A%3C%2Fsvg%3E" alt="UnivOrch" />
+            <span>UnivOrch</span>
+          </div>
+          <div class="row items-center">
+            <q-btn flat round dense text-color="white" @click="">
+              <m-icon name="terminal" /><q-tooltip>Console</q-tooltip>
+            </q-btn>
+            <q-btn flat round dense text-color="white" @click="">
+              <m-icon name="refresh" /><q-tooltip>Refresh</q-tooltip>
+            </q-btn>
+          </div>
+        </header>
+
+        <div class="uo-page">
+          <div ref="rowRef" class="uo-row">
+            <div class="uo-tree-panel" :style="{ width: treeW + 'px' }">
+              <div class="column" style="gap:8px">
+                <div class="uo-title-lg">Descriptor tree</div>
+                <brand-rule :length="120" />
+              </div>
+
+              <q-input v-model="query" dense outlined
+                placeholder="Filter…  (* and ? wildcards)" class="uo-filter"
+                :class="{ 'uo-filter--active': query.trim() }">
+                <template #prepend><m-icon name="search" /></template>
+                <template #append>
+                  <span v-if="query.trim()" class="uo-count">{{ count }}/{{ total }}</span>
+                  <m-icon v-if="query.trim()" name="close" clickable @click="query = ''" />
+                </template>
+                <q-tooltip>Wildcards: * matches any characters, ? matches exactly one. e.g. student*, vm-a0?, *node</q-tooltip>
+              </q-input>
+
+              <q-card flat bordered class="uo-tree-card">
+                <tree-node v-for="n in shown" :key="n.id" :node="n" :depth="0" />
+              </q-card>
+            </div>
+
+            <div class="uo-splitter" @mousedown="startDrag" title="Drag to resize"><div class="uo-splitter-grip"></div></div>
+
+            <div class="uo-detail-panel">
+              <folder-detail v-if="folder" :folder="folder" :descriptors="descriptors" />
+              <descriptor-detail v-else-if="rec" :rec="rec" />
+              <q-card v-else flat bordered class="uo-empty">
+                <m-icon name="account_tree" :size="48" />
+                <div class="uo-body-lg">Select a node from the tree</div>
+              </q-card>
+            </div>
+          </div>
+        </div>
+      </div>
+    `,
+  });
+
+  /* ---- tiny helpers ------------------------------------------------------- */
+  app.component('m-icon', {
+    props: { name: String, size: { type: Number, default: 0 }, fill: Boolean, clickable: Boolean },
+    emits: ['click'],
+    setup(props, { emit }) {
+      const ICONS = window.UO_ICONS;
+      return () => {
+        const s = props.size || 24;
+        return h('svg', {
+          class: ['uo-svgico', { 'uo-clickable': props.clickable }],
+          width: s, height: s, viewBox: '0 0 24 24', fill: 'currentColor', 'aria-hidden': 'true',
+          onClick: (e) => emit('click', e),
+        }, [h('path', { d: ICONS[props.name] || '' })]);
+      };
+    },
+  });
+
+  app.component('brand-rule', {
+    props: { length: { type: Number, default: 120 } },
+    template: `<div class="uo-brand-rule" :style="{ width: length + 'px' }"></div>`,
+  });
+
+  app.component('vm-icon', {
+    props: { state: String, runtime: String, size: { type: Number, default: 22 } },
+    setup(props) {
+      const svg = computed(() => vmStatusSvg(props.state, props.runtime, props.size));
+      return () => h('span', { class: 'uo-vm-icon', style: { lineHeight: 0 }, innerHTML: svg.value });
+    },
+  });
+
+  const svgIco = (name, size, cls) => h('svg', {
+    class: cls, width: size, height: size, viewBox: '0 0 24 24', fill: 'currentColor', 'aria-hidden': 'true',
+  }, [h('path', { d: window.UO_ICONS[name] || '' })]);
+
+  app.component('res-ref', {
+    props: { kind: String, name: String },
+    setup(props) {
+      const ui = inject('ui');
+      const r = RES[props.kind];
+      const target = computed(() => ui.navFind(props.kind, props.name));
+      return () => h('span', { class: 'uo-resref', style: { color: r.color } }, [
+        svgIco(r.icon, 16, 'uo-svgico'),
+        props.name,
+        target.value ? h('span', {
+          class: 'uo-resref-go',
+          title: 'Go to where ' + props.name + ' is defined',
+          onClick: (e) => { e.stopPropagation(); ui.navGo(target.value); },
+        }, [svgIco('north_east', 15, 'uo-svgico')]) : null,
+      ]);
+    },
+  });
+
+  app.component('res-chip', {
+    props: { kind: String, name: String },
+    setup(props) {
+      const ui = inject('ui');
+      const r = RES[props.kind];
+      const target = computed(() => ui.navFind(props.kind, props.name));
+      return () => h('span', { class: 'uo-reschip', style: { background: r.bg, color: r.color } }, [
+        svgIco(r.icon, 15, 'uo-svgico'),
+        props.name,
+        target.value ? h('span', {
+          class: 'uo-reschip-go',
+          title: 'Go to where ' + props.name + ' is defined',
+          onClick: (e) => { e.stopPropagation(); ui.navGo(target.value); },
+        }, [svgIco('north_east', 14, 'uo-svgico')]) : null,
+      ]);
+    },
+  });
+
+  /* ---- recursive tree node ------------------------------------------------ */
+  app.component('tree-node', {
+    props: { node: Object, depth: Number },
+    setup(props) {
+      const ui = inject('ui');
+      const isFolder = props.node.kind === 'folder';
+      const open = computed(() => ui.forceOpen.value || ui.expanded[props.node.id]);
+      const selected = computed(() => ui.selected.value === props.node.id);
+      const rec = computed(() => ui.descriptors[props.node.id]);
+      const ops = computed(() => isFolder ? [] : D.allowedOps(rec.value));
+      const indent = computed(() => 6 + props.depth * 16);
+      function onRow() { ui.select(props.node.id); }
+      function onChevron(e) { e.stopPropagation(); ui.toggle(props.node.id); }
+      return { ui, isFolder, open, selected, rec, ops, indent, onRow, onChevron, OP_ICON, OP_LABEL };
+    },
+    template: `
+      <div>
+        <div class="uo-treerow" :class="{ 'uo-treerow--sel': selected }"
+          :style="{ paddingLeft: indent + 'px' }" @click="onRow">
+          <m-icon v-if="isFolder" name="chevron_right" :size="20"
+            class="uo-chevron" :class="{ 'uo-chevron--open': open }" @click="onChevron" />
+          <span v-else class="uo-chevron-spacer"></span>
+
+          <span v-if="isFolder" class="uo-folder-icon"><m-icon name="folder" :size="20" /></span>
+          <vm-icon v-else :state="rec ? rec.state : ''" :runtime="rec ? rec.runtime : ''" :size="20" />
+
+          <span class="uo-treelabel">{{ node.label }}<span v-if="isFolder" class="uo-slash">/</span></span>
+
+          <span v-if="!isFolder && rec" class="uo-treeip">{{ rec.ip }}</span>
+
+          <span v-if="ops.length" class="uo-actions" @click.stop>
+            <span v-for="op in ops" :key="op" class="uo-action" :title="OP_LABEL[op]"
+              @click="ui.act(op, node.id)">
+              <m-icon :name="OP_ICON[op]" :size="18" />
+            </span>
+          </span>
+        </div>
+        <div v-if="isFolder && open">
+          <tree-node v-for="c in (node.children || [])" :key="c.id" :node="c" :depth="depth + 1" />
+        </div>
+      </div>
+    `,
+  });
+
+  // Detail components are registered in detail.js, which then mounts.
+  window.__uoApp = app;
+  window.__uoShared = { RES, OP_ICON, OP_LABEL, D, h, ref, reactive, computed, inject };
+})();
+
+  </script>
+  <script>
+/* UnivOrch admin — detail panel (descriptor + folder), collapsible resource
+   definitions and Load/Save YAML dialogs.  Registered onto the app from
+   app.js, then mounts. */
+(function () {
+  const app = window.__uoApp;
+  const { RES, OP_ICON, OP_LABEL, D, h, ref, reactive, computed, inject } = window.__uoShared;
+  const { Vue } = window;
+
+  const Hr = { template: `<div class="uo-hr"></div>` };
+  app.component('uo-hr', Hr);
+
+  /* origin pill (local / template name) */
+  app.component('origin-tag', {
+    props: { origin: String },
+    template: `<span class="uo-origin" :class="origin === 'local' ? 'uo-origin--local' : 'uo-origin--tmpl'">{{ origin }}</span>`,
+  });
+
+  /* badge (runtime running / neutral) */
+  app.component('uo-badge', {
+    props: { tone: { type: String, default: 'neutral' } },
+    template: `<span class="uo-badge" :class="'uo-badge--' + tone"><slot /></span>`,
+  });
+
+  /* key/value grid row helper used inline in templates */
+
+  /* ---- descriptor detail -------------------------------------------------- */
+  app.component('descriptor-detail', {
+    props: { rec: Object },
+    setup(props) {
+      const ui = inject('ui');
+      const mode = ref('resolved');
+      const name = computed(() => props.rec.path.split('/').pop());
+      const res = computed(() => D.resolved(props.rec));
+      const deployed = computed(() => props.rec.state === 'deployed');
+
+      const defRows = computed(() => {
+        const rec = props.rec, rsv = res.value, rows = [];
+        const fieldRow = (k, label, value, origin) => ({
+          label, kind: k === 'hypervisor' ? 'hypervisor' : 'text',
+          text: String(value), mono: k !== 'description', origin,
+        });
+        if (mode.value === 'local') {
+          if (rec.template) rows.push({ label: 'use template', kind: 'template', text: rec.template });
+          D.DEF_FIELDS.forEach(([k, label]) => { if (k in rec.local) rows.push(fieldRow(k, label, rec.local[k])); });
+          if (rows.length === 0) rows.push({ label: '—', kind: 'text', text: '(nothing set locally)', mono: false });
+        } else if (mode.value === 'resolved') {
+          D.DEF_FIELDS.forEach(([k, label]) => {
+            if (rsv[k] == null) return;
+            const origin = (k in rec.local) ? 'local' : (rec.template || 'local');
+            rows.push(fieldRow(k, label, rsv[k], origin));
+          });
+        } else { // extended
+          if (rec.template) rows.push({ label: 'use template', kind: 'template', text: rec.template });
+          D.DEF_FIELDS.forEach(([k, label]) => {
+            if (rsv[k] == null) return;
+            const origin = (k in rec.local) ? 'local' : (rec.template || 'local');
+            rows.push(fieldRow(k, label, rsv[k], origin));
+          });
+        }
+        return rows;
+      });
+
+      const modeOptions = [
+        { label: 'Local', value: 'local' }, { label: 'Extended', value: 'extended' }, { label: 'Resolved', value: 'resolved' },
+      ];
+      return { ui, mode, name, res, deployed, defRows, modeOptions, hint: computed(() => D.MODE_HINT[mode.value]), OP_ICON };
+    },
+    template: `
+      <q-card flat bordered class="uo-detail-card">
+        <div class="uo-detail-head">
+          <div style="min-width:0">
+            <div class="uo-headline">{{ name }}</div>
+            <div class="uo-path">{{ rec.path }}</div>
+          </div>
+          <div class="column items-center" style="gap:6px;flex:none">
+            <vm-icon :state="rec.state" :runtime="rec.runtime" :size="46" />
+            <span class="uo-statelabel">{{ rec.state }}{{ rec.state === 'deployed' && rec.runtime ? ' · ' + rec.runtime : '' }}</span>
+          </div>
+        </div>
+        <uo-hr />
+        <div class="uo-kv">
+          <span class="uo-kv-label">IP address</span><span class="uo-mono">{{ rec.ip }}</span>
+          <span class="uo-kv-label">VM id (hypervisor)</span><span class="uo-mono">{{ rec.vm_id || '—' }}</span>
+          <span class="uo-kv-label">Runtime state</span>
+          <span><uo-badge v-if="rec.runtime" :tone="rec.runtime === 'running' ? 'success' : 'neutral'">{{ rec.runtime }}</uo-badge><span v-else>—</span></span>
+        </div>
+        <uo-hr />
+        <div class="row items-center justify-between" style="gap:12px;flex-wrap:wrap">
+          <div class="uo-title-md">Definition</div>
+          <q-btn-toggle v-model="mode" :options="modeOptions" unelevated no-caps rounded dense
+            toggle-color="primary" color="grey-3" text-color="grey-8" padding="5px 14px" class="uo-seg" />
+        </div>
+        <div class="uo-hint">{{ hint }}</div>
+        <div class="uo-kv">
+          <template v-for="(r, i) in defRows" :key="i">
+            <span class="uo-kv-label">{{ r.label }}</span>
+            <span>
+              <res-ref v-if="r.kind === 'hypervisor'" kind="hypervisor" :name="r.text" />
+              <res-ref v-else-if="r.kind === 'template'" kind="template" :name="r.text" />
+              <span v-else class="uo-defval" :class="{ 'uo-mono': r.mono, 'uo-withorigin': r.origin }">
+                <span :style="r.mono ? { fontFamily: 'var(--font-mono)' } : { fontFamily: 'var(--font-sans)' }">{{ r.text }}</span>
+                <origin-tag v-if="r.origin" :origin="r.origin" />
+              </span>
+            </span>
+          </template>
+        </div>
+        <uo-hr />
+        <div class="row" style="gap:12px;flex-wrap:wrap">
+          <q-btn v-if="!deployed" unelevated color="primary" no-caps @click="ui.act('deploy', rec.path)">
+            <m-icon name="rocket_launch" :size="18" class="q-mr-xs" />Deploy
+          </q-btn>
+          <q-btn v-if="deployed && rec.runtime !== 'running'" unelevated color="primary" no-caps @click="ui.act('start', rec.path)">
+            <m-icon name="play_arrow" :size="18" class="q-mr-xs" />Start
+          </q-btn>
+          <q-btn v-if="deployed && rec.runtime === 'running'" unelevated no-caps @click="ui.act('stop', rec.path)" class="uo-btn-tonal">
+            <m-icon name="stop" :size="18" class="q-mr-xs" />Stop
+          </q-btn>
+          <q-btn v-if="deployed" outline color="primary" no-caps @click="ui.act('undeploy', rec.path)">
+            <m-icon name="undo" :size="18" class="q-mr-xs" />Undeploy
+          </q-btn>
+        </div>
+      </q-card>
+    `,
+  });
+
+  /* ---- collapsible resource definition box -------------------------------- */
+  app.component('def-box', {
+    props: { name: String, type: String, kind: String, rows: Array, open: Boolean },
+    emits: ['toggle'],
+    setup(props) { return { res: computed(() => props.kind ? RES[props.kind] : null) }; },
+    template: `
+      <div class="uo-defbox">
+        <div class="uo-defbox-head" :style="res ? { background: res.bg } : {}" @click="$emit('toggle')">
+          <m-icon name="chevron_right" :size="18" class="uo-chevron" :class="{ 'uo-chevron--open': open }"
+            :style="res ? { color: res.color } : {}" />
+          <m-icon v-if="res" :name="res.icon" :size="18" :style="{ color: res.color }" />
+          <span class="uo-defbox-name" :style="res ? { color: res.color } : {}">{{ name }}:</span>
+          <uo-badge v-if="type" tone="neutral">{{ type }}</uo-badge>
+          <span v-if="!open" class="uo-defbox-count">{{ rows.length }} fields</span>
+        </div>
+        <div v-if="open" class="uo-defbox-body">
+          <template v-for="(row, i) in rows" :key="i">
+            <span class="uo-defbox-k">{{ row.k }}:</span>
+            <span class="uo-defbox-v">
+              <res-ref v-if="row.refKind" :kind="row.refKind" :name="row.text" />
+              <span v-else>{{ row.text }}</span>
+            </span>
+          </template>
+        </div>
+      </div>
+    `,
+  });
+
+  app.component('def-list', {
+    props: { title: String, kind: String, items: Array, defaultOpen: Boolean },
+    setup(props) {
+      const openSet = reactive({});
+      if (props.defaultOpen) props.items.forEach((it) => { openSet[it.name] = true; });
+      const allOpen = computed(() => props.items.every((it) => openSet[it.name]));
+      function toggleAll() { const v = !allOpen.value; props.items.forEach((it) => { openSet[it.name] = v; }); }
+      function toggle(n) { openSet[n] = !openSet[n]; }
+      return { openSet, allOpen, toggleAll, toggle, res: computed(() => props.kind ? RES[props.kind] : null) };
+    },
+    template: `
+      <uo-hr />
+      <div class="row items-center justify-between" style="gap:12px">
+        <div class="uo-title-md uo-deflist-title" :style="res ? { color: res.color } : {}">
+          <m-icon v-if="res" :name="res.icon" :size="19" />{{ title }}
+        </div>
+        <q-btn flat dense no-caps color="primary" @click="toggleAll" class="uo-expandall">
+          <m-icon :name="allOpen ? 'unfold_less' : 'unfold_more'" :size="18" class="q-mr-xs" />{{ allOpen ? 'Collapse all' : 'Expand all' }}
+        </q-btn>
+      </div>
+      <div class="column" style="gap:8px">
+        <def-box v-for="it in items" :key="it.name" :name="it.name" :type="it.type" :kind="kind"
+          :rows="it.rows" :open="!!openSet[it.name]" @toggle="toggle(it.name)" />
+      </div>
+    `,
+  });
+
+  /* ---- folder detail ------------------------------------------------------ */
+  app.component('folder-detail', {
+    props: { folder: Object, descriptors: Object },
+    setup(props) {
+      const name = computed(() => props.folder.path.split('/').pop());
+      const hyps = computed(() => Object.entries(props.folder.hypervisors || {}).map(([n, h]) => ({
+        name: n, type: h.type,
+        rows: [{ k: 'type', text: h.type }, ...(h.description ? [{ k: 'description', text: h.description }] : [])],
+      })));
+      const tmpls = computed(() => Object.entries(props.folder.templates || {}).map(([n, t]) => ({
+        name: n,
+        rows: [
+          ...(t.basedOn ? [{ k: 'based on', text: t.basedOn, refKind: 'template' }] : []),
+          ...(t.description ? [{ k: 'description', text: t.description }] : []),
+          ...(t.hypervisor ? [{ k: 'use hypervisor', text: t.hypervisor, refKind: 'hypervisor' }] : []),
+          ...(t.base_vm ? [{ k: 'base_vm', text: t.base_vm }] : []),
+          ...(t.cpu != null ? [{ k: 'cpu', text: String(t.cpu) }] : []),
+          ...(t.memory_mb != null ? [{ k: 'memory_mb', text: String(t.memory_mb) }] : []),
+          ...(t.disk_gb != null ? [{ k: 'disk_gb', text: String(t.disk_gb) }] : []),
+        ],
+      })));
+      const imports = computed(() => (props.folder.imports || []).map((im) => ({ name: im, kind: D.kindOf(im) })));
+
+      const modal = ref(null);
+      const loadText = ref(D.SAMPLE_LOAD);
+      const fileName = ref(null);
+      const fileRef = ref(null);
+      const saveText = computed(() => D.branchYaml(props.folder.path, props.descriptors));
+      function pickFile() { fileRef.value.click(); }
+      function onFile(e) {
+        const f = e.target.files[0]; if (!f) return;
+        fileName.value = f.name;
+        const r = new FileReader();
+        r.onload = () => { loadText.value = String(r.result); };
+        r.readAsText(f);
+      }
+      function download() {
+        const blob = new Blob([saveText.value], { type: 'text/yaml' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = name.value + '.yml';
+        a.click();
+        modal.value = null;
+      }
+      return { name, hyps, tmpls, imports, modal, loadText, fileName, fileRef, saveText, pickFile, onFile, download };
+    },
+    template: `
+      <q-card flat bordered class="uo-detail-card">
+        <div class="uo-detail-head">
+          <div style="min-width:0">
+            <div class="uo-headline">{{ name }}/</div>
+            <div class="uo-path">{{ folder.path }}</div>
+          </div>
+          <div class="row items-center" style="gap:2px;flex:none">
+            <q-btn flat round dense @click="modal = 'load'"><m-icon name="upload" /><q-tooltip>Load definition…</q-tooltip></q-btn>
+            <q-btn flat round dense @click="modal = 'save'"><m-icon name="download" /><q-tooltip>Save as YAML…</q-tooltip></q-btn>
+            <span class="uo-folder-big"><m-icon name="folder" :size="32" /></span>
+          </div>
+        </div>
+        <uo-hr />
+        <div class="uo-kv">
+          <span class="uo-kv-label">Description</span><span>{{ folder.description }}</span>
+          <span class="uo-kv-label">import</span>
+          <span>
+            <span v-if="imports.length" class="row" style="gap:6px;flex-wrap:wrap">
+              <res-chip v-for="im in imports" :key="im.name" :kind="im.kind" :name="im.name" />
+            </span>
+            <span v-else>—</span>
+          </span>
+        </div>
+
+        <def-list v-if="hyps.length" title="define hypervisors:" kind="hypervisor" :items="hyps" :default-open="true" />
+        <def-list v-if="tmpls.length" title="define templates:" kind="template" :items="tmpls" :default-open="false" />
+
+        <!-- Load dialog -->
+        <q-dialog :model-value="modal === 'load'" @update:model-value="v => { if (!v) modal = null }">
+          <q-card class="uo-modal">
+            <div class="uo-modal-head"><div class="uo-title-lg">Load definition into {{ folder.path }}</div>
+              <m-icon name="close" clickable @click="modal = null" /></div>
+            <div class="uo-modal-body">
+              <div class="row items-center" style="gap:10px;margin-bottom:12px;flex-wrap:wrap">
+                <q-btn unelevated no-caps class="uo-btn-tonal" @click="pickFile">
+                  <m-icon name="attach_file" :size="18" class="q-mr-xs" />Choose file…
+                </q-btn>
+                <span class="uo-mono uo-faint">{{ fileName || 'or paste / edit below' }}</span>
+                <input ref="fileRef" type="file" accept=".yml,.yaml,.txt" @change="onFile" style="display:none" />
+              </div>
+              <div class="uo-body uo-muted" style="margin-bottom:6px">Preview</div>
+              <textarea v-model="loadText" spellcheck="false" class="uo-textarea" style="height:200px"></textarea>
+            </div>
+            <div class="uo-modal-foot">
+              <q-btn flat no-caps color="primary" @click="modal = null">Cancel</q-btn>
+              <q-btn unelevated color="primary" no-caps @click="modal = null"><m-icon name="upload" :size="18" class="q-mr-xs" />Load</q-btn>
+            </div>
+          </q-card>
+        </q-dialog>
+
+        <!-- Save dialog -->
+        <q-dialog :model-value="modal === 'save'" @update:model-value="v => { if (!v) modal = null }">
+          <q-card class="uo-modal">
+            <div class="uo-modal-head"><div class="uo-title-lg">Save {{ folder.path }} as YAML</div>
+              <m-icon name="close" clickable @click="modal = null" /></div>
+            <div class="uo-modal-body">
+              <div class="uo-body uo-muted" style="margin-bottom:8px">The full branch from this folder (subfolders + VMs), in the application’s definition format.</div>
+              <textarea :value="saveText" readonly spellcheck="false" class="uo-textarea" style="height:230px"></textarea>
+            </div>
+            <div class="uo-modal-foot">
+              <q-btn flat no-caps color="primary" @click="modal = null">Close</q-btn>
+              <q-btn unelevated color="primary" no-caps @click="download"><m-icon name="download" :size="18" class="q-mr-xs" />Download .yml</q-btn>
+            </div>
+          </q-card>
+        </q-dialog>
+      </q-card>
+    `,
+  });
+
+  app.use(window.Quasar);
+  app.mount('#app');
+})();
+
+  </script>
+</body>
+</html>
