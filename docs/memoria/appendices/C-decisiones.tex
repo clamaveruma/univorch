@@ -1,27 +1,126 @@
 % Appendix C - Summary of technical decisions.
-% Source: claude/decisiones.md (DEC-001 to DEC-036). This appendix
-% holds a summary table plus, optionally, the full development of the
-% most structural decisions (DEC-004, DEC-026, DEC-028, DEC-029,
-% DEC-031, DEC-036).
-%
-% The full text of each decision lives in the repository
-% (claude/decisiones.md); here we only keep the summary the tribunal
-% needs to follow the citations from the main body.
+% Source: claude/decisiones.md (DEC-001 to DEC-036). The full text of
+% each decision lives in the repository; here we only keep the summary
+% the tribunal needs to follow the citations in the main body.
 
 \umaappendix{Summary of technical decisions}
 \label{ap:decisiones}
 
+This appendix summarises the 36~technical decisions recorded during
+the project. Each row lists the identifier, a one-line title, the
+phase in which the decision was taken and the chapter of this report
+where the decision is discussed in context. The full rationale of
+every decision (motivations, alternatives considered, traceability
+between decisions) lives in the project repository, in
+\texttt{claude/decisiones.md}.
+
 \section{Summary table}
 \label{sec:dec-tabla}
 
-% TODO: fill in the table with DEC-001 to DEC-036 from
-% claude/decisiones.md. Planned columns: identifier, title, date,
-% one-line summary, chapter where it is developed.
+\begin{longtable}{p{0.10\linewidth} p{0.62\linewidth} p{0.10\linewidth} p{0.10\linewidth}}
+  \toprule
+  \textbf{ID} & \textbf{Title} & \textbf{Phase} & \textbf{Chapter} \\
+  \midrule
+  \endfirsthead
+  \toprule
+  \textbf{ID} & \textbf{Title} & \textbf{Phase} & \textbf{Chapter} \\
+  \midrule
+  \endhead
+  DEC-001  & Markdown for persistent memory                       & 1 & 3 \\
+  DEC-002  & Context-directory structure (\texttt{claude/})       & 1 & 3 \\
+  DEC-003  & Journal as primary source of truth                   & 1 & 3 \\
+  DEC-004  & Two-layer architecture (engine + domain app)         & 1 & 2 \\
+  DEC-005  & Terminology: ``descriptor''                          & 1 & 2 \\
+  DEC-005b & Descriptor types (normal vs reference)               & 2 & 2 \\
+  DEC-006  & Declarative architecture                             & 1 & 2 \\
+  DEC-007  & Repository pattern for persistence                   & 3 & 5 \\
+  DEC-008  & Use of design patterns (pragmatic)                   & 1 & 5 \\
+  DEC-009  & End-user metaphor (\emph{desk} / \emph{computer})    & 1 & 2 \\
+  DEC-010  & Cascade inheritance required from v1                 & 1 & 2 \\
+  DEC-011  & RBAC with hierarchical inheritance, three roles      & 1 & 2 \\
+  DEC-012  & Explicit imports + lexical closure of templates      & 2 & 2 \\
+  DEC-013  & IP management out of v1                              & 1 & 5 \\
+  DEC-014  & Operations model: Job pattern                        & 1 & 5 \\
+  DEC-015  & Jobs persisted in the database                       & 1 & 5 \\
+  DEC-016  & Hypervisor connector operations                      & 2 & 5 \\
+  DEC-017  & Datastores as aliased resources                      & 1 & 5 \\
+  DEC-018  & Client interfaces (CLI + Web GUI v1)                 & 1 & 5 \\
+  DEC-019  & Project name (UnivOrch)                              & 1 & 1 \\
+  DEC-020  & Access to pre-existing VMs (out of v1)               & 1 & 5 \\
+  DEC-021  & User management (YAML in v1; LDAP future)            & 2 & 5 \\
+  DEC-022  & Descriptor state machine (4 states + drift flag)     & 2 & 2 \\
+  DEC-023  & Logs and operation retention                         & 2 & 5 \\
+  DEC-024  & Database backup policy (GFS)                         & 2 & 5 \\
+  DEC-025  & IP management: pools per folder                      & 2 & 5 \\
+  DEC-026  & Inheritance rule by data type                        & 3 & 2 \\
+  DEC-027  & Declarative load/plan with fail-fast validation      & 3 & 5 \\
+  DEC-028  & Job engine: Command pattern, locking, sync v1        & 3 & 5 \\
+  DEC-029  & Connectors as ABCs + registry                        & 3 & 5 \\
+  DEC-030  & TinyDB $\rightarrow$ MongoDB; repositories per aggregate & 3 & 5 \\
+  DEC-031  & Facade and centralised RBAC                          & 3 & 5 \\
+  DEC-032  & Refined definition of \texttt{broken} state          & 3 & 5 \\
+  DEC-033  & Technology stack v1                                  & 4 & 3 \\
+  DEC-034  & Bounded adoption of Pydantic v2                      & 4 & 5 \\
+  DEC-035  & Operation idempotency (in the orchestrator)          & 4 & 5 \\
+  DEC-036  & Connector type registry + live-session pool          & 6 & 5 \\
+  \bottomrule
+\end{longtable}
 
-To be transcribed. The table will list the 36 technical decisions
-recorded in the project repository (\texttt{claude/decisiones.md}).
-Six of them will be developed in full because of their structural
-weight: DEC-004 two-layer architecture, DEC-026 data-type-driven
-inheritance, DEC-028 Jobs engine and Command pattern, DEC-029
-connectors as ABCs, DEC-031 facade and RBAC, DEC-036 type registry
-and session pool.
+\section{Structural decisions, in detail}
+
+Six of the thirty-six decisions carry more weight than the rest
+because they shape the architecture as a whole. They are presented
+in full below; the references in parentheses point to the chapter
+section where each is exercised.
+
+\paragraph{DEC-004 — Two-layer architecture (\Cref{sec:dos-capas}).}
+The system is split into a domain-agnostic engine (folders,
+descriptors, jobs, inheritance, connectors) and a domain-specific
+application that translates the vocabulary of a use case (teaching,
+CTF, research) into operations of the engine. The boundary is the
+public REST API of the daemon. The decision is the conceptual root
+of the entire project: it is what lets the same engine support
+multiple domain applications.
+
+\paragraph{DEC-026 — Inheritance rule by data type (\Cref{sec:herencia}).}
+Cascade inheritance applies a different merge rule depending on the
+data type of the field. Scalars overwrite, lists accumulate,
+dictionaries merge recursively. Specific fields that do not fit the
+default (the IP pool, for example) declare an explicit override.
+The rule is uniform across configuration properties \emph{and} role
+assignments; the same code resolves both.
+
+\paragraph{DEC-028 — Job engine: Command pattern, locking, synchronous v1.}
+Every state-changing operation is encapsulated in a Command class.
+The Command separates validation (returns the list of errors
+without touching state) from execution (mutates state and may
+raise). The engine wraps every Command in a Job that is persisted
+before execution. The proof of concept executes Commands
+synchronously; the architecture allows asynchronous execution with
+locking without changes to the engine surface.
+
+\paragraph{DEC-029 — Hypervisor connectors as ABCs (\Cref{subsec:patterns}).}
+The contract between the engine and a hypervisor is defined as an
+abstract base class with a small set of life-cycle operations
+(\texttt{clone}, \texttt{delete}, \texttt{start}, \texttt{stop},
+\texttt{get\_status} and a few more). The mock connector that ships
+with v1 implements the same contract. A new hypervisor (VMware,
+Proxmox) is added by writing a new concrete subclass; the engine
+itself is not touched.
+
+\paragraph{DEC-031 — Facade and centralised RBAC (\Cref{subsec:patterns}).}
+The \texttt{OrchestratorService} class is the single entry point of
+the engine and the only place where RBAC checks happen. Every
+client (CLI, Web GUI, future teaching application) routes through
+the facade; there is no shortcut.
+
+\paragraph{DEC-036 — Connector type registry + live-session pool.}
+The engine keeps two distinct structures. A registry of connector
+\emph{types} maps a type name (\texttt{mock}, \texttt{vmware},
+\texttt{proxmox}) to its connector class; this is what is patched
+when a new hypervisor support is added. A pool of \emph{live
+sessions} keeps the open connections to the configured hypervisors;
+this is what survives a request and is reused across operations. The
+decision was added late in the project after the architecture
+diagrams revealed that the two concepts had been conflated in the
+implementation.
