@@ -31,14 +31,21 @@ se observa el modelo (herencia, ciclo de vida, dos ejes de estado).
 
 ## 2. Instalar
 
+> **Aviso sobre `sudo`.** El instalador y el script `univorch.sh`
+> hablan con Docker. Si tu usuario no pertenece al grupo `docker`,
+> necesitas `sudo` delante de cada orden (es lo que asumen los
+> ejemplos de este tutorial). Alternativa permanente:
+> `sudo usermod -aG docker $USER` y cerrar/abrir sesión; a partir
+> de ahí ya no hace falta `sudo` para nada de Docker.
+
 Una sola orden:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/clamaveruma/univorch/main/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/clamaveruma/univorch/main/install.sh | sudo bash
 ```
 
-Si quieres ver qué hace el instalador antes, sustituye `bash` por `less`
-al final.
+Si quieres ver qué hace el instalador antes, sustituye `sudo bash` por
+`less` al final.
 
 El instalador deja un directorio `univorch/` con `univorch.sh` y
 `docker-compose.yml`. No arranca nada por sí mismo. Si el puerto 8080
@@ -51,23 +58,23 @@ fija en `.env`.
 
 ```bash
 cd univorch
-./univorch.sh start
+sudo ./univorch.sh start
 curl http://localhost:8080/api/v1/health
 ```
 
 Debe devolver `{"status":"ok"}`.
 
 Para verlo de forma más visual, abre el navegador en cualquiera de
-estas dos páginas que FastAPI genera automáticamente:
+estas páginas:
 
-- `http://localhost:8080/docs` — **Swagger UI**: API entera explorable,
-  con botones para probar cada endpoint sin escribir `curl`.
+- `http://localhost:8080/` — **Web GUI** (Sprint 4, lectura): cabecera con
+  contadores y árbol de descriptores navegable. Click en un descriptor
+  abre el detalle con su definición efectiva.
+- `http://localhost:8080/docs` — **Swagger UI** (autogenerada por
+  FastAPI): API entera explorable, con botones para probar cada endpoint
+  sin escribir `curl`.
 - `http://localhost:8080/redoc` — **ReDoc**: misma información en
   formato más narrativo, útil para leer la especificación de un vistazo.
-
-> Si tu usuario no está en el grupo `docker`, prefija las órdenes con
-> `sudo` o añádete al grupo (`sudo usermod -aG docker $USER`) y vuelve
-> a iniciar sesión.
 
 ---
 
@@ -76,15 +83,15 @@ estas dos páginas que FastAPI genera automáticamente:
 **Orden suelta** (modo bash, se ejecuta y vuelve a tu shell):
 
 ```bash
-./univorch.sh cli tree /
-./univorch.sh cli load /opt/univorch/examples/setup.yml
-./univorch.sh cli inspect /lab/networks/student03
+sudo ./univorch.sh cli tree /
+sudo ./univorch.sh cli load /opt/univorch/examples/setup.yml
+sudo ./univorch.sh cli inspect /lab/networks/student03
 ```
 
 **Sesión interactiva** (REPL, con historial y autocompletado de Tab):
 
 ```bash
-./univorch.sh cli
+sudo ./univorch.sh cli
 ```
 
 Te abre el prompt:
@@ -211,12 +218,12 @@ univorch /> quit
 ```
 
 ```bash
-./univorch.sh stop
+sudo ./univorch.sh stop
 ```
 
 Los datos persisten en el volumen `univorch_univorch_data`. Para
-empezar de cero, `docker volume rm univorch_univorch_data` antes del
-siguiente `start`.
+empezar de cero, `sudo docker volume rm univorch_univorch_data` antes
+del siguiente `start`.
 
 ---
 
@@ -224,10 +231,10 @@ siguiente `start`.
 
 | Síntoma | Causa habitual y arreglo |
 |---|---|
-| `permission denied to /var/run/docker.sock` | Usa `sudo` o añade tu usuario al grupo `docker`. |
-| `address already in use` al arrancar | Otro servicio ocupa el 8080. `UNIVORCH_PORT=9090 ./univorch.sh start` o ajusta `.env`. |
-| `cannot reach the UnivOrch daemon` | El contenedor no está corriendo. `./univorch.sh start`. |
-| Logs del demonio | `./univorch.sh logs` |
+| `permission denied to /var/run/docker.sock` | Tu usuario no está en el grupo `docker`. Añade `sudo` (rápido) o `sudo usermod -aG docker $USER` + relogin (permanente). |
+| `address already in use` al arrancar | Otro servicio ocupa el 8080. `UNIVORCH_PORT=9090 sudo ./univorch.sh start` o ajusta `.env`. |
+| `cannot reach the UnivOrch daemon` | El contenedor no está corriendo. `sudo ./univorch.sh start`. |
+| Logs del demonio | `sudo ./univorch.sh logs` |
 
 ---
 
@@ -235,12 +242,15 @@ siguiente `start`.
 
 **Desde el host:**
 
+Todas las órdenes asumen `sudo` delante si tu usuario no está en el
+grupo `docker`.
+
 | Orden | Hace |
 |---|---|
-| `./univorch.sh start` / `stop` / `restart` | Ciclo de vida del contenedor |
-| `./univorch.sh status` | Estado del contenedor |
-| `./univorch.sh logs` | Sigue los registros |
-| `./univorch.sh cli [orden]` | Cliente: REPL si no hay orden, modo bash si la hay |
+| `sudo ./univorch.sh start` / `stop` / `restart` | Ciclo de vida del contenedor |
+| `sudo ./univorch.sh status` | Estado del contenedor |
+| `sudo ./univorch.sh logs` | Sigue los registros |
+| `sudo ./univorch.sh cli [orden]` | Cliente: REPL si no hay orden, modo bash si la hay |
 
 **Órdenes del cliente** (con `help <orden>` ves la ayuda detallada de cada
 una):

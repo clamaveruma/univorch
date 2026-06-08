@@ -53,6 +53,7 @@ case "${1:-}" in
     start)
         "${COMPOSE[@]}" -f "$COMPOSE_FILE" up -d
         echo "UnivOrch started."
+        echo "Web GUI:    http://localhost:${UNIVORCH_PORT:-8080}/"
         echo "REST API:   http://localhost:${UNIVORCH_PORT:-8080}/api/v1/"
         echo "Health:     http://localhost:${UNIVORCH_PORT:-8080}/api/v1/health"
         echo "Interactive CLI: ./univorch.sh cli"
