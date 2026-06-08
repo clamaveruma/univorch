@@ -322,5 +322,31 @@ del trabajo:
   de TinyDB).
 - Despliegue desde repositorios git (GitOps).
 
+---
+
+## 11. Vista previa del rediseño de la interfaz web (bocetos)
+
+Para que veas a dónde queremos llegar con la web, hay dos **bocetos
+visuales** del rediseño completo. Son páginas HTML autocontenidas
+(Vue + Quasar por CDN) **desconectadas del orquestador**: muestran
+datos de ejemplo embebidos y no llaman al daemon. Sirven para hacerse
+una idea de la dirección visual y de la interacción esperada; la
+versión final, conectada a la API real, se parecerá a esto.
+
+- **Vista del administrador / profesor** (árbol de descriptores con
+  filtro, panel de detalle por nodo, badges para plantillas e
+  hipervisores, acciones contextuales por estado):
+  [admin-standalone.html](https://htmlpreview.github.io/?https://raw.githubusercontent.com/clamaveruma/univorch/main/demo/ui_kits/admin-standalone.html)
+
+- **Vista del alumno** (la metáfora "mesa con ordenadores" — las VMs
+  aparecen como iconos de PC sobre una mesa, con iconos SVG por
+  estado y acciones por VM):
+  [user-standalone.html](https://htmlpreview.github.io/?https://raw.githubusercontent.com/clamaveruma/univorch/main/demo/ui_kits/user-standalone.html)
+
+> Como son páginas estáticas, los botones no producen efecto: están
+> ahí solo para mostrar la disposición y la iconografía. Lo que sí
+> funciona es el "click" en un nodo del árbol para que cambie el
+> panel de detalle a la derecha.
+
 El historial completo, las decisiones de diseño y el código fuente
 están en [github.com/clamaveruma/univorch](https://github.com/clamaveruma/univorch).
