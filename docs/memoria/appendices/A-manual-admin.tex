@@ -1,39 +1,379 @@
 % Appendix A - Administrator's manual.
-% Contents to be developed. Foreseen sources:
-% docs/tutorial-profesor.md (quick installation), docs/environment.md,
-% claude/decisiones.md (philosophy summary), CLI reference.
-%
-% Audience: the administrator / superuser facing UnivOrch for the
-% first time. They need to grasp the philosophy, install in their
-% infrastructure, configure real hypervisors, manage users (when
-% applicable) and maintain the system.
+% Sources: docs/tutorial-profesor.md, docs/environment.md, the
+% install.sh script and the README of the repository. Update here when
+% the operational story changes.
 
 \umaappendix{Administrator's manual}
 \label{ap:manual-admin}
 
-% TODO: draft. Suggested structure:
-% A.1 Philosophy summary (1-2 pages)
-%   - What UnivOrch is, the tree model, inheritance, two state axes.
-% A.2 Quick install (based on tutorial-profesor.md)
-%   - Requirements, one-line installer, first start.
-% A.3 Production install
-%   - docker-compose configuration for real production.
-%   - Persistent volume and TinyDB backup.
-%   - Deployment behind a reverse proxy (no TLS inside the container).
-% A.4 Real-hypervisor configuration
-%   - VMware: credentials, certificates, base templates.
-%   - Proxmox: API token, nodes.
-%   - Mock for tests.
-% A.5 Loading definitions
-%   - YAML syntax: folders, descriptors, resources (define/use).
-%   - load idempotency, what happens when loaded twice.
-% A.6 Day-to-day operation
-%   - deploy/start/stop/undeploy from the CLI.
-%   - Reading Jobs and diagnostics.
-% A.7 Maintenance
-%   - Daemon logs (where and how to read).
-%   - Operation history in the database.
-%   - Volume backups.
-%   - Version upgrade (docker compose pull + restart).
+This appendix is the operational manual for an administrator who
+installs and runs UnivOrch in an institutional environment. It does
+not repeat the conceptual material of \Cref{ch:conceptos}; the
+reader is assumed to have followed the rest of the report. The
+manual covers requirements, installation, day-to-day operation,
+configuration of real hypervisors (designed but not implemented in
+the proof of concept), monitoring and maintenance.
 
-To be drafted. It will be included in a later version.
+The conventions are: a sequence of commands separated by line
+breaks is run in order; comments after \texttt{\#} are not part of
+the command; placeholders in angle brackets
+(\texttt{<server>}) are to be replaced.
+
+\section{Requirements}
+
+The host that runs UnivOrch needs:
+
+\begin{itemize}
+  \item Linux (any distribution with current packages).
+  \item Docker Engine version 24 or newer.
+  \item Docker Compose, version~2 (\texttt{docker compose}) or
+        version~1 (\texttt{docker-compose}); the installer detects
+        both.
+  \item Outbound HTTPS to \texttt{ghcr.io} to pull the public
+        image. If the host is in a closed network, the image can
+        be mirrored to an internal registry; the configuration
+        change is the registry name in \texttt{docker-compose.yml}.
+\end{itemize}
+
+The clients (CLI on a workstation, web browser on a laptop) need
+only network access to the daemon's port (8080 by default).
+
+UnivOrch does not require root: a user in the \texttt{docker}
+group is enough.
+
+\section{Quick installation}
+
+The published installer takes care of everything for a single-host
+deployment. It downloads the
+\texttt{docker-compose.yml}, picks a free TCP port if 8080~is
+taken, pulls the image, creates the persistent volume and starts the
+container.
+
+\begin{verbatim}
+curl -sSL https://raw.githubusercontent.com/clamaveruma/univorch/main/install.sh | bash
+\end{verbatim}
+
+A health check confirms the install:
+
+\begin{verbatim}
+curl -s http://localhost:8080/api/v1/health
+# {"status":"ok"}
+\end{verbatim}
+
+For a closer look at what the installer does before running it,
+substitute \texttt{bash} with \texttt{less} or \texttt{cat}:
+
+\begin{verbatim}
+curl -sSL https://raw.githubusercontent.com/clamaveruma/univorch/main/install.sh | less
+\end{verbatim}
+
+\section{Production installation}
+
+For production the recommended path is to clone the repository,
+edit \texttt{docker-compose.yml} to the local conventions and run
+\texttt{docker compose up -d}.
+
+\begin{verbatim}
+git clone https://github.com/clamaveruma/univorch.git
+cd univorch
+$EDITOR docker-compose.yml   # adjust port, volume name, image tag
+docker compose up -d
+docker compose logs -f       # follow the daemon's log
+\end{verbatim}
+
+The file \texttt{docker-compose.yml} exposes three pieces of
+configuration:
+
+\begin{description}
+  \item[Image tag] -- pin the deployment to a specific version
+        instead of \texttt{:latest}. Example:
+        \texttt{ghcr.io/clamaveruma/univorch:v0.2.0}. The tags
+        follow semantic versioning; \texttt{v0.x} indicates the
+        API surface is not yet stable.
+  \item[Port mapping] -- the public port the daemon listens on. The
+        default is 8080~on the host mapped to 8080~in the
+        container. Change the host side if the port is busy or if
+        a reverse proxy fronts the daemon.
+  \item[Named volume] -- the Docker named volume that contains the
+        TinyDB JSON file. The default name is
+        \texttt{univorch\_data}; keep the default unless several
+        UnivOrch instances coexist on the same host.
+\end{description}
+
+The image does \emph{not} terminate TLS. In a production
+deployment, place the daemon behind a reverse proxy (nginx,
+Caddy, Traefik, the institutional load balancer) that handles
+HTTPS, forwards the request unchanged and trusts the daemon on
+HTTP. The daemon binds to all interfaces inside the container by
+default; restrict the binding through the proxy, not through
+UnivOrch.
+
+\section{Real hypervisor configuration (design)}
+
+The PoC ships only the mock connector. The real connectors
+(VMware vSphere and Proxmox VE) are designed but not implemented
+in v1. The configuration of a real hypervisor below describes the
+intended user interface; it will appear once the connectors are
+in code.
+
+\paragraph{VMware ESXi / vSphere.}
+The administrator declares the hypervisor in the top
+administrative folder of the tree:
+
+\begin{verbatim}
+folders:
+  admin:
+    define hypervisors:
+      esx1:
+        type: vmware
+        address: vcenter.dept.uma.es
+        username: orchestrator@vsphere.local
+        password: <stored encrypted>
+        datacenter: TeachingLab
+        datastores:
+          fast:   { id: SSD-Pool-1 }
+          slow:   { id: HDD-Pool-2 }
+\end{verbatim}
+
+The base VMs available for cloning live in the same vSphere
+datacenter and have a snapshot ready for linked clones. The
+administrator prepares the base VMs once and refers to them by
+name from templates.
+
+\paragraph{Proxmox VE.}
+Proxmox uses an API token rather than a password:
+
+\begin{verbatim}
+folders:
+  admin:
+    define hypervisors:
+      pve1:
+        type: proxmox
+        address: pve.dept.uma.es
+        token_id: orchestrator@pve!api
+        token_secret: <stored encrypted>
+        node: pve-node-01
+        datastores:
+          local: { id: local-lvm }
+\end{verbatim}
+
+The base VM is a template VM created in Proxmox; cloning is
+delegated to the standard Proxmox API.
+
+\paragraph{Mock.}
+The mock connector requires no configuration. The administrator
+declares it the same way:
+
+\begin{verbatim}
+folders:
+  admin:
+    define hypervisors:
+      mock01: { type: mock }
+\end{verbatim}
+
+\section{Loading definitions}
+
+Definitions are written in YAML and loaded into a folder of the
+tree with the \texttt{load} command. The destination can be any
+folder, not only the root; the YAML is relative to the
+destination (\Cref{sec:declarativo}).
+
+The administrator typically keeps the catalogue of definitions in
+a Git repository. A simple workflow is:
+
+\begin{verbatim}
+git clone git@servers.dept.uma.es:univorch-defs.git
+cd univorch-defs
+univorch load catalogue/hypervisors.yml /admin/
+univorch load courses/networks-2026.yml /lab/
+\end{verbatim}
+
+Two YAML files describe two complementary pieces of the tree: a
+catalogue of hypervisors and templates at \texttt{/admin/}, and a
+subject's worth of student descriptors at \texttt{/lab/}. The
+order of \texttt{load} calls matters when a later file references
+resources declared by an earlier one.
+
+\texttt{load} is idempotent. Running the same file twice does not
+duplicate folders or descriptors; only new items are added.
+Properties of existing items are updated to match the file.
+
+\section{Day-to-day operation}
+
+The administrator interacts with the daemon through the CLI or
+the web GUI. The most frequent operations are listed below;
+\Cref{ap:cli-reference} gives the full reference.
+
+\paragraph{Inspecting the tree.}
+The CLI is the fastest way to scan the current state. From inside
+the container:
+
+\begin{verbatim}
+docker exec -it univorch univorch
+univorch /> tree /
+univorch /> status /lab/networks/student01
+univorch /> inspect /lab/networks/student01
+\end{verbatim}
+
+The web GUI at \texttt{http://<server>:8080/} gives the same
+information graphically, with the summary counters at the top of
+the page.
+
+\paragraph{Deploying and undeploying.}
+A descriptor in \texttt{provisioned} becomes a real VM with
+\texttt{deploy}; \texttt{undeploy} destroys the VM and returns the
+descriptor to \texttt{provisioned}.
+
+\begin{verbatim}
+univorch /> deploy /lab/networks/student01
+univorch /> start /lab/networks/student01
+univorch /> stop /lab/networks/student01
+univorch /> undeploy /lab/networks/student01
+\end{verbatim}
+
+For batch operations across a whole folder, scripting is the
+practical option in v1; the web GUI will offer the same operations
+on a click in the next sprint.
+
+\paragraph{Recovering a broken descriptor.}
+A descriptor stuck in \texttt{broken} reports the cause in its
+Job history. Read the history, fix the underlying problem
+(restore credentials, free disk space, recover network
+connectivity to the hypervisor) and force-undeploy the descriptor
+to bring it back to \texttt{provisioned}:
+
+\begin{verbatim}
+univorch /> status /lab/networks/student09
+univorch /> # ... read the job history ...
+univorch /> force-undeploy /lab/networks/student09
+\end{verbatim}
+
+The \texttt{force-undeploy} command is on the roadmap; until then,
+a broken descriptor is cleared by hand at the hypervisor (delete
+the residual VM if any) and a normal \texttt{undeploy} run from
+the CLI.
+
+\section{Monitoring and logs}
+
+The container writes the daemon's standard output to Docker's
+logging driver. Read the last hour with:
+
+\begin{verbatim}
+docker compose logs --since 1h -f
+\end{verbatim}
+
+For a long-running system, the Docker logs should be forwarded to
+the institutional log collector (rsyslog, journald, ELK, Grafana
+Loki) using the standard \texttt{logging:} stanza of
+\texttt{docker-compose.yml}.
+
+The orchestrator's \emph{operation} log is the persisted Job
+history, not the standard output. The Job history is queried
+through the CLI or the web GUI and survives restarts. The default
+retention is 90~days; the value is configurable as a global
+property.
+
+\section{Backups and recovery}
+
+The full state of UnivOrch is a single JSON file in the named
+volume \texttt{univorch\_data} (the database is TinyDB in v1, a
+choice that is replaced by MongoDB in production). A backup is a
+copy of the volume.
+
+The simplest periodic backup is a wrapper around \texttt{docker
+cp}:
+
+\begin{verbatim}
+#!/bin/bash
+set -e
+ts=$(date +%F-%H%M)
+docker cp univorch:/data/db.json /var/backups/univorch/univorch-$ts.json
+\end{verbatim}
+
+The recommended retention is GFS (DEC-024): seven daily backups,
+four weekly backups, twelve monthly backups. A simple
+\texttt{cron} entry plus a small rotation script implements it.
+
+Restoring is also a file copy in v1. Stop the daemon, replace the
+database file with the backup, start the daemon:
+
+\begin{verbatim}
+docker compose stop
+docker cp /var/backups/univorch/univorch-2026-06-07-0300.json \
+          univorch:/data/db.json
+docker compose start
+\end{verbatim}
+
+When the persistence layer moves to MongoDB, the same workflow is
+replaced by \texttt{mongodump} and \texttt{mongorestore} with
+the same GFS schedule.
+
+\section{Upgrades}
+
+Upgrading the daemon to a new minor or patch release is a tag
+change in \texttt{docker-compose.yml} followed by:
+
+\begin{verbatim}
+docker compose pull
+docker compose up -d
+\end{verbatim}
+
+Docker downloads the new image, stops the running container and
+starts a new one against the same persistent volume. The
+operational data is preserved.
+
+Major upgrades (\texttt{v1 → v2}) may include a migration step on
+the database. The release notes of every major version describe
+the migration; until that path is established, the upgrade is a
+backup, a stop, an image swap, a migration command and a start.
+
+\section{Users and authentication}
+
+In v1 the daemon assumes the network it runs on is trusted: there
+is no authentication on the REST API and the only role enforced in
+code is the implicit \emph{superuser}. The full RBAC design lives
+in \Cref{ch:conceptos} and is part of the immediate future work.
+
+Until authentication is in place, the deployment should restrict
+network exposure: a reverse proxy that only accepts requests from
+the institutional VPN, a firewall rule that blocks the daemon's
+port to the outside, or both.
+
+\section{Troubleshooting}
+
+\paragraph{The container does not start.}
+\texttt{docker compose logs} usually shows the cause. The most
+common ones are a busy port (change the host port mapping), a
+permission problem on the volume (check the file owner) and a
+missing image (the network blocks \texttt{ghcr.io}; use the
+internal mirror).
+
+\paragraph{The web GUI loads but the tree is empty.}
+The database is empty. Load a definition with \texttt{load} as
+described above.
+
+\paragraph{Deploy fails immediately.}
+The connector cannot reach the hypervisor. Verify the hypervisor's
+address and credentials in the corresponding \texttt{define
+hypervisors:} block, and check the network from inside the
+container with \texttt{docker exec univorch curl -s
+<hypervisor>}.
+
+\paragraph{A descriptor sits in \texttt{unreachable}.}
+The hypervisor was not reachable when an operation ran. The state
+is reactive; once communications are restored, an operation on
+that descriptor will move it back to a definite state. The Job
+history records the original communication error.
+
+\section{Where to find more information}
+
+\begin{itemize}
+  \item Source code: \texttt{https://github.com/clamaveruma/univorch}.
+  \item Public image: \texttt{ghcr.io/clamaveruma/univorch}.
+  \item REST API specification: \texttt{http://<server>:8080/api/v1/docs}
+        (Swagger UI generated by FastAPI).
+  \item Architecture and design: \Cref{ch:desarrollo} of this report
+        and \texttt{docs/architecture.md} in the repository.
+  \item Design-decision log: \Cref{ap:decisiones} and
+        \texttt{claude/decisiones.md} in the repository.
+\end{itemize}

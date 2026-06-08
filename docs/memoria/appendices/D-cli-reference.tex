@@ -1,17 +1,192 @@
 % Appendix D - CLI reference.
-% Source: the binary itself via --help; tables can be generated from
-% the argparse definitions in src/univorch/interfaces/cli/app.py.
+% Source: the binary itself (--help) and the argparse definitions in
+% src/univorch/interfaces/cli/app.py. When new commands or flags are
+% added, propagate here.
 
 \umaappendix{CLI reference}
 \label{ap:cli-reference}
 
-% TODO: draft.
-% Command table with syntax, description and an example.
-% Commands to document:
-%   load, tree, ls, list, cd, pwd, inspect, deploy, undeploy, start,
-%   stop, status, connect, help, quit.
-% CLI arguments to document:
-%   --remote URL, UNIVORCH_REMOTE env var, default localhost:8080.
+This appendix documents the \texttt{univorch} command-line client.
+The CLI is a pure HTTP client of the daemon: every command translates
+into one or more calls to the REST API and prints the result. Inside
+the production Docker container the binary is on the \texttt{PATH};
+on a development machine it is available with \texttt{uv run
+univorch}.
 
-To be drafted. Until then, each command's help is available with
-\texttt{help <command>} inside the REPL.
+\section{Invocation modes}
+
+The CLI supports the same set of commands in two modes:
+
+\begin{description}
+  \item[Single-shot (bash mode)] -- one command per invocation, suitable
+        for shell scripts.
+        Example: \texttt{univorch deploy /lab/networks/student01}.
+  \item[Interactive REPL] -- launched with no arguments. Carries a
+        prompt that shows the current folder and (optionally) the
+        remote daemon. Supports history, tab-completion of paths and
+        in-shell \texttt{help <command>}.
+\end{description}
+
+\section{Selecting the daemon}
+
+The CLI must know where the daemon listens. The selection follows
+this precedence (first match wins):
+
+\begin{enumerate}
+  \item The \texttt{-{}-remote URL} argument on the command line.
+  \item The \texttt{UNIVORCH\_REMOTE} environment variable.
+  \item The built-in default \texttt{http://localhost:8080}.
+\end{enumerate}
+
+Inside the REPL, the \texttt{connect <URL>} command switches the
+target daemon for the rest of the session and updates the prompt to
+show the new target.
+
+\section{Command reference}
+
+\Cref{tab:cli-commands} lists the implemented commands at the close
+of Sprint~4. The detailed description of each command follows.
+
+\begin{table}[ht]
+  \centering
+  \small
+  \begin{tabular}{l p{0.62\linewidth}}
+    \toprule
+    \textbf{Command} & \textbf{Purpose} \\
+    \midrule
+    \texttt{cd [path]}        & Change the current folder in the REPL.\\
+    \texttt{pwd}              & Print the current folder.\\
+    \texttt{ls [path]}        & List one level of a folder (alias of \texttt{list}).\\
+    \texttt{list [path]}      & Same as \texttt{ls}.\\
+    \texttt{tree [path] [-d]} & Print the full subtree under a folder.\\
+    \texttt{inspect <path> [-l]} & Show the resolved (or local-only) definition.\\
+    \texttt{status <path>}    & Show the descriptor state and the runtime state.\\
+    \texttt{deploy <path>}    & Move a descriptor from \texttt{provisioned} to \texttt{deployed}.\\
+    \texttt{undeploy <path>}  & Move a \texttt{deployed} descriptor back to \texttt{provisioned}.\\
+    \texttt{start <path>}     & Power on a deployed VM.\\
+    \texttt{stop <path>}      & Power off a deployed VM.\\
+    \texttt{load <file> [dest]} & Load a YAML definition into a folder.\\
+    \texttt{connect <url>}    & (REPL only) switch the live target daemon.\\
+    \texttt{help [cmd]}       & Built-in help; one command without args lists all.\\
+    \texttt{quit}             & (REPL only) leave the shell.\\
+    \bottomrule
+  \end{tabular}
+  \caption{Commands provided by the \texttt{univorch} CLI.}
+  \label{tab:cli-commands}
+\end{table}
+
+\subsection{Navigation: \texttt{cd}, \texttt{pwd}}
+
+\texttt{cd [path]} changes the current folder of the REPL. The path
+follows the conventions of a Unix shell: it may be absolute or
+relative, \texttt{.} and \texttt{..} are honoured, and \texttt{..} at
+the root stays at the root. With no argument, \texttt{cd} does
+nothing; \texttt{pwd} prints the current folder.
+
+\subsection{Listing: \texttt{ls}, \texttt{list}, \texttt{tree}}
+
+\texttt{ls} (alias \texttt{list}) prints one level of children of a
+folder, with a glyph that marks the state of each descriptor.
+\texttt{tree} prints the entire subtree under a folder. The flag
+\texttt{-d} (or \texttt{-{}-folders-only}) of \texttt{tree} hides
+descriptors and shows only the folder structure, the equivalent of
+the Linux \texttt{tree -d}.
+
+The state glyphs used by both commands match the iconography of the
+web GUI: an empty square for \texttt{provisioned}, a filled square
+for \texttt{deployed}, a cross for \texttt{broken} and a warning
+triangle for \texttt{unreachable}.
+
+\subsection{Inspection: \texttt{inspect}, \texttt{status}}
+
+\texttt{inspect <path>} shows the entity at a tree path. For
+descriptors, the default mode merges the template, the cascade
+inheritance and the lexical closure, so the displayed definition is
+the \emph{effective} one. With \texttt{-l} (or \texttt{-{}-local}),
+only the fields explicitly written at the node are shown.
+
+\texttt{status <path>} reports both axes of the descriptor's state:
+the orchestrator's state (\texttt{provisioned}, \texttt{deployed},
+\texttt{broken}, \texttt{unreachable}) and, when applicable, the
+runtime state read from the hypervisor (\texttt{running},
+\texttt{stopped}, \texttt{paused}).
+
+\subsection{Lifecycle: \texttt{deploy}, \texttt{undeploy}, \texttt{start}, \texttt{stop}}
+
+The four lifecycle commands take a descriptor path and submit the
+matching operation to the daemon. The daemon performs the action
+through the connector that the descriptor's hypervisor declares.
+
+\texttt{deploy} moves the descriptor from \texttt{provisioned} to
+\texttt{deployed}. \texttt{undeploy} moves it back to
+\texttt{provisioned} and removes the VM from the hypervisor.
+\texttt{start} and \texttt{stop} change the runtime state of an
+already deployed VM. All four are idempotent: ordering an action
+that is already satisfied returns success with the message
+\emph{``no change''} (DEC-035).
+
+\subsection{Loading definitions: \texttt{load}}
+
+\texttt{load <file> [dest]} reads a YAML definition file and
+materialises it inside the destination folder. The file describes
+the folders and descriptors to add; the destination is the parent.
+Without a destination, the current folder is used. The YAML is
+relative to the destination, which is what makes a definition file
+portable across installations.
+
+The load operation is fail-fast: if any item fails validation, the
+whole load is rejected and the tree is not modified.
+
+\subsection{REPL-only commands: \texttt{connect}, \texttt{help}, \texttt{quit}}
+
+\texttt{connect <url>} switches the live session to a different
+daemon. The prompt updates to show the new target between square
+brackets (for example \texttt{univorch [http://aulario.uma.es:8080]
+/lab/>}). The change is not persisted; the next REPL session goes
+back to the precedence rule above.
+
+\texttt{help} alone lists the commands; \texttt{help <cmd>} prints
+the argparse-generated help for a specific command, with the same
+syntax and examples shown above. \texttt{quit} (or \texttt{Ctrl+D}
+on an empty line) leaves the shell.
+
+\section{Examples}
+
+A typical session inside the production container:
+
+\begin{verbatim}
+$ docker exec -it univorch univorch
+univorch /> load /opt/univorch/examples/setup.yml /
+6 items applied.
+univorch /> cd /lab/networks
+univorch /lab/networks/> ls
+[ ] student01
+[ ] student02
+[ ] student03
+univorch /lab/networks/> deploy student01
+deploy /lab/networks/student01: ok (5.6s)
+univorch /lab/networks/> status student01
+descriptor state : deployed
+runtime state    : stopped
+vm id            : mock-7f3a91
+univorch /lab/networks/> start student01
+start /lab/networks/student01: ok
+univorch /lab/networks/> quit
+\end{verbatim}
+
+The same operations from a shell script:
+
+\begin{verbatim}
+#!/bin/bash
+export UNIVORCH_REMOTE=http://orquestador.dept.uma.es:8080
+univorch load /opt/univorch/examples/setup.yml /
+for s in student01 student02 student03; do
+    univorch deploy /lab/networks/$s
+done
+\end{verbatim}
+
+The CLI surface is intentionally small: the same vocabulary appears
+in the YAML model, in the REST API, in the CLI and in the web GUI.
+Adding new commands in the future means adding new operations to the
+orchestrator's facade and exposing them; the CLI's argparse
+boilerplate is the smaller part of the work.

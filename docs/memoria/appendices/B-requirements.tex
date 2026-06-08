@@ -6,30 +6,337 @@
 \umaappendix{Detailed requirements analysis}
 \label{ap:requirements}
 
-% TODO: transcribe docs/requirements.md into LaTeX.
-% Planned structure (mirror of docs/requirements.md):
-% B.1 Purpose
-% B.2 Actors
-% B.3 Use cases
-%   B.3.1 Core use cases
-%   B.3.2 Teaching-application use cases (layer 2)
-%   B.3.3 System use cases (automated tasks)
-% B.4 Functional requirements by area
-%   B.4.1 Tree and definitions management
-%   B.4.2 Import and inheritance
-%   B.4.3 VM lifecycle
-%   B.4.4 Hypervisor connector boundary
-%   B.4.5 Operations (Jobs, Commands, plan/apply)
-%   B.4.6 Persistence and consistency
-%   B.4.7 IP management (pools)
-%   B.4.8 Logs and audit
-%   B.4.9 Client interfaces
-%   B.4.10 Teaching application (layer 2)
-%   B.4.11 RBAC (design, not implemented in the PoC)
-% B.5 Non-functional requirements
-% B.6 PoC constraints
-% B.7 Out of scope
-% B.8 Traceability to technical decisions (DEC-001 to DEC-036)
+This appendix reproduces the requirements analysis of UnivOrch v1
+that was developed in Phase~2 of the project. The structured
+summary of the same analysis is in \Cref{sec:analisis} of
+\Cref{ch:desarrollo}. The authoritative source lives at
+\texttt{docs/requirements.md} in the project repository; if the two
+diverge in the future, that document takes precedence.
 
-To be transcribed. Until then, the authoritative source lives in
-\texttt{docs/requirements.md} in the project repository.
+\section{Purpose and scope}
+
+The analysis covers the generic orchestrator core and the teaching
+application built on top. It records use cases, functional
+requirements, non-functional requirements, constraints and
+explicitly out-of-scope items. Architecture and technology choices
+do not appear here; they are deferred to \Cref{ch:desarrollo} and
+\Cref{ch:estado-arte} respectively.
+
+\section{Actors}
+
+\Cref{tab:actors-detail} lists the actors of the system. A single
+person can hold different roles in different branches of the tree;
+the role lives on the folder, not on the user record (DEC-021).
+
+\begin{table}[ht]
+  \centering
+  \small
+  \begin{tabular}{p{0.22\linewidth} p{0.70\linewidth}}
+    \toprule
+    \textbf{Actor} & \textbf{Description} \\
+    \midrule
+    Administrator (\emph{superuser}) &
+    Manages hypervisors, base templates, users, the full tree and
+    global configuration. \\
+    Manager &
+    A professor or equivalent. Manages assigned branches of the
+    tree; uses both the core and the teaching application. \\
+    End user (\emph{student}) &
+    Operates only the VMs assigned to them through the desk
+    metaphor (DEC-009). \\
+    Hypervisor &
+    External system. UnivOrch talks to it through a connector;
+    the hypervisor does not initiate actions. \\
+    System &
+    UnivOrch itself, running the operation engine and the
+    automatic tasks (backup rotation, retention cleanup, failure
+    detection). \\
+    \bottomrule
+  \end{tabular}
+  \caption{Actors of UnivOrch (detailed).}
+  \label{tab:actors-detail}
+\end{table}
+
+\section{Use cases}
+
+Use cases are grouped into three families: \emph{core} use cases
+(generic orchestrator operations), \emph{teaching} use cases (the
+layer-2 application) and \emph{system} use cases (automatic
+behaviour). The catalogue contains 32~entries; the summary below
+lists every entry with its actor and one-sentence goal.
+
+\subsection{Common}
+
+\begin{description}
+  \item[UC-AUTH-1] (Any user.) Authenticate against the system and
+        obtain a session token.
+\end{description}
+
+\subsection{Core --- Administrator}
+
+\begin{description}
+  \item[UC-ADM-1] Manage users (create, edit, delete) through the
+        web interface.
+  \item[UC-ADM-2] Define hypervisors and their datastores with
+        alias-based references.
+  \item[UC-ADM-3] Define base templates (hardware parameters, base
+        VM, datastore, source hypervisor).
+  \item[UC-ADM-4] Create and organise folders, including optional
+        IP pools that descendants inherit.
+  \item[UC-ADM-5] Assign users to roles in any folder.
+  \item[UC-ADM-6] Control what managers can access by deciding what
+        is imported into each folder.
+  \item[UC-ADM-7] Configure global properties such as Job retention.
+  \item[UC-ADM-8] Force-undeploy a descriptor stuck in
+        \texttt{broken} state.
+  \item[UC-ADM-9] View the Job history of any branch.
+  \item[UC-ADM-10] Restore the database from a backup (manual in
+        v1).
+  \item[UC-ADM-11] View operational reports (state of all VMs
+        grouped by folder).
+\end{description}
+
+\subsection{Core --- Manager}
+
+\begin{description}
+  \item[UC-MGR-1] Create and organise folders inside the branches
+        assigned to the manager, importing definitions from the
+        parent.
+  \item[UC-MGR-2] Create descriptors based on the templates
+        allowed to the manager.
+  \item[UC-MGR-3] Derive new templates from base templates; the
+        manager sees the template definition but not the
+        hypervisor's address or credentials (DEC-011).
+  \item[UC-MGR-4] Assign students (and other managers) to roles in
+        the manager's own folders.
+  \item[UC-MGR-5] Trigger batch operations on a set of descriptors
+        (deploy, undeploy, start, stop, pause, resume) and follow
+        progress through a parent Job with child Jobs per VM.
+  \item[UC-MGR-6] View the Job history restricted to the manager's
+        scope.
+  \item[UC-MGR-7] View a subject status report.
+\end{description}
+
+\subsection{Teaching --- Manager (layer 2)}
+
+\begin{description}
+  \item[UC-TEACH-1] Deploy a subject from a model desk and a
+        student list: one desk per student, descriptors in
+        \texttt{provisioned}, IPs assigned, notification emails
+        sent, deployment report produced.
+  \item[UC-TEACH-2] Update the student list of an existing subject;
+        new students get desks, removed students are flagged
+        according to policy.
+  \item[UC-TEACH-3] Change a model VM; descriptors are updated and
+        changes take effect on the next recreation
+        (DEC-022).
+\end{description}
+
+\subsection{Core --- End user (student)}
+
+The student sees the desk metaphor (DEC-009) and never sees the
+tree.
+
+\begin{description}
+  \item[UC-USR-1] View their own desks and the state of each VM.
+  \item[UC-USR-2] Deploy a VM from \texttt{provisioned}.
+  \item[UC-USR-3] Undeploy a VM with a double confirmation warning,
+        because the action is irreversible.
+  \item[UC-USR-4] Start, stop, pause or resume a deployed VM.
+  \item[UC-USR-5] Recreate a VM (undeploy followed by deploy) as
+        a way to recover from a corrupted system without
+        administrator help.
+  \item[UC-USR-6] View the status and connection information
+        (typically the IP) of a VM, read from the hypervisor on
+        demand.
+\end{description}
+
+\subsection{System --- automatic behaviour}
+
+\begin{description}
+  \item[UC-SYS-1] Run the operation engine: take operations from
+        the queue, execute, record the result. Synchronous in v1;
+        the Job model is designed for a future asynchronous queue
+        (DEC-014, DEC-015).
+  \item[UC-SYS-2] Periodically back up the database following a GFS
+        retention policy (DEC-024).
+  \item[UC-SYS-3] Remove Jobs older than the configured retention
+        period (DEC-023).
+  \item[UC-SYS-4] Detect an unreachable hypervisor reactively:
+        when an operation fails by communication error, the Job is
+        recorded as failed and the descriptor is marked
+        \texttt{unreachable}.
+\end{description}
+
+\section{Functional requirements}
+
+The functional requirements below are grouped by area. They restate
+the obligations that the use cases imply, in the form an engineer
+can check off during implementation.
+
+\subsection*{B.4.1 Tree and folders}
+The system stores descriptors and folders in a hierarchical tree.
+A folder has a common definition that its children import.
+A parent folder \emph{publishes} definitions; the child folder
+\emph{imports} what it wants to be visible below.
+Folder creation is restricted by role (DEC-012).
+
+\subsection*{B.4.2 Cascade inheritance}
+The effective definition of a descriptor combines all definitions
+from root to that node (DEC-010); each level may override the level
+above. Hypervisors, templates, datastores and role assignments are
+all inherited this way. The child folder chooses what to import
+from the parent, including the wildcard~\texttt{*} (DEC-012). A
+user can read the full resolved definition of every imported item,
+but can only modify what is written at their own level.
+Hypervisor credentials and address are never visible to anyone
+below the administrator. There is no explicit \emph{ownership}
+concept: it emerges from the role assignment (DEC-021).
+
+\subsection*{B.4.3 Descriptors and states}
+A descriptor holds the VM definition and the reference to the real
+VM (the id used by the hypervisor) and tracks its own state. The
+four descriptor states are \texttt{provisioned}, \texttt{deployed}
+(with an optional \texttt{drifted} flag), \texttt{broken} and
+\texttt{unreachable} (DEC-022). Runtime states are queried on
+demand. Drift is detected reactively in v1.
+
+\subsection*{B.4.4 Deployment and hypervisor connectors}
+\texttt{deploy} and \texttt{undeploy} are orchestrator-level
+operations; the connector exposes primitives only (DEC-016). Every
+connector implements \texttt{clone}, \texttt{delete}, \texttt{start},
+\texttt{stop}, \texttt{force\_stop}, \texttt{pause}, \texttt{resume},
+\texttt{get\_status} and \texttt{get\_info}. \texttt{clone} takes a
+mode parameter; v1 only supports \texttt{linked}. v1 ships
+connectors for the mock hypervisor, VMware ESXi (designed) and
+Proxmox (designed). The orchestrator is non-invasive: the
+hypervisor keeps working if UnivOrch is stopped.
+
+\subsection*{B.4.5 Jobs and the operation engine}
+Every operation creates a Job with a unique identifier and the
+lifecycle \texttt{pending} $\to$ \texttt{running} $\to$
+\texttt{completed} or \texttt{failed} (DEC-014). Jobs cover VM
+operations, tree operations and permission changes. Batch
+operations spawn a parent Job and one child Job per item. Jobs are
+persisted in the database (DEC-015) and provide the user-facing
+history.
+
+\subsection*{B.4.6 Users and access control}
+Users are stored in a YAML file managed by the administrator from
+the web interface (DEC-021). The three fixed roles are
+\texttt{superuser}, \texttt{manager} and \texttt{end\_user}
+(DEC-011). Role assignment lives on the folder and inherits in
+cascade; it may be overridden in subfolders. The user store is
+behind an abstraction so it can later be replaced (LDAP, Active
+Directory).
+
+\subsection*{B.4.7 IP address management}
+Each folder may define an IP pool: a contiguous range, mask and
+gateway (DEC-025). Pools cascade like every other property. At
+deploy time the system picks the next free address from the
+applicable pool; at undeploy time the address is released. How the
+VM ultimately receives the address (DHCP, cloud-init, etc.) is
+outside the scope of UnivOrch. External IPAM integration is not
+included in v1 (DEC-013).
+
+\subsection*{B.4.8 Teaching application}
+The teaching application sits on top of the core and translates a
+teaching workflow into core operations (DEC-004). It deploys a
+subject from a model desk and a student list, applies the IP
+policy, sends notification emails and produces a deployment
+report. It supports updating the student list and changing the
+model VM.
+
+\subsection*{B.4.9 Reports}
+v1 ships at least one operational report (VM state grouped by
+folder) and one teaching report (subject status for a manager).
+The full catalogue of possible reports is recorded for the future.
+
+\subsection*{B.4.10 Interfaces}
+The system exposes a REST API used by external clients (DEC-018).
+A CLI works as both single commands and an interactive shell. A
+web interface covers all roles and is designed especially for the
+student. The CLI is a pure REST client of the daemon. The web
+interface is mounted on the daemon's HTTP server.
+
+\subsection*{B.4.11 Persistence, logging and backup}
+Tree, descriptors, Jobs and users are persisted and survive
+restarts. Persistence goes through the Repository pattern (DEC-007).
+System logs use Python's standard \texttt{logging} (DEC-023).
+Operation logs are the Job history with configurable retention
+(default 90~days). The database is backed up periodically under a
+GFS retention policy (DEC-024); v1 restores are manual.
+
+\section{Non-functional requirements}
+
+\Cref{tab:nfr-detail} restates the non-functional requirements as
+soft targets that keep the implementation honest, not as
+contractual service levels.
+
+\begin{table}[ht]
+  \centering
+  \small
+  \begin{tabular}{p{0.22\linewidth} p{0.70\linewidth}}
+    \toprule
+    \textbf{Quality} & \textbf{Target} \\
+    \midrule
+    Usability     & A non-technical user operates their VMs without
+                    any knowledge of hypervisors. \\
+    Security      & Every operation requires authentication. Users
+                    only see and act on resources allowed by their
+                    role and folder assignments. Plain-text password
+                    storage is a known PoC limitation. \\
+    Performance   & A realistic teaching load: hundreds of VMs
+                    across several subjects. Cascade inheritance
+                    keeps the configuration manageable at that
+                    scale. \\
+    Reliability   & The system stays consistent across restarts. A
+                    failed operation always leaves a record in the
+                    Job history. An inconsistent descriptor goes to
+                    \texttt{broken}. The database can be restored
+                    from a backup. \\
+    Maintainability & New hypervisors are added by implementing
+                    the common connector interface, without touching
+                    the core. New applications are built on the
+                    core without modifying it (DEC-004). \\
+    Portability   & The system runs as a Linux service. It does
+                    not require the hypervisors on the same host
+                    and does not interfere with their normal
+                    operation. \\
+    \bottomrule
+  \end{tabular}
+  \caption{Non-functional requirements of UnivOrch v1.}
+  \label{tab:nfr-detail}
+\end{table}
+
+\section{Constraints and assumptions}
+
+\begin{itemize}
+  \item The implementation language is Python; the version is
+        chosen in Phase~4 (DEC-033).
+  \item The system runs as a service on Linux.
+  \item Hypervisors exist and are not part of UnivOrch; base VMs
+        are created directly on the hypervisor by the
+        administrator.
+  \item Operations are synchronous in v1.
+  \item Passwords are stored in plain text in v1 (PoC only).
+  \item IP assignment uses simple per-folder pools in v1; external
+        IPAM integration is out of scope (DEC-013, DEC-025).
+\end{itemize}
+
+\section{Out of scope for v1}
+
+\begin{itemize}
+  \item Automatic reconciliation loop (changes are applied on
+        demand) -- DEC-006.
+  \item High availability and clustering.
+  \item External IPAM integration -- DEC-013.
+  \item Snapshot management through the orchestrator.
+  \item Reference-only descriptors and discovery of pre-existing
+        VMs -- DEC-005b, DEC-020.
+  \item LDAP / Active Directory integration -- DEC-021.
+  \item Text-mode user interface (TUI) -- DEC-018.
+  \item Web interface for backup restore -- DEC-024.
+  \item Per-folder fine-grained permission customisation --
+        DEC-011.
+\end{itemize}
