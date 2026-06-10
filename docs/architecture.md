@@ -128,6 +128,10 @@ The `Resolver` supports two output modes:
 - **Normal mode:** returns effective values only. Used by the job engine and all internal logic.
 - **Annotated mode:** returns each value paired with the path of the node that provided it. Used by the web editor to display inherited properties in a distinct colour with their origin.
 
+### 4.5 Opaque metadata for layer-2 applications (DEC-038)
+
+A folder carries an optional free-form `metadata` dictionary. The core stores it and **never interprets it** — it is to a folder what a comment is to code. Layer-2 applications use it to tag the tree with their own concepts without the core having to learn them. The teaching application, for instance, marks a subject folder with `metadata: {kind: subject, desktop: [...]}`; the core persists the dictionary unchanged and ignores its contents. A CTF or workshop application would use the same field for its own markers. This is the mechanism that lets the engine stay domain-agnostic (DEC-004) while domain layers add meaning on top of the same tree.
+
 ---
 
 ## 5. The Declarative Model
@@ -410,13 +414,24 @@ A continuous-delivery workflow (`.github/workflows/publish.yml`) builds and publ
 
 **CLI (`univorch`, cmd2):** dual mode — individual shell commands for scripting (`univorch deploy /path`) and an interactive REPL with history and tab completion. Pure HTTP client since Sprint 3.
 
-**Web GUI (NiceGUI):** mounted on the same uvicorn process as the REST app via `ui.run_with(fastapi_app, ...)`, so a single port serves both `/api/v1/*` and the web pages. The web is part of the daemon, not an external HTTP client of it — a deliberate departure from the Sprint 3.2 "every client is HTTP" rule (DEC-031). External clients (CLI, future teaching app, third-party integrations) keep going through the REST API. The read-only v1 (Sprint 4) renders the descriptor tree with state glyphs and a per-descriptor detail card; the richer features (YAML editor, annotated definition view, workstation/desk view for students described in section 5.3, write operations, RBAC) remain on the roadmap.
+**Web GUI (NiceGUI):** mounted on the same uvicorn process as the REST app via `ui.run_with(fastapi_app, ...)`, so a single port serves both `/api/v1/*` and the web pages. The web is part of the daemon, not an external HTTP client of it — a deliberate departure from the Sprint 3.2 "every client is HTTP" rule (DEC-031). External clients (CLI, the teaching subcommands, third-party integrations) keep going through the REST API. The read-only v1 (Sprint 4) renders the descriptor tree with state glyphs and a per-descriptor detail card; the richer features (YAML editor, annotated definition view, workstation/desk view for students described in section 5.3, write operations, RBAC) remain on the roadmap.
 
 **TUI (Textual):** future; read-only monitoring view.
 
-### 9.6 The teaching application as a facade client
+### 9.6 The teaching application as a facade client (DEC-037, DEC-038, DEC-039)
 
-The teaching application (layer 2) is a client of `OrchestratorService`, not part of the core. It translates domain-specific operations ("deploy the OS lab for all students in this group") into sequences of generic core operations (create folders, create descriptors, assign IPs, deploy). The core has no knowledge of subjects, students, or workstations.
+The teaching application (layer 2) is a client of the core, not part of it. It lives in `src/univorch/teaching/` and is exposed as a `teach` subcommand group of the `univorch` CLI. It speaks to the daemon through the same `OrchestratorAPI` (REST) as every other client; it never touches the repositories, the resolver or the job engine directly. The core has no knowledge of subjects, students or desktops.
+
+**Vocabulary, as tree metadata (DEC-038).** A *subject* is a folder marked, in its opaque `metadata` field, with `kind: subject` and a `desktop` (the list of templates that make up one student's set of machines). The core stores `metadata` verbatim and never interprets it (see section 4.5); only the teaching layer reads it. This keeps the core domain-agnostic: a different layer-2 application (a CTF organizer, a workshop deployer) would put its own markers in the same `metadata` field without any core change.
+
+**Operations.** Four subcommands, all building core definition documents and submitting them through the facade:
+
+- `teach load-subject <file> [destination]` — validates that the document is a well-formed subject (marked `kind: subject`, non-empty desktop, every desktop template resolvable, no child folders) and then loads it with the core `load`. A wrong file or a malformed subject is rejected with a single actionable message, before any change.
+- `teach load-students <file> [subject]` — reads the subject's desktop from its metadata, then generates one folder per student (named after the username) and, inside each, one descriptor per desktop template carrying `use template: <name>` plus `import: *` so the descriptors resolve the subject's templates by cascade. Add-only: existing students are no-ops; none are removed (DEC-039).
+- `teach save-subject <path>` *(designed; not in the PoC)* — exports a portable subject definition without students or runtime state, the inverse of `load-subject`.
+- `teach save-students <path>` — exports the current student list.
+
+**Why this matters architecturally.** The teaching layer is the proof that the two-layer split (DEC-004) works in practice: a whole domain workflow — describe a subject once, deploy a folder of machines per student — is built entirely on top of the generic engine, in the engine's own vocabulary, without the engine knowing anything about teaching. The same seam (the REST API) lets this layer move to a web page or a separate service later without changing how it talks to the core.
 
 ---
 
@@ -519,3 +534,6 @@ The architectural groundwork for HA is already in place: Jobs, locks, and sessio
 | DEC-034 | Pydantic v2 adoption scope | 8 |
 | DEC-035 | Operation idempotency (in the orchestrator, not in the connector) | 6 |
 | DEC-036 | Connector type registry + live-session pool | 7.2 |
+| DEC-037 | Teaching application as a CLI subcommand client | 9.6 |
+| DEC-038 | Subject/desktop as opaque tree metadata | 4.5, 9.6 |
+| DEC-039 | Student folder generation, add-only semantics | 9.6 |

@@ -162,7 +162,7 @@ flowchart TD
     subgraph Clients["Client binaries"]
         CLI["univorch CLI — cmd2 + argparse"]:::done
         Web["Web GUI — NiceGUI (read-only v1)"]:::done
-        TA["Teaching app — layer 2 (Sprint 5+)"]:::pending
+        TA["Teaching app — layer 2<br/>(teach subcommands in the CLI)"]:::done
     end
 
     subgraph RESTLayer["REST boundary (inside univorchd)"]
@@ -198,7 +198,7 @@ flowchart TD
     CLI --> Http
     Http -->|HTTP /api/v1/*| App
     Web --> Service
-    TA -.HTTP.-> App
+    TA -->|HTTP /api/v1/*| App
     App --> Service
     Main --> App
     Service --> Resolver
