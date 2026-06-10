@@ -25,10 +25,10 @@ def build_student_document(
     """
     items: dict[str, Any] = {}
     for student in students:
-        # import: ALL so the student's descriptors resolve the subject's
+        # import: * so the student's descriptors resolve the subject's
         # templates by cascade (a student folder imports everything the
         # subject offers — the design's "cada carpeta de alumno hace import *").
-        student_folder: dict[str, Any] = {"import": "ALL"}
+        student_folder: dict[str, Any] = {"import": "*"}
         for template in desktop:
             student_folder[template] = {"use template": template}
         items[f"{student}/"] = student_folder

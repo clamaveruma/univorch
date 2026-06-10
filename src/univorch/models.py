@@ -288,9 +288,14 @@ class FolderDef(BaseModel):
     @field_validator("imports", mode="before")
     @classmethod
     def _normalize_imports(cls, value: Any) -> Any:
-        """Accept ``import: ALL`` and single strings; normalize to a list."""
+        """Accept the wildcard (``ALL`` or ``*``) and single strings.
+
+        Both ``import: ALL`` and ``import: *`` mean "everything"; either
+        normalizes to ``["*"]``. A plain ``import: name`` normalizes to a
+        one-element list.
+        """
         if isinstance(value, str):
-            return ["*"] if value == "ALL" else [value]
+            return ["*"] if value in ("ALL", "*") else [value]
         return value
 
     @field_validator("folders", "descriptors", "hypervisors", "vm_templates")

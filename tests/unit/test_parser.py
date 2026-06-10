@@ -72,6 +72,13 @@ def test_import_ALL_normalizes_to_wildcard() -> None:
     assert doc.folders["lab"].imports == ["*"]
 
 
+def test_import_star_normalizes_to_wildcard() -> None:
+    # '*' is the readable form of the wildcard; ALL and * are equivalent
+    yaml = "kind: definition\nlab/:\n  import: '*'\n"
+    doc = parse_definition(yaml)
+    assert doc.folders["lab"].imports == ["*"]
+
+
 def test_import_list_kept_as_is() -> None:
     yaml = "kind: definition\nlab/:\n  import: [a, b, hyperv-*]\n"
     doc = parse_definition(yaml)
