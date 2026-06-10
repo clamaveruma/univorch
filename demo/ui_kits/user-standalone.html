@@ -462,6 +462,11 @@ body {
   .uo-toast-enter-active, .uo-toast-leave-active { transition: opacity .2s, transform .2s; }
   .uo-toast-enter-from, .uo-toast-leave-to { opacity: 0; transform: translateX(-50%) translateY(8px); }
 
+  /* Warning banner */
+  .uo-banner { flex: none; background: #fff8e1; color: #7B5800; border-bottom: 2px solid #f5d672;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 7px 16px; font: 500 13px/1 var(--font-sans, Roboto, sans-serif); }
+
 </style>
 </head>
 <body>
@@ -546,6 +551,9 @@ body {
     power_settings_new: 'M13 3h-2v10h2V3zm4.83 2.17l-1.42 1.42C17.99 7.86 19 9.81 19 12c0 3.87-3.13 7-7 7s-7-3.13-7-7c0-2.19 1.01-4.14 2.58-5.42L6.17 5.17C4.23 6.82 3 9.26 3 12c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.74-1.23-5.18-3.17-6.83z',
     account_circle: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z',
     info: 'M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z',
+    warning: 'M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z',
+    school: 'M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82zM12 3L1 9l11 6 9-4.91V17h2V9L12 3z',
+    people: 'M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z',
   };
 })(window);
 
@@ -662,6 +670,10 @@ body {
             <m-icon name="account_circle" :size="26" /><span>Ana López</span>
           </div>
         </header>
+        <div class="uo-banner">
+          <m-icon name="warning" :size="17" />
+          NOTICE: GUI NOT FUNCTIONAL — First approximation only, does not connect to the real server
+        </div>
 
         <div class="uo-deskpage">
           <div class="uo-titleblock">

@@ -533,6 +533,15 @@ body {
     background: var(--color-surface-container-low); }
   .uo-body { font-size: 14px; }
 
+  /* Warning banner */
+  .uo-banner { flex: none; background: #fff8e1; color: #7B5800; border-bottom: 2px solid #f5d672;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 7px 16px; font: 500 13px/1 var(--font-sans, Roboto, sans-serif); }
+
+  /* Teaching modal wider */
+  .uo-modal--teach { width: min(640px, 96vw); }
+  .uo-teach-tabs { border-bottom: 1px solid var(--color-outline-variant); flex: none; }
+
 </style>
 </head>
 <body>
@@ -801,6 +810,9 @@ body {
     power_settings_new: 'M13 3h-2v10h2V3zm4.83 2.17l-1.42 1.42C17.99 7.86 19 9.81 19 12c0 3.87-3.13 7-7 7s-7-3.13-7-7c0-2.19 1.01-4.14 2.58-5.42L6.17 5.17C4.23 6.82 3 9.26 3 12c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.74-1.23-5.18-3.17-6.83z',
     account_circle: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z',
     info: 'M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z',
+    warning: 'M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z',
+    school: 'M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82zM12 3L1 9l11 6 9-4.91V17h2V9L12 3z',
+    people: 'M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z',
   };
 })(window);
 
@@ -888,6 +900,10 @@ body {
             </q-btn>
           </div>
         </header>
+        <div class="uo-banner">
+          <m-icon name="warning" :size="17" />
+          NOTICE: GUI NOT FUNCTIONAL — First approximation only, does not connect to the real server
+        </div>
 
         <div class="uo-page">
           <div ref="rowRef" class="uo-row">
@@ -1274,7 +1290,49 @@ body {
         a.click();
         modal.value = null;
       }
-      return { name, hyps, tmpls, imports, modal, loadText, fileName, fileRef, saveText, pickFile, onFile, download };
+
+      // ---- teaching app ----------------------------------------------------
+      const SAMPLE_SUBJECT = 'kind: definition\nversion: "1"\n\nredes-2026/:\n  description: "Computer Networks \u2014 Fall 2026"\n  metadata:\n    kind: subject\n    desktop: [workstation, server, router, firewall, switch, client]\n\n  define hypervisors:\n    mock01:\n      type: mock\n\n  define templates:\n    workstation: { use hypervisor: mock01, base_vm: linux-base, cpu: 2, memory_mb: 2048 }\n    server:      { use hypervisor: mock01, base_vm: linux-base, cpu: 4, memory_mb: 4096 }\n    router:      { use hypervisor: mock01, base_vm: linux-base, cpu: 1, memory_mb: 1024 }\n    firewall:    { use hypervisor: mock01, base_vm: linux-base, cpu: 1, memory_mb: 1024 }\n    switch:      { use hypervisor: mock01, base_vm: linux-base, cpu: 1, memory_mb:  512  }\n    client:      { use hypervisor: mock01, base_vm: linux-base, cpu: 2, memory_mb: 2048 }\n';
+      const SAMPLE_STUDENTS = 'kind: student-list\nversion: "1"\nstudents:\n  - alumno01\n  - alumno02\n  - alumno03\n  - alumno04\n  - alumno05\n  - juan.perez@uma.es\n';
+      const teachTab = ref('subject');
+      const subjectText = ref(SAMPLE_SUBJECT);
+      const subjectFileName = ref(null);
+      const subjectFileRef = ref(null);
+      const studentsText = ref(SAMPLE_STUDENTS);
+      const studentsFileName = ref(null);
+      const studentsFileRef = ref(null);
+      const saveStudentsText = computed(() => {
+        const fp = props.folder.path;
+        const names = Object.keys(props.descriptors)
+          .filter((p) => p.startsWith(fp + '/') && !p.slice(fp.length + 1).includes('/'))
+          .map((p) => p.split('/').pop());
+        if (!names.length) return 'kind: student-list\nversion: "1"\nstudents: []\n';
+        return 'kind: student-list\nversion: "1"\nstudents:\n' + names.map((n) => '  - ' + n).join('\n') + '\n';
+      });
+      function pickSubjectFile() { subjectFileRef.value.click(); }
+      function onSubjectFile(e) {
+        const f = e.target.files[0]; if (!f) return;
+        subjectFileName.value = f.name;
+        const r = new FileReader(); r.onload = () => { subjectText.value = String(r.result); }; r.readAsText(f);
+      }
+      function pickStudentsFile() { studentsFileRef.value.click(); }
+      function onStudentsFile(e) {
+        const f = e.target.files[0]; if (!f) return;
+        studentsFileName.value = f.name;
+        const r = new FileReader(); r.onload = () => { studentsText.value = String(r.result); }; r.readAsText(f);
+      }
+      function downloadStudents() {
+        const blob = new Blob([saveStudentsText.value], { type: 'text/yaml' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = name.value + '-students.yml';
+        a.click();
+        modal.value = null;
+      }
+
+      return { name, hyps, tmpls, imports, modal, loadText, fileName, fileRef, saveText, pickFile, onFile, download,
+        teachTab, subjectText, subjectFileName, subjectFileRef, studentsText, studentsFileName, studentsFileRef,
+        saveStudentsText, pickSubjectFile, onSubjectFile, pickStudentsFile, onStudentsFile, downloadStudents };
     },
     template: `
       <q-card flat bordered class="uo-detail-card">
@@ -1286,6 +1344,7 @@ body {
           <div class="row items-center" style="gap:2px;flex:none">
             <q-btn flat round dense @click="modal = 'load'"><m-icon name="upload" /><q-tooltip>Load definition…</q-tooltip></q-btn>
             <q-btn flat round dense @click="modal = 'save'"><m-icon name="download" /><q-tooltip>Save as YAML…</q-tooltip></q-btn>
+            <q-btn flat round dense color="primary" @click="modal = 'teach'"><m-icon name="school" /><q-tooltip>App docente…</q-tooltip></q-btn>
             <span class="uo-folder-big"><m-icon name="folder" :size="32" /></span>
           </div>
         </div>
@@ -1339,6 +1398,75 @@ body {
             <div class="uo-modal-foot">
               <q-btn flat no-caps color="primary" @click="modal = null">Close</q-btn>
               <q-btn unelevated color="primary" no-caps @click="download"><m-icon name="download" :size="18" class="q-mr-xs" />Download .yml</q-btn>
+            </div>
+          </q-card>
+        </q-dialog>
+        <!-- Teaching dialog -->
+        <q-dialog :model-value="modal === 'teach'" @update:model-value="v => { if (!v) modal = null }">
+          <q-card class="uo-modal uo-modal--teach" style="display:flex;flex-direction:column;max-height:80vh">
+            <div class="uo-modal-head">
+              <div class="row items-center" style="gap:10px">
+                <m-icon name="school" :size="22" style="color:var(--color-primary)" />
+                <div class="uo-title-lg">Teaching app — {{ folder.path }}</div>
+              </div>
+              <m-icon name="close" clickable @click="modal = null" />
+            </div>
+            <q-tabs v-model="teachTab" dense align="left" active-color="primary" indicator-color="primary"
+              class="uo-teach-tabs q-px-md">
+              <q-tab name="subject" label="Load subject" />
+              <q-tab name="students" label="Load students" />
+              <q-tab name="save" label="Save students" />
+            </q-tabs>
+            <div class="uo-modal-body" style="flex:1;min-height:0;overflow:auto">
+              <div v-if="teachTab === 'subject'">
+                <div class="uo-body uo-muted" style="margin-bottom:10px">
+                  Load a subject definition into this folder.
+                  CLI: <code class="uo-mono" style="font-size:12px">teach load-subject &lt;file&gt; {{ folder.path }}</code>
+                </div>
+                <div class="row items-center" style="gap:10px;margin-bottom:10px;flex-wrap:wrap">
+                  <q-btn unelevated no-caps class="uo-btn-tonal" @click="pickSubjectFile">
+                    <m-icon name="attach_file" :size="18" class="q-mr-xs" />Choose file…
+                  </q-btn>
+                  <span class="uo-mono uo-faint">{{ subjectFileName || 'or paste / edit below' }}</span>
+                  <input ref="subjectFileRef" type="file" accept=".yml,.yaml" @change="onSubjectFile" style="display:none" />
+                </div>
+                <div class="uo-body uo-muted" style="margin-bottom:6px">Preview</div>
+                <textarea v-model="subjectText" spellcheck="false" class="uo-textarea" style="height:190px"></textarea>
+              </div>
+              <div v-if="teachTab === 'students'">
+                <div class="uo-body uo-muted" style="margin-bottom:10px">
+                  Load a student list under this subject folder.
+                  CLI: <code class="uo-mono" style="font-size:12px">teach load-students {{ folder.path }} &lt;file&gt;</code>
+                </div>
+                <div class="row items-center" style="gap:10px;margin-bottom:10px;flex-wrap:wrap">
+                  <q-btn unelevated no-caps class="uo-btn-tonal" @click="pickStudentsFile">
+                    <m-icon name="attach_file" :size="18" class="q-mr-xs" />Choose file…
+                  </q-btn>
+                  <span class="uo-mono uo-faint">{{ studentsFileName || 'or paste / edit below' }}</span>
+                  <input ref="studentsFileRef" type="file" accept=".yml,.yaml" @change="onStudentsFile" style="display:none" />
+                </div>
+                <div class="uo-body uo-muted" style="margin-bottom:6px">Preview</div>
+                <textarea v-model="studentsText" spellcheck="false" class="uo-textarea" style="height:190px"></textarea>
+              </div>
+              <div v-if="teachTab === 'save'">
+                <div class="uo-body uo-muted" style="margin-bottom:10px">
+                  Current students under this folder.
+                  CLI: <code class="uo-mono" style="font-size:12px">teach save-students {{ folder.path }}</code>
+                </div>
+                <textarea :value="saveStudentsText" readonly spellcheck="false" class="uo-textarea" style="height:210px"></textarea>
+              </div>
+            </div>
+            <div class="uo-modal-foot">
+              <q-btn flat no-caps color="primary" @click="modal = null">Close</q-btn>
+              <q-btn v-if="teachTab === 'subject'" unelevated color="primary" no-caps @click="modal = null">
+                <m-icon name="upload" :size="18" class="q-mr-xs" />Load subject
+              </q-btn>
+              <q-btn v-if="teachTab === 'students'" unelevated color="primary" no-caps @click="modal = null">
+                <m-icon name="people" :size="18" class="q-mr-xs" />Load students
+              </q-btn>
+              <q-btn v-if="teachTab === 'save'" unelevated color="primary" no-caps @click="downloadStudents">
+                <m-icon name="download" :size="18" class="q-mr-xs" />Download .yml
+              </q-btn>
             </div>
           </q-card>
         </q-dialog>
