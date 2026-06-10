@@ -5,10 +5,11 @@
 > El objetivo es que veas el modelo conceptual del orquestador
 > funcionando con un conector simulado (mock), no presentar el producto
 > terminado. Faltan piezas importantes que sí estarán en el TFG (en
-> particular: conectores reales, autenticación, interfaz web, y la
-> aplicación específica para despliegue de asignaturas).
+> particular: conectores reales contra hipervisores VMware/Proxmox,
+> autenticación y permisos efectivos, y una interfaz web completa con
+> operaciones de escritura).
 
-Tiempo estimado: 10 minutos.
+Tiempo estimado: 15 minutos.
 
 ---
 
@@ -21,11 +22,17 @@ El sistema sin GUI, en modo cliente/servidor:
   en un volumen.
 - Un **cliente CLI** que habla con ese demonio por HTTP. Acepta dos
   modos: una orden suelta desde tu shell, o un REPL interactivo.
-- Un **ejemplo precargado en la imagen** con un laboratorio docente:
-  una asignatura con tres alumnos y una plantilla compartida.
+- **Ejemplos precargados en la imagen**: un laboratorio sencillo
+  (`setup.yml`) y, para la aplicación de docencia, una asignatura con
+  su escritorio de máquinas y una lista de alumnos
+  (`teaching/`).
 
 El conector hipervisor es un mock: no se crea nada real en disco, solo
 se observa el modelo (herencia, ciclo de vida, dos ejes de estado).
+
+Verás también la **aplicación de docencia** (la "capa 2") en acción:
+cómo un profesor despliega una asignatura entera —una carpeta de
+máquinas por alumno— con un par de comandos (sección 7).
 
 ---
 
@@ -211,7 +218,182 @@ runtime de la VM. Por contra, `deploy`/`undeploy` sí cambian el `state`
 
 ---
 
-## 7. Apagar
+## 7. La aplicación de docencia
+
+Hasta aquí has manejado el **motor genérico**: carpetas y descriptores
+de VM, sin saber nada de asignaturas ni alumnos. Encima de ese motor
+hay una **aplicación de docencia** (la "capa 2"): un grupo de
+subcomandos `teach` que hablan el vocabulario del profesor —
+asignatura, escritorio (*desktop*), alumno— y traducen ese vocabulario
+a operaciones del motor. El motor no sabe nada de docencia; la
+aplicación es un cliente más que construye y carga definiciones.
+
+La idea es esta: el profesor describe **una** vez cómo es el conjunto
+de máquinas de un alumno (el *desktop* de la asignatura), da una lista
+de alumnos, y la aplicación genera toda la infraestructura: una carpeta
+por alumno con sus máquinas dentro.
+
+El contenedor trae dos ficheros de ejemplo en
+`/opt/univorch/examples/teaching/`:
+
+- `subject-redes.yml` — una asignatura "Redes" cuyo desktop son **seis**
+  máquinas: workstation, server, router, firewall, switch y client.
+- `students-redes.yml` — una lista de **diez** alumnos (el último es un
+  email, para mostrar que un nombre de usuario puede ser un email).
+
+### 7.1 Cargar la asignatura
+
+```
+univorch /> teach load-subject /opt/univorch/examples/teaching/subject-redes.yml /
+/redes-2026  folder /redes-2026 created
+```
+
+`teach load-subject` primero **valida** que el fichero sea una
+asignatura bien formada (que esté marcada como tal, que tenga un desktop
+no vacío, que cada máquina del desktop sea una plantilla resoluble, que
+no traiga carpetas sueltas). Si algo falla, no carga nada y te dice por
+qué. Si pasa, la carga como una rama normal del árbol.
+
+Mira la asignatura cargada:
+
+```
+univorch /> inspect /redes-2026
+/redes-2026/   (folder)
+  description:               Computer Networks — Fall 2026
+  metadata:
+    kind:                    subject
+    desktop:                 ['workstation', 'server', 'router', 'firewall', 'switch', 'client']
+  define templates:
+    workstation: ...
+    server:      ...
+    ... (las seis plantillas)
+```
+
+El bloque `metadata` (`kind: subject` y el `desktop`) es lo que el motor
+guarda pero **no interpreta** — solo lo lee la aplicación docente. Las
+seis plantillas del desktop están definidas abajo, cada una con sus
+recursos (CPU, memoria...).
+
+### 7.2 Cargar la lista de alumnos
+
+Un solo comando genera toda la infraestructura. Con 10 alumnos y un
+desktop de 6 máquinas, son 10 carpetas + 60 descriptores:
+
+```
+univorch /> teach load-students /opt/univorch/examples/teaching/students-redes.yml /redes-2026
+/redes-2026/alumno01  folder /redes-2026/alumno01 created
+/redes-2026/alumno01/workstation  descriptor ... created
+/redes-2026/alumno01/server  descriptor ... created
+... (seis por alumno)
+/redes-2026/alumno02  ...
+...
+/redes-2026/juan.perez@uma.es/...  ...
+```
+
+> El orden de los argumentos es como en `load`: primero el fichero,
+> después la carpeta destino (la asignatura). Si entras en la asignatura
+> con `cd /redes-2026`, puedes omitir el destino y escribir solo
+> `teach load-students <fichero>`.
+
+Recorre el resultado:
+
+```
+univorch /> tree /redes-2026
+  alumno01/
+    □ client
+    □ firewall
+    □ router
+    □ server
+    □ switch
+    □ workstation
+  alumno02/
+    □ client
+    ...
+  juan.perez@uma.es/
+    □ client
+    ...
+```
+
+Diez alumnos, seis máquinas cada uno, todas en estado `provisioned`
+(□): definidas pero todavía sin VM creada en el hipervisor. Fíjate en
+el último alumno, `juan.perez@uma.es`: un email como nombre de usuario
+se trata igual que cualquier otro.
+
+### 7.3 La herencia en acción
+
+Cada máquina de cada alumno es **minúscula** en el árbol: la aplicación
+solo le puso una referencia a su plantilla. Compruébalo con el modo
+`--local` (lo que está escrito en el nodo):
+
+```
+univorch /> inspect --local /redes-2026/alumno01/router
+/redes-2026/alumno01/router   (descriptor)
+  use template:      router
+  state:             provisioned
+```
+
+Solo una línea de definición. Ahora sin `--local` (la definición
+**efectiva**, resuelta por herencia):
+
+```
+univorch /> inspect /redes-2026/alumno01/router
+/redes-2026/alumno01/router   (descriptor)
+  use hypervisor:    mock01
+  base_vm:           linux-base
+  cpu:               1
+  memory_mb:         1024
+  state:             provisioned
+  (resolved from template: router)
+```
+
+Todos los campos (hipervisor, base_vm, CPU, memoria) los ha **heredado**
+de la plantilla `router`, que está definida una sola vez en la
+asignatura. La nota `(resolved from template: router)` indica de dónde
+vienen. El profesor define las máquinas una vez; los 60 descriptores las
+heredan sin repetir nada.
+
+### 7.4 Desplegar una máquina del alumno
+
+El despliegue es una operación del motor, igual que antes. Despliega,
+por ejemplo, el router del alumno con email:
+
+```
+univorch /> deploy /redes-2026/juan.perez@uma.es/router
+deployed as mock-vm-1
+```
+
+El motor resuelve la plantilla `router` por herencia, encuentra el
+hipervisor `mock01` (también heredado de la asignatura) y crea la VM.
+
+### 7.5 Exportar la lista de alumnos
+
+`teach save-students` hace lo inverso de `load-students` a nivel de
+lista: lee las carpetas de alumno y devuelve el fichero de lista,
+reutilizable el curso siguiente:
+
+```
+univorch /> teach save-students /redes-2026
+kind: student-list
+version: "1"
+students:
+  - alumno01
+  - alumno02
+  ...
+  - juan.perez@uma.es
+```
+
+### Qué falta en la aplicación docente
+
+Esta es una primera versión. Quedan, documentados como trabajo futuro:
+despliegue de la asignatura entera en un comando (hoy se despliega
+máquina a máquina o rama a rama); baja de alumnos (quitar a quien ya no
+está en la lista, con aviso); envío de correos a los alumnos; interfaz
+web docente; y el control de permisos efectivo (que el profesor solo vea
+sus asignaturas).
+
+---
+
+## 8. Apagar
 
 ```
 univorch /> quit
@@ -244,7 +426,7 @@ curl -sSL https://raw.githubusercontent.com/clamaveruma/univorch/main/uninstall.
 
 ---
 
-## 8. Si algo falla
+## 9. Si algo falla
 
 | Síntoma | Causa habitual y arreglo |
 |---|---|
@@ -255,7 +437,7 @@ curl -sSL https://raw.githubusercontent.com/clamaveruma/univorch/main/uninstall.
 
 ---
 
-## 9. Referencia rápida
+## 10. Referencia rápida
 
 **Desde el host:**
 
@@ -293,25 +475,26 @@ navegador.
 
 ---
 
-## 10. Alcance del TFG
+## 11. Alcance del TFG
 
-Lo que has probado hoy es el PoC del motor de orquestación, sin GUI
-y con un conector simulado. El TFG, que sigue siendo una prueba de
-concepto, añade encima tres piezas:
+Lo que has probado hoy es el PoC con un conector simulado. Ya incluye
+el motor de orquestación (secciones 5-6), una interfaz web de lectura
+(sección 3) y una primera versión de la aplicación de docencia
+(sección 7). El TFG, que sigue siendo una prueba de concepto, lo
+completa con:
 
 1. **Conectores reales** — VMware (vSphere) y Proxmox sobre el mismo
-   contrato abstracto que ya cumple el mock. He empezado pruebas
-   contra los hipervisores VMware del aulario por VPN.
+   contrato abstracto que ya cumple el mock. Pendiente de acceso a los
+   hipervisores del aulario.
 
-2. **Interfaz web básica** — basada en NiceGUI sobre la misma API REST
-   que ya tienes en `/docs`. Navegador del árbol, edición de nodos por
-   diálogo, vista alternativa "desde el hipervisor".
+2. **Interfaz web con operaciones de escritura** — sobre la base de
+   lectura que ya tienes. Crear y editar nodos por diálogo, desplegar
+   desde la web, y la vista de "mesa" para el alumno.
 
-3. **Aplicación docente** — capa sobre el motor genérico con
-   vocabulario propio (asignatura, mesa, alumno) que despliega una
-   asignatura entera a partir de una lista de alumnos y una plantilla
-   común. **Esta es la pieza que cierra el TFG**: el motor existe para
-   esto.
+3. **Más de la aplicación docente** — la base ya está (cargar
+   asignatura y alumnos, sección 7). Faltan el despliegue de la
+   asignatura entera en un comando, la baja de alumnos y los avisos por
+   correo.
 
 ### Después del TFG
 
@@ -331,7 +514,7 @@ del trabajo:
 
 ---
 
-## 11. Vista previa del rediseño de la interfaz web (bocetos)
+## 12. Vista previa del rediseño de la interfaz web (bocetos)
 
 Para que veas a dónde queremos llegar con la web, hay dos **bocetos
 visuales** del rediseño completo. Son páginas HTML autocontenidas
