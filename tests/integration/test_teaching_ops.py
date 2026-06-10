@@ -117,6 +117,16 @@ def test_load_students_on_non_subject_rejected(
         ops.load_students(service, "/plain", _write(tmp_path, "st.yml", _STUDENTS_YAML))
 
 
+def test_load_subject_with_student_list_gives_clear_message(
+    service: OrchestratorService, tmp_path: Path
+) -> None:
+    # the symmetric mistake: passing a student list where a subject is expected
+    wrong = _write(tmp_path, "wrong.yml", _STUDENTS_YAML)  # a list, not a subject
+    with pytest.raises(ops.TeachingError) as exc:
+        ops.load_subject(service, wrong, "/")
+    assert "not a subject definition" in "; ".join(exc.value.errors)
+
+
 def test_load_students_on_root_gives_clear_message(
     service: OrchestratorService, tmp_path: Path
 ) -> None:

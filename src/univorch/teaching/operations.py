@@ -37,7 +37,14 @@ class TeachingError(Exception):
 
 def load_subject(api: OrchestratorAPI, file: str, destination: str) -> list[str]:
     """Validate a subject document and load it at ``destination``."""
-    document = parse_definition_file(file)
+    # a wrong file (e.g. a student list) fails the DefinitionDocument schema
+    # with cryptic Pydantic errors; give a single actionable message instead.
+    try:
+        document = parse_definition_file(file)
+    except ValidationError as exc:
+        raise TeachingError(
+            [f"{file} is not a subject definition. Did you mean 'teach load-students'?"]
+        ) from exc
     errors = validate_subject(document)
     if errors:
         raise TeachingError(errors)
