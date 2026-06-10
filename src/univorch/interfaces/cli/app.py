@@ -134,14 +134,26 @@ def _teach_arg_parser() -> cmd2.Cmd2ArgumentParser:
     p_ls.add_argument("file", help="subject YAML", completer=cmd2.Cmd.path_complete)
     p_ls.add_argument("destination", nargs="?", default="", help="destination folder")
 
+    # Same shape as 'load': file first, target (the subject) optional and
+    # defaulting to the current folder.
     p_lst = sub.add_parser("load-students", help="create student folders + VMs")
-    p_lst.add_argument("subject", help="path of the subject folder")
     p_lst.add_argument(
         "file", help="student-list YAML", completer=cmd2.Cmd.path_complete
     )
+    p_lst.add_argument(
+        "subject",
+        nargs="?",
+        default="",
+        help="subject folder (default: current folder)",
+    )
 
     p_sst = sub.add_parser("save-students", help="export the student list")
-    p_sst.add_argument("subject", help="path of the subject folder")
+    p_sst.add_argument(
+        "subject",
+        nargs="?",
+        default="",
+        help="subject folder (default: current folder)",
+    )
 
     return parser
 
@@ -464,6 +476,11 @@ class UnivOrchShell(cmd2.Cmd):
         self.poutput(f"{_folder_label(f.path)}   (folder)")
         if f.description is not None:
             self.poutput(f"  {'description:':26} {f.description}")
+        if f.metadata:
+            # layer-2 opaque metadata (e.g. the teaching app's kind/desktop)
+            self.poutput("  metadata:")
+            for key, value in f.metadata.items():
+                self.poutput(f"    {key + ':':24} {value}")
         if f.imports:
             self.poutput(f"  {'import:':26} {', '.join(f.imports)}")
         if f.hypervisors:
