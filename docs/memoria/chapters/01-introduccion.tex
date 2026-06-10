@@ -28,22 +28,40 @@ problem, \texttt{esxobjects} and \texttt{yamlinfr}, and generalizes
 them into an orchestrator that is no longer bound to VMware and that
 exposes a clean public interface for other tools to build upon.
 
-The contribution of this proof of concept is not the sum of any
-individual feature. Hierarchical organizations of users and resources
-already exist in OpenNebula, CloudStack and vCloud Director;
-declarative provisioning is the standard model behind Terraform and
-Ansible; abstraction layers over multiple hypervisors have been
-provided by libvirt for more than a decade. The original contribution
-of UnivOrch is the specific combination of three ideas in a single
-lightweight package: (1)~a tree of descriptors with cascade
-inheritance of properties by data type and a lexical-closure
-behaviour borrowed from programming-language scoping, applied to
-infrastructure definitions; (2)~a strict separation between a generic
-orchestration engine and a domain-specific application layer, so the
-same core can serve teaching, CTF competitions or research labs
-without changes; and (3)~a simplified mental model for the end user,
-where students see only ``their machines'' and never the underlying
-tree or the hypervisor itself.
+What UnivOrch contributes is best described by what it lets people do,
+not by any single internal feature. Two outcomes stand out.
+
+First, the institution stops depending on a single hypervisor. The
+existing solution at the school is tied to VMware; UnivOrch puts every
+hypervisor behind a common connector contract, so VMware, Proxmox and,
+in the future, Hyper-V, KVM or a cloud provider can coexist and new
+ones can be added without touching the core. An institution is no
+longer captive to one vendor: it can run VMware in the teaching lab
+and Proxmox in the research lab under the same tool, and migrate
+without rewriting anything.
+
+Second, people without technical knowledge operate virtual machines on
+their own. A professor sets up a whole subject --- a folder of machines
+for every enrolled student --- with a couple of commands, and the
+students start, stop and reset their machines without going through the
+administrator. One person manages hundreds of VMs without effort that
+grows in proportion.
+
+These outcomes rest on an architecture designed to scale and to grow.
+A tree of descriptors with cascade inheritance lets the administrator
+define the catalogue once and have every node below reuse it, which is
+what makes hundreds of near-identical machines manageable; the same
+mechanism is the natural place for a future permission model, and the
+strict separation between a generic engine and a domain-specific layer
+means the teaching application could be replaced by a CTF organizer or
+a research-lab deployer over the same core. None of these ingredients
+is individually novel --- hierarchical organizations exist in
+OpenNebula and CloudStack, multi-hypervisor abstraction has been
+provided by libvirt for over a decade, declarative provisioning is the
+model behind Terraform. The contribution is their combination in a
+lightweight, single-container tool aimed squarely at delegating VM
+operation to non-technical users while staying independent of the
+hypervisor.
 
 This chapter sets the stage. \Cref{sec:motivacion} describes the
 operational problem the system addresses and the context in which the

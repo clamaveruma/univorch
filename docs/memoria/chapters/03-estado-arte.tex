@@ -183,30 +183,24 @@ reference for the inheritance semantics chosen in UnivOrch.
 \section{Lexical scoping applied to infrastructure}
 \label{sec:lexical}
 
-One specific aspect of UnivOrch deserves separate discussion because
-it is, to our knowledge, less common in the orchestration literature
-and more familiar to programming-language theory. When a template
-is imported from a parent folder into a child folder, references
-inside the template (\textit{e.g.}\ the hypervisor it targets) are
-resolved \emph{against the folder where the template was originally
-defined}, not against the folder where it is used. This is exactly
-the behaviour of a \emph{lexical closure} in a programming language:
-the environment in which a function was defined accompanies the
-function wherever it travels.
+A small detail of UnivOrch's inheritance model connects to
+programming-language theory and is worth a brief note. When a template
+is imported from a parent folder into a child folder, references inside
+the template (\textit{e.g.}\ the hypervisor it targets) are resolved
+\emph{against the folder where the template was defined}, not against
+the folder where it is used --- the behaviour of a \emph{lexical
+closure}, where the environment in which a function was defined
+accompanies the function wherever it travels.
 
 The notion of lexical scoping was introduced by Sussman and Steele in
-the seminal Scheme paper~\cite{sussman1975scheme} and is the subject
-of a clear pedagogical treatment in Chapter~3 of
-SICP~\cite{abelson1996sicp}. In the configuration-language space, the
-idea is alive in Jsonnet~\cite{jsonnet-lang}, which supports lexical
-scoping and object inheritance with \texttt{self} and \texttt{super}
-keywords, and in similar languages such as CUE and Dhall.
-
-The novelty of UnivOrch in this respect is modest but real: this
-work applies the lexical-closure pattern to a concrete model of
-infrastructure resources, integrated with a hierarchical organization
-of users and a multi-hypervisor adapter layer. We have not found
-this combination in any production orchestrator surveyed.
+the seminal Scheme paper~\cite{sussman1975scheme} and is treated
+pedagogically in SICP~\cite{abelson1996sicp}; in the
+configuration-language space it is alive in
+Jsonnet~\cite{jsonnet-lang} and similar languages such as CUE and
+Dhall. Applying it to a concrete model of infrastructure resources is
+a minor but, as far as we found, uncommon touch; it is a detail of the
+inheritance machinery (\Cref{sec:positioning}), not a headline
+contribution.
 
 %==================================================================
 \section{Containers and virtual machines in educational labs}
@@ -292,28 +286,48 @@ and Dhall; tenant delegation with simplified user views is offered
 by every major commercial cloud platform.
 
 What UnivOrch contributes is the synthesis of these ingredients in a
-lightweight, single-container service explicitly aimed at the
-teaching and small-research case. Concretely, three points are
-defensible as original:
+lightweight, single-container tool explicitly aimed at delegating VM
+operation to non-technical users while staying independent of the
+hypervisor. Concretely, the defensible points, in order of value:
 
 \begin{enumerate}
-  \item The application of a lexical-closure pattern to
-        infrastructure templates inside a hierarchical tree with
-        cascade inheritance by data type. We have not found this
-        combination in the surveyed production systems.
-  \item A strict separation between a domain-agnostic engine and a
-        domain-specific layer (teaching, CTF, research), implemented
-        as a thin client of a public REST API rather than as a
-        controller on top of Kubernetes. The pattern itself is
-        familiar from Crossplane; the contribution is to show that
-        an equivalent decoupling is achievable in a much lighter
-        deployment.
-  \item A user-experience model in which non-technical users
-        (students) operate VMs through a domain-specific metaphor
-        (\emph{desks} and \emph{computers}) that hides not only the
-        hypervisor but the orchestrator's own concepts. This is a
-        design contribution rather than an engineering one and we
-        acknowledge it as such.
+  \item \textbf{Hypervisor independence with a low barrier to
+        extension.} Multi-hypervisor support is not novel in itself
+        (libvirt, OpenNebula, CloudStack all provide it), but UnivOrch
+        delivers it in a tool light enough to be installed and operated
+        by one person, and its connector contract makes adding a new
+        hypervisor type a matter of writing one class. For an
+        institution this is the difference between being locked to one
+        vendor and being able to mix and migrate freely. It is also the
+        concrete generalization of the supervisor's VMware-only
+        starting point (\Cref{sec:punto-partida}).
+  \item \textbf{Delegation to non-technical users.} Simplified tenant
+        views exist in every major cloud platform, but UnivOrch is
+        built around this from the ground up and pushes it further: the
+        end user (a student) operates VMs through a domain-specific
+        metaphor (\emph{desks} and \emph{computers}) that hides not
+        only the hypervisor but the orchestrator's own concepts, and a
+        manager (a professor) runs a whole subject without touching the
+        administrator. This is as much a user-experience contribution
+        as an engineering one, and we present it as such.
+  \item \textbf{A domain-agnostic engine with a thin domain layer.}
+        The strict separation between a generic core and a
+        domain-specific application (teaching, and tomorrow CTF or
+        research labs) is implemented as a thin client of a public REST
+        API rather than as a controller on top of Kubernetes. The
+        pattern is familiar from Crossplane; the contribution is to
+        show that an equivalent decoupling is achievable in a much
+        lighter deployment.
+  \item \textbf{An inheritance model that scales the configuration.}
+        A tree with cascade inheritance by data type lets the
+        catalogue be defined once and reused across hundreds of nodes,
+        and is the natural seat of a future permission model. One
+        detail of this model is less common in the surveyed systems:
+        templates resolve their internal references from where they
+        are defined, not from where they are used --- a lexical-closure
+        behaviour borrowed from programming languages
+        (\Cref{sec:lexical}). It is an elegant piece of the machinery
+        rather than the headline.
 \end{enumerate}
 
 The closest single point of reference among all the systems
