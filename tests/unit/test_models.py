@@ -18,6 +18,16 @@ class TestFolder:
         folder = Folder(path="/lab")
         assert folder.path == "/lab"
         assert folder.description is None
+        assert folder.metadata == {}
+
+    def test_metadata_is_stored_opaque(self) -> None:
+        # DEC-038: the core keeps layer-2 metadata and never interprets it.
+        folder = Folder(
+            path="/lab/redes", metadata={"kind": "subject", "desktop": ["a"]}
+        )
+        assert folder.metadata["kind"] == "subject"
+        assert folder.metadata["desktop"] == ["a"]
+        assert Folder.model_validate(folder.model_dump()) == folder
 
 
 class TestDescriptor:

@@ -147,6 +147,9 @@ class Folder(BaseModel):
     imports: list[str] = Field(default_factory=list)
     hypervisors: dict[str, HypervisorDef] = Field(default_factory=dict)
     vm_templates: dict[str, VMTemplateDef] = Field(default_factory=dict)
+    # Opaque metadata for layer-2 applications (DEC-038). The core stores it
+    # and never interprets it; the teaching layer keeps {kind, desktop} here.
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class Descriptor(BaseModel):
@@ -249,6 +252,9 @@ class FolderDef(BaseModel):
     vm_templates: dict[str, VMTemplateDef] = Field(
         default_factory=dict, alias="define templates"
     )
+    # Opaque metadata for layer-2 applications (DEC-038); passed through to the
+    # persisted Folder unchanged. The teaching layer puts {kind, desktop} here.
+    metadata: dict[str, Any] = Field(default_factory=dict)
     folders: dict[str, "FolderDef"] = Field(default_factory=dict)
     descriptors: dict[str, DescriptorDef] = Field(default_factory=dict)
 
@@ -262,6 +268,7 @@ class FolderDef(BaseModel):
                 "import",
                 "define hypervisors",
                 "define templates",
+                "metadata",
             },
         )
 

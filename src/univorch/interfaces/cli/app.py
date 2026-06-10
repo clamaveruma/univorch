@@ -31,6 +31,7 @@ from univorch.interfaces.rest.client import HttpServiceClient
 from univorch.models import Descriptor, DescriptorState, Folder, Job, JobStatus
 from univorch.parser import parse_definition_file
 from univorch.service import OperationError, OrchestratorAPI, TreeEntry
+from univorch.teaching import operations as teaching_ops
 
 # The orchestrator daemon the CLI talks to by default. When the CLI runs
 # inside the production container (Sprint 3.1), the daemon is at this
@@ -119,6 +120,29 @@ def _load_arg_parser() -> cmd2.Cmd2ArgumentParser:
         default="",
         help="tree folder to load into (default: current folder)",
     )
+    return parser
+
+
+def _teach_arg_parser() -> cmd2.Cmd2ArgumentParser:
+    """Build the parser for the 'teach' subcommand group (layer-2 app)."""
+    parser = cmd2.Cmd2ArgumentParser(
+        description="Teaching application: subjects and student lists."
+    )
+    sub = parser.add_subparsers(dest="teach_cmd", required=True)
+
+    p_ls = sub.add_parser("load-subject", help="validate and load a subject")
+    p_ls.add_argument("file", help="subject YAML", completer=cmd2.Cmd.path_complete)
+    p_ls.add_argument("destination", nargs="?", default="", help="destination folder")
+
+    p_lst = sub.add_parser("load-students", help="create student folders + VMs")
+    p_lst.add_argument("subject", help="path of the subject folder")
+    p_lst.add_argument(
+        "file", help="student-list YAML", completer=cmd2.Cmd.path_complete
+    )
+
+    p_sst = sub.add_parser("save-students", help="export the student list")
+    p_sst.add_argument("subject", help="path of the subject folder")
+
     return parser
 
 
@@ -374,6 +398,30 @@ class UnivOrchShell(cmd2.Cmd):
         for result in results:
             style = "green" if result.ok else "red"
             self.poutput(f"{result.path}  {result.message}", style=style)
+
+    @cmd2.with_argparser(_teach_arg_parser())
+    def do_teach(self, args: argparse.Namespace) -> None:
+        """Teaching application (layer 2): subjects and student lists."""
+        try:
+            if args.teach_cmd == "load-subject":
+                destination = self._resolve(args.destination)
+                lines = teaching_ops.load_subject(self._service, args.file, destination)
+                for line in lines:
+                    self.poutput(line, style="green")
+            elif args.teach_cmd == "load-students":
+                subject = self._resolve(args.subject)
+                lines = teaching_ops.load_students(self._service, subject, args.file)
+                for line in lines:
+                    self.poutput(line, style="green")
+            elif args.teach_cmd == "save-students":
+                subject = self._resolve(args.subject)
+                self.poutput(teaching_ops.save_students(self._service, subject), end="")
+        except teaching_ops.TeachingError as error:
+            self.perror("; ".join(error.errors))
+        except (OSError, YAMLError, ValidationError) as error:
+            self.perror(str(error))
+        except OperationError as error:
+            self.perror("; ".join(error.errors))
 
     @cmd2.with_argparser(_inspect_arg_parser())
     def do_inspect(self, args: argparse.Namespace) -> None:

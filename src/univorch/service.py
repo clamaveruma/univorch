@@ -291,6 +291,7 @@ class OrchestratorService:
             imports=folder_def.imports,
             hypervisors=folder_def.hypervisors,
             vm_templates=folder_def.vm_templates,
+            metadata=folder_def.metadata,
         )
         results = [self._load_one(CreateFolderCommand(folder, self._folders))]
         # recurse: subfolders first (so they exist when their items try to attach),
