@@ -2164,3 +2164,74 @@ implementación. Entregables en `docs/teaching/`.
   (`docs/teaching/requirements.md`), Fase 3
   (`docs/teaching/architecture.md` + DEC-037+).
 - Implementar `teach load-subject` + `load-students` (Fase 6).
+
+---
+
+## 2026-06-10 (sesión tarde)
+
+### Capa 2 docente — implementación (Fase 6) con TDD
+
+Tras cerrar el diseño (Fases 1-3, DEC-037..039), se implementa la
+aplicación docente completa en una sola sesión, con prisa por el plazo
+del TFG pero manteniendo TDD y la puerta de calidad. Commit `737e48d`.
+
+**Cambio mínimo al core (DEC-038):** campo `metadata: dict` opaco en
+`Folder` y `FolderDef`. El core lo guarda y nunca lo interpreta; la
+capa 2 mete ahí `{kind, desktop}`. Decidido en el momento por coherencia
+con "core agnóstico": en vez de meter `kind`/`desktop` sueltos en el
+folder (vocabulario docente en el core), van bajo `metadata:`, un dict
+genérico que cualquier capa 2 futura (CTF, talleres) reutiliza. El YAML
+de asignatura usa `metadata: { kind: subject, desktop: [...] }`.
+`_load_folder` del service propaga el metadata al Folder persistido.
+
+**Módulo `src/univorch/teaching/`:**
+- `models.py`: `StudentList` (kind student-list, lista de usernames;
+  valida duplicados y que sean segmentos de path válidos).
+- `subject.py`: `validate_subject` con las 5 reglas (un solo folder
+  top-level, kind=subject, desktop no vacío, cada template del desktop
+  definido o importado, sin carpetas hijas). `find_subject`,
+  `subject_desktop`.
+- `students.py`: `build_student_document` genera un `DefinitionDocument`
+  con una carpeta por alumno (clave: cada carpeta lleva `import: ALL`
+  para que los descriptores hereden las plantillas de la asignatura por
+  cascada) y un descriptor por template del desktop, con
+  `use template: <name>` — sintaxis que el core ya resuelve, sin
+  necesidad de un `use desktop:` nuevo.
+- `operations.py`: `load_subject` / `load_students` / `save_students`,
+  desacopladas de la CLI para testeo directo. `TeachingError` lleva la
+  lista de motivos de rechazo.
+
+**CLI:** `do_teach` con subparsers argparse (load-subject, load-students,
+save-students); solo despacha a `teaching.operations`.
+
+**Tests (21 nuevos, 274 total):** unit (StudentList, 8 casos de
+validación de subject, generación de documento) + integración contra
+service real con TinyDB memoria + mock (load-subject marca el folder;
+rechazo de no-subject sin crear nada; generación de estructura;
+end-to-end load-students → deploy con la plantilla resuelta por
+herencia; rechazo sobre folder no-subject; save-students round-trip).
+
+**Smoke test end-to-end con daemon real vía HTTP** verde:
+`teach load-subject` → `teach load-students` (genera 2 carpetas de
+alumno × 2 descriptores) → `tree` → `deploy` (resuelve la plantilla por
+herencia) → `teach save-students` (round-trip). ruff + mypy strict +
+274 tests en verde.
+
+**Decisión de sintaxis del momento:** los descriptores de alumno NO
+usan un `use desktop:` especial. Como la app crea los descriptores, les
+pone directamente `use template: <name>` (el core ya lo entiende) y
+cada carpeta de alumno hace `import: ALL`. Esto elimina un concepto
+nuevo del core y mantiene la capa 2 como cliente puro.
+
+**Pendiente de la capa 2 (fuera de esta tanda):** `save-subject`
+(exportar definición portable de asignatura) — la única de los 4
+comandos del diseño que falta; es rápida. Baja de alumnos,
+`deploy-subject` batch, web docente, emails, RBAC efectivo: trabajo
+futuro ya documentado.
+
+### Próximo
+
+- (Opcional) `teach save-subject`.
+- Memoria del TFG: añadir la capa 2 cuando se redacte el cierre.
+- Pendientes en pausa: respuesta del tutor, conector VMware real,
+  merge de `feature/webgui_draft`, capturas para §4.5 de la memoria.
