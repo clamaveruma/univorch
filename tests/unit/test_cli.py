@@ -300,8 +300,10 @@ class TestInspectCommand:
         # resolved: YAML-style labels; values come from template (cpu is override)
         assert "use hypervisor:    mock" in out
         assert "base_vm:           linux-base" in out
-        assert "use template:      linux-vm" in out
         assert "cpu:               4" in out
+        # the template is already applied: shown as a provenance note, not a field
+        assert "use template:" not in out
+        assert "(resolved from template: linux-vm)" in out
 
     def test_descriptor_local_does_not_resolve(
         self, shell: UnivOrchShell, tmp_path: Path

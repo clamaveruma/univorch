@@ -451,19 +451,29 @@ class UnivOrchShell(cmd2.Cmd):
         # the simplified Pieza 2 splits rendering by kind; the future annotated
         # mode will share the same dispatch and add colours + provenance
         if isinstance(entity, Descriptor):
-            self._render_descriptor(entity)
+            self._render_descriptor(entity, local=args.local)
         else:
             self._render_folder(entity)
 
-    def _render_descriptor(self, d: Descriptor) -> None:
-        """Pretty-print a Descriptor with YAML-like labels; skip unset fields."""
+    def _render_descriptor(self, d: Descriptor, *, local: bool) -> None:
+        """Pretty-print a Descriptor with YAML-like labels; skip unset fields.
+
+        In ``--local`` mode ``use template`` is a real field of the node. In
+        resolved mode the template is already applied (its fields are merged
+        in), so it is shown only as a provenance note at the end, not as a
+        definition field — otherwise it would mix the "what" with the "where
+        from".
+        """
         self.poutput(f"{d.path}   (descriptor)")
         # YAML aliases for the user-facing labels (definition fields)
         rows: list[tuple[str, object | None]] = [
             ("description", d.description),
             ("use hypervisor", d.hypervisor),
             ("base_vm", d.base_vm),
-            ("use template", d.template),
+        ]
+        if local:
+            rows.append(("use template", d.template))
+        rows += [
             ("cpu", d.cpu),
             ("memory_mb", d.memory_mb),
             ("disk_gb", d.disk_gb),
@@ -475,6 +485,9 @@ class UnivOrchShell(cmd2.Cmd):
         self.poutput(f"  {'state:':18} {d.state.value}")
         if d.vm_id is not None:
             self.poutput(f"  {'vm_id:':18} {d.vm_id}")
+        # provenance note in resolved mode: where the merged fields came from
+        if not local and d.template is not None:
+            self.poutput(f"  (resolved from template: {d.template})", style="dim")
 
     def _render_folder(self, f: Folder) -> None:
         """Pretty-print a Folder with YAML-like labels; skip unset fields."""
