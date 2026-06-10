@@ -2235,3 +2235,20 @@ futuro ya documentado.
 - Memoria del TFG: añadir la capa 2 cuando se redacte el cierre.
 - Pendientes en pausa: respuesta del tutor, conector VMware real,
   merge de `feature/webgui_draft`, capturas para §4.5 de la memoria.
+
+### Glosario de la memoria: siglas + arreglo del nomencl vacío
+
+- Se añade a `frontmatter/glosario.tex` un bloque de **siglas** (Acronyms:
+  ABC, API, RBAC, IPAM, REST, YAML…) además del glosario de términos que
+  ya existía. Agrupado en dos secciones (Acronyms / Terms) vía
+  `\nomgroup` definido en `main.tex`, con prefijos de orden `A-`/`T-`.
+- **Bug encontrado al verificar el PDF:** el glosario `nomencl` **nunca se
+  había renderizado en ninguna versión** de la memoria. Causa: latexmk no
+  ejecuta el paso `makeindex .nlo→.nls` por defecto, así que
+  `\printnomenclature` salía vacío y la página desaparecía en silencio (ni
+  cabecera ni entrada en el índice). Detectado extrayendo el texto del PDF
+  publicado con pymupdf (no hay LaTeX en el Codespace para compilar local).
+- **Arreglo:** nuevo `docs/memoria/.latexmkrc` con la dependencia custom
+  `add_cus_dep('nlo','nls',...)` que llama a `makeindex -s nomencl.ist`.
+  Tras el push, el PDF pasa de 124 a 128 páginas; el glosario aparece en
+  las páginas 20-22 (sección Nomenclature, Acronyms + Terms). Verificado.
