@@ -66,15 +66,28 @@ fija en `.env`.
 ```bash
 cd univorch
 sudo ./univorch.sh start
+```
+
+> **Importante: el puerto.** El instalador usa el **8080** por defecto,
+> pero si ese puerto estaba ocupado en tu máquina te habrá pedido otro
+> (típicamente **9090**). El mensaje de arranque te muestra las URLs
+> exactas con **tu** puerto — úsalas. En los ejemplos de abajo aparece
+> `8080`; si tú usas otro, sustitúyelo. (Si pruebas el `8080` y ves una
+> respuesta HTML rara de "Temporary Redirect", es otro servicio tuyo
+> ocupando ese puerto, no UnivOrch.)
+
+Comprueba que responde (ajusta el puerto al tuyo):
+
+```bash
 curl http://localhost:8080/api/v1/health
 ```
 
 Debe devolver `{"status":"ok"}`.
 
 Para verlo de forma más visual, abre el navegador en cualquiera de
-estas páginas:
+estas páginas (de nuevo, con tu puerto):
 
-- `http://localhost:8080/` — **Web GUI** (Sprint 4, lectura): cabecera con
+- `http://localhost:8080/` — **Web GUI** (lectura): cabecera con
   contadores y árbol de descriptores navegable. Click en un descriptor
   abre el detalle con su definición efectiva.
 - `http://localhost:8080/docs` — **Swagger UI** (autogenerada por
