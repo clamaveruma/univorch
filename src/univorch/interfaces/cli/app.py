@@ -317,18 +317,23 @@ class UnivOrchShell(cmd2.Cmd):
             entries = [e for e in entries if e.kind == "folder"]
         for entry in entries:
             indent = "  " * (entry.path.count("/") - root_depth - 1)
-            text, style = self._render_entry(entry)
+            text, style = self._render_entry(entry, pad_folder=False)
             self.poutput(indent + text, style=style)
 
-    def _render_entry(self, entry: TreeEntry) -> tuple[str, str]:
+    def _render_entry(
+        self, entry: TreeEntry, *, pad_folder: bool = True
+    ) -> tuple[str, str]:
         """Return the (text, Rich style) for one listing row.
 
         Folders get a trailing '/' and no glyph (ls -F style); descriptors get a
-        state glyph. Both indent the name to the same column so listings align.
+        state glyph. ``pad_folder`` aligns the folder name to the same column as
+        the descriptor glyphs (good for the flat ``ls``); ``tree`` turns it off
+        so the hierarchical indentation is not offset by the alignment padding.
         """
         name = posixpath.basename(entry.path)
         if entry.kind == "folder" or entry.state is None:
-            return f"  {name}/", _FOLDER_STYLE
+            pad = "  " if pad_folder else ""
+            return f"{pad}{name}/", _FOLDER_STYLE
         return f"{_STATE_GLYPH[entry.state]} {name}", _STATE_STYLE[entry.state]
 
     @cmd2.with_argparser(
