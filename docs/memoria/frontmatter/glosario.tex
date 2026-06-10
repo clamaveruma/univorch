@@ -1,62 +1,106 @@
 % Glossary / nomenclature. The UMA template provides \nomenclature{}{}
-% and \printnomenclature. Single source of truth lives in
-% docs/glossary.md (English); this file transcribes it. When a term
-% changes in glossary.md, propagate it here.
+% and \printnomenclature. Two groups are printed: acronyms (sort prefix
+% "A") and domain terms (sort prefix "T"); see the \nomgroup definition
+% in main.tex. The domain terms are the single source of truth from
+% docs/glossary.md (English); when a term changes there, propagate it
+% here.
 
+% ===================== Acronyms =====================
+\nomenclature[A-ABC]{\textbf{ABC}}{Abstract Base Class (Python).}
+\nomenclature[A-API]{\textbf{API}}{Application Programming Interface.}
+\nomenclature[A-ASGI]{\textbf{ASGI}}{Asynchronous Server Gateway
+  Interface.}
+\nomenclature[A-CICD]{\textbf{CI/CD}}{Continuous Integration /
+  Continuous Delivery.}
+\nomenclature[A-CLI]{\textbf{CLI}}{Command-Line Interface.}
+\nomenclature[A-CPU]{\textbf{CPU}}{Central Processing Unit.}
+\nomenclature[A-CTF]{\textbf{CTF}}{Capture The Flag (cybersecurity
+  competition format).}
+\nomenclature[A-EI]{\textbf{EI}}{Escuela de Ingeniería Informática,
+  Universidad de Málaga.}
+\nomenclature[A-ESXi]{\textbf{ESXi}}{VMware's bare-metal hypervisor.}
+\nomenclature[A-GFS]{\textbf{GFS}}{Grandfather-Father-Son (backup
+  retention policy).}
+\nomenclature[A-GUI]{\textbf{GUI}}{Graphical User Interface.}
+\nomenclature[A-HTTP]{\textbf{HTTP}}{HyperText Transfer Protocol.}
+\nomenclature[A-IP]{\textbf{IP}}{Internet Protocol (address).}
+\nomenclature[A-IPAM]{\textbf{IPAM}}{IP Address Management.}
+\nomenclature[A-JSON]{\textbf{JSON}}{JavaScript Object Notation.}
+\nomenclature[A-KVM]{\textbf{KVM}}{Kernel-based Virtual Machine (Linux
+  hypervisor).}
+\nomenclature[A-LDAP]{\textbf{LDAP}}{Lightweight Directory Access
+  Protocol.}
+\nomenclature[A-RBAC]{\textbf{RBAC}}{Role-Based Access Control.}
+\nomenclature[A-REPL]{\textbf{REPL}}{Read-Eval-Print Loop (interactive
+  shell).}
+\nomenclature[A-REST]{\textbf{REST}}{Representational State Transfer.}
+\nomenclature[A-SOAP]{\textbf{SOAP}}{Simple Object Access Protocol.}
+\nomenclature[A-SSH]{\textbf{SSH}}{Secure Shell.}
+\nomenclature[A-TDD]{\textbf{TDD}}{Test-Driven Development.}
+\nomenclature[A-TFG]{\textbf{TFG}}{Trabajo Fin de Grado (final degree
+  project).}
+\nomenclature[A-UMA]{\textbf{UMA}}{Universidad de Málaga.}
+\nomenclature[A-VM]{\textbf{VM}}{Virtual Machine.}
+\nomenclature[A-VPN]{\textbf{VPN}}{Virtual Private Network.}
+\nomenclature[A-YAML]{\textbf{YAML}}{YAML Ain't Markup Language (data
+  serialization format).}
+
+% ===================== Terms =====================
 % --- Descriptor tree ---
-\nomenclature{\textbf{Descriptor}}{The orchestrator object representing
-  a VM (its definition plus its state). Analogous to a file descriptor
-  in an operating system.}
-\nomenclature{\textbf{Folder}}{Grouping node in the tree, container of
-  descriptors and other folders. Supports explicit import of inheritable
-  resources.}
-\nomenclature{\textbf{Materialized path}}{Unique identifier of a folder
-  or descriptor; the full path from the root (e.g.\
+\nomenclature[T-descriptor]{\textbf{Descriptor}}{The orchestrator object
+  representing a VM (its definition plus its state). Analogous to a file
+  descriptor in an operating system.}
+\nomenclature[T-folder]{\textbf{Folder}}{Grouping node in the tree,
+  container of descriptors and other folders. Supports explicit import of
+  inheritable resources.}
+\nomenclature[T-matpath]{\textbf{Materialized path}}{Unique identifier of
+  a folder or descriptor; the full path from the root (e.g.\
   \texttt{/lab/networks/student01}).}
 
 % --- Inheritable resources ---
-\nomenclature{\textbf{Template}}{Resource declarable with
+\nomenclature[T-template]{\textbf{Template}}{Resource declarable with
   \texttt{define templates:}; offers reusable default values that
   descriptors reference with \texttt{use template:}.}
-\nomenclature{\textbf{Hypervisor (resource)}}{Resource declarable with
-  \texttt{define hypervisors:}; names a specific hypervisor instance
-  (with its type and connection data) that descriptors and templates
-  reference with \texttt{use hypervisor:}.}
-\nomenclature{\textbf{Import}}{Mechanism by which a folder states which
-  resources from its parent become visible here; without import, the
-  resource is not accessible from this branch.}
-\nomenclature{\textbf{Lexical closure}}{Rule by which internal
+\nomenclature[T-hypervisor]{\textbf{Hypervisor (resource)}}{Resource
+  declarable with \texttt{define hypervisors:}; names a specific
+  hypervisor instance (with its type and connection data) that
+  descriptors and templates reference with \texttt{use hypervisor:}.}
+\nomenclature[T-import]{\textbf{Import}}{Mechanism by which a folder
+  states which resources from its parent become visible here; without
+  import, the resource is not accessible from this branch.}
+\nomenclature[T-closure]{\textbf{Lexical closure}}{Rule by which internal
   references inside a template are resolved from where the template is
   defined, not from where it is used.}
 
 % --- State ---
-\nomenclature{\textbf{State}}{Descriptor state axis from the
+\nomenclature[T-state]{\textbf{State}}{Descriptor state axis from the
   orchestrator's point of view: \texttt{provisioned}, \texttt{deployed}
   (with or without \texttt{drifted}), \texttt{broken},
   \texttt{unreachable}.}
-\nomenclature{\textbf{Runtime}}{VM state axis from the hypervisor's
-  point of view: \texttt{running}, \texttt{stopped}, \texttt{paused},
-  \texttt{unknown}.}
+\nomenclature[T-runtime]{\textbf{Runtime}}{VM state axis from the
+  hypervisor's point of view: \texttt{running}, \texttt{stopped},
+  \texttt{paused}, \texttt{unknown}.}
 
 % --- Operations ---
-\nomenclature{\textbf{Job}}{Persistent record of an operation, with its
-  unique identifier, type, target, status and result. Provides audit
-  and prepares for future asynchronous execution.}
-\nomenclature{\textbf{Command}}{Design pattern applied to operations:
-  each action encapsulates \texttt{validate()} and \texttt{execute()},
-  enabling dry-run (\texttt{plan}), deferred execution and retry.}
-\nomenclature{\textbf{Connector}}{Adapter between the orchestrator and
-  a concrete hypervisor. Implements the
+\nomenclature[T-job]{\textbf{Job}}{Persistent record of an operation,
+  with its unique identifier, type, target, status and result. Provides
+  audit and prepares for future asynchronous execution.}
+\nomenclature[T-command]{\textbf{Command}}{Design pattern applied to
+  operations: each action encapsulates \texttt{validate()} and
+  \texttt{execute()}, enabling dry-run (\texttt{plan}), deferred
+  execution and retry.}
+\nomenclature[T-connector]{\textbf{Connector}}{Adapter between the
+  orchestrator and a concrete hypervisor. Implements the
   \texttt{HypervisorConnector} ABC contract.}
 
 % --- User actions ---
-\nomenclature{\textbf{load}}{Action that loads a YAML definition
+\nomenclature[T-load]{\textbf{load}}{Action that loads a YAML definition
   document into a destination folder of the tree.}
-\nomenclature{\textbf{deploy / undeploy}}{Create or destroy the VM on
-  the hypervisor from a descriptor (transition between
+\nomenclature[T-deploy]{\textbf{deploy / undeploy}}{Create or destroy the
+  VM on the hypervisor from a descriptor (transition between
   \texttt{provisioned} and \texttt{deployed}).}
-\nomenclature{\textbf{start / stop}}{Power on or off the VM that is
-  already deployed (changes the runtime axis, not the state axis).}
+\nomenclature[T-start]{\textbf{start / stop}}{Power on or off the VM that
+  is already deployed (changes the runtime axis, not the state axis).}
 
 \printnomenclature
 \clearpage

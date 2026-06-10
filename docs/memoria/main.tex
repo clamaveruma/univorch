@@ -50,6 +50,13 @@
 \usepackage{listings}
 \usepackage{nomencl}
 \makenomenclature
+% Two groups in the glossary: acronyms (sort key prefix "A") and domain
+% terms (prefix "T"). etoolbox (\ifstrequal) is already loaded by the
+% UMA template.
+\renewcommand{\nomgroup}[1]{%
+  \ifstrequal{#1}{A}{\item[\textbf{\large Acronyms}]\vspace{2pt}}{%
+  \ifstrequal{#1}{T}{\bigskip\item[\textbf{\large Terms}]\vspace{2pt}}{}}%
+}
 \usepackage[
   backend=biber,
   style=numeric,
