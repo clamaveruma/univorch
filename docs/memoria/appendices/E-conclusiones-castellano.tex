@@ -81,36 +81,53 @@ conocidas en una combinación específica que, hasta donde sabemos,
 ningún otro sistema en producción ofrece:
 
 \begin{description}
-  \item[Árbol de descriptores con plantillas de cierre léxico.]
-        La combinación de herencia en cascada por tipo de dato y
-        resolución por cierre léxico de las plantillas importadas
-        es la aportación más distintiva. El patrón, familiar en
-        los lenguajes de programación, se aplica aquí a un modelo
-        concreto de infraestructura.
-  \item[Separación limpia entre motor y capa de dominio.]
-        La arquitectura en dos capas permite reutilizar el mismo
-        motor para docencia, competiciones CTF, laboratorios de
-        investigación o cualquier otro caso que pueda expresarse
-        como un árbol de descriptores de VM. El patrón se asemeja
-        al de Crossplane sobre Kubernetes; la aportación es
-        demostrar que un desacoplamiento equivalente es alcanzable
-        en un despliegue ligero de un solo contenedor.
-  \item[Modelo de usuario específico del dominio.]
-        El usuario final (el alumno) opera VMs a través de una
-        metáfora específica del dominio (\emph{mesas} y
-        \emph{ordenadores}) que oculta no solo el hipervisor, sino
-        también el propio concepto de árbol del orquestador. Es una
-        aportación de experiencia de usuario más que de
-        ingeniería, y así se reconoce en la memoria.
+  \item[Independencia de cualquier hipervisor concreto.]
+        Cada hipervisor queda tras un contrato de conector común, de
+        modo que VMware, Proxmox y tipos futuros (Hyper-V, KVM,
+        proveedores cloud) pueden coexistir y añadir uno nuevo es
+        escribir una sola clase, sin tocar el núcleo. Esto generaliza
+        el punto de partida (las librerías del tutor, solo VMware) y
+        libera a la institución de la dependencia de un proveedor:
+        puede mezclar hipervisores y migrar sin reescribir. El
+        conector de prueba (mock) demuestra el contrato de extremo a
+        extremo; los reales son el siguiente paso inmediato.
+  \item[Delegación de la operación de VMs a usuarios no técnicos.]
+        Un profesor monta una asignatura entera --- una carpeta de
+        máquinas por cada alumno matriculado --- con un par de
+        comandos, y los alumnos operan sus máquinas sin pasar por el
+        administrador. El usuario final ve una metáfora específica del
+        dominio (\emph{mesas} y \emph{ordenadores}) que oculta tanto el
+        hipervisor como los propios conceptos del orquestador. Una
+        persona gestiona cientos de VMs sin un esfuerzo que crezca en
+        proporción.
+  \item[Una aplicación docente funcional sobre un motor agnóstico.]
+        La capa docente (los subcomandos \texttt{teach}) es un cliente
+        fino del motor genérico que convierte la definición de una
+        asignatura y una lista de alumnos en toda la infraestructura
+        por alumno. Es la prueba práctica de que la separación en dos
+        capas funciona: un flujo de dominio completo construido sobre
+        el motor sin que el motor sepa nada de docencia. La misma
+        costura (la API REST) permitiría que un organizador de CTF o un
+        desplegador de laboratorios de investigación reutilizaran el
+        núcleo sin cambios.
+  \item[Un modelo de herencia que escala la configuración.]
+        Un árbol de descriptores con herencia en cascada por tipo de
+        dato permite definir el catálogo una vez y reutilizarlo en
+        cientos de nodos casi idénticos, y es el asiento natural de un
+        futuro modelo de permisos. Un detalle menor pero poco común de
+        este modelo es la resolución por cierre léxico de las
+        plantillas importadas, tomada de los lenguajes de programación
+        y aplicada a definiciones de infraestructura.
   \item[Prueba de concepto con disciplina completa de ingeniería.]
         El código entregado, a pesar de ser una PoC, se acompaña de
-        244 pruebas automáticas, cobertura de ramas superior al
+        286 pruebas automáticas, cobertura de ramas superior al
         95\% en la lógica de dominio, tipado estático estricto,
         controles de calidad en integración continua, una imagen
         publicada en el GitHub Container Registry y un tutorial
         para el operador. La disciplina es en sí misma un
-        entregable: las iteraciones futuras del proyecto heredarán
-        un código realmente mantenible.
+        entregable: las iteraciones futuras del proyecto --- y un
+        posible producto de código abierto más allá del TFG ---
+        heredan un código realmente mantenible.
 \end{description}
 
 \subsection{Limitaciones conocidas}
@@ -134,12 +151,13 @@ optimistas.
         stop, undeploy, load) y la vista de mesa/ordenador para los
         usuarios finales quedan pendientes para la siguiente
         iteración.
-  \item \textbf{Aplicación docente no implementada.} La aplicación
-        docente de capa 2 está completamente diseñada pero la
-        implementación queda para un sprint posterior. El flujo
-        operativo actual pasa por la CLI genérica; un despliegue
-        operativo de una asignatura real no es por tanto tan
-        directo como pretende el diseño.
+  \item \textbf{Aplicación docente en primera versión.} La aplicación
+        docente de capa 2 está implementada (cargar una asignatura,
+        generar las carpetas y máquinas por alumno, exportar la lista
+        de alumnos) pero es mínima: el despliegue de una asignatura
+        entera en un comando, la baja de los alumnos que dejan la
+        lista y los avisos por correo quedan diseñados y como trabajo
+        futuro.
   \item \textbf{Autenticación no implementada.} El modelo de RBAC
         está completamente diseñado (DEC-011, DEC-021, DEC-026) y
         solo el rol de superusuario es realista en la v1. El
@@ -240,9 +258,26 @@ política de rechazo por defecto sobre VMs en ejecución forman
 parte del trabajo de seguridad futuro documentado en
 \texttt{claude/ideas-pendientes.md}.
 
+\subsection{Más allá de una prueba de concepto}
+
+La necesidad que motiva este trabajo no es exclusiva de una escuela:
+cualquier institución que ofrezca laboratorios virtuales a usuarios no
+expertos --- otras universidades, centros de formación profesional,
+grupos de investigación, formación corporativa --- afronta la misma
+carga operativa y la misma dependencia de un proveedor. El interés
+temprano desde fuera de la escuela (un contacto de un centro de
+investigación y un instituto que migra a Proxmox) sugiere que el valor
+es real más allá del caso original. Una continuación natural más allá
+del TFG es convertir la prueba de concepto en un producto de código
+abierto, con las líneas de ampliación anteriores como hoja de ruta y
+con margen para explorar modelos de financiación sostenibles para
+código abierto. Las cuestiones de propiedad intelectual y licencias
+que ese paso plantea quedan fuera del alcance de esta memoria y se
+dejan para una valoración posterior.
+
 %==================================================================
 
 La prueba de concepto demuestra el modelo. El camino hasta un
-sistema en producción pasa por los puntos anteriores,
-aproximadamente en el orden listado. El motor está preparado para
-recibirlos.
+sistema en producción --- y posiblemente hasta un producto de código
+abierto --- pasa por los puntos anteriores, aproximadamente en el
+orden listado. El motor está preparado para recibirlos.

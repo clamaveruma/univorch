@@ -81,35 +81,50 @@ specific combination that, to our knowledge, no other production
 system provides:
 
 \begin{description}
-  \item[A descriptor tree with lexical-closure templates.]
-        The combination of cascade inheritance by data type and
-        lexical-closure resolution of imported templates is the
-        single most distinctive contribution. The pattern, familiar
-        from programming languages, is applied here to a concrete
-        infrastructure model.
-  \item[A clean separation between engine and domain layer.]
-        The two-layer architecture allows the same engine to be
-        used for teaching, CTF competitions, research labs or any
-        other use case that can be expressed as a tree of VM
-        descriptors. The pattern is similar in spirit to
-        Crossplane on Kubernetes; the contribution is to show that
-        an equivalent decoupling is achievable in a lightweight
-        single-container deployment.
-  \item[A domain-specific user model.]
-        The end user (student) operates VMs through a
-        domain-specific metaphor (\emph{desks} and
-        \emph{computers}) that hides not only the hypervisor but the
-        orchestrator's own concept of a tree. This is a
-        user-experience contribution rather than an engineering one,
-        and the report acknowledges it as such.
+  \item[Independence from any single hypervisor.]
+        Every hypervisor sits behind a common connector contract, so
+        VMware, Proxmox and future types (Hyper-V, KVM, cloud
+        providers) can coexist and a new one is added by writing a
+        single class, without touching the core. This generalizes the
+        supervisor's VMware-only starting point and frees an
+        institution from vendor lock-in --- it can mix hypervisors and
+        migrate without rewriting. The mock connector proves the
+        contract end-to-end; the real ones are the immediate next
+        step.
+  \item[Delegation of VM operation to non-technical users.]
+        A professor sets up a whole subject --- a folder of machines
+        per enrolled student --- with a couple of commands, and the
+        students operate their own machines without going through the
+        administrator. The end user sees a domain-specific metaphor
+        (\emph{desks} and \emph{computers}) that hides the hypervisor
+        and the orchestrator's own concepts alike. One person manages
+        hundreds of VMs without effort that grows in proportion.
+  \item[A working teaching application on a domain-agnostic engine.]
+        The teaching layer (the \texttt{teach} subcommands) is a thin
+        client of the generic core that turns a subject definition and
+        a student list into the full per-student infrastructure. It is
+        the practical proof that the two-layer split works: a complete
+        domain workflow built on the engine without the engine knowing
+        anything about teaching. The same seam (the REST API) would let
+        a CTF organizer or a research-lab deployer reuse the core
+        unchanged.
+  \item[An inheritance model that scales the configuration.]
+        A tree of descriptors with cascade inheritance by data type
+        lets the catalogue be defined once and reused across hundreds
+        of near-identical nodes, and is the natural seat of a future
+        permission model. A minor but uncommon detail of this model is
+        the lexical-closure resolution of imported templates, borrowed
+        from programming languages and applied to infrastructure
+        definitions.
   \item[A proof of concept with full engineering discipline.]
         The delivered code base, despite being a PoC, ships with
-        244 automated tests, branch coverage above 95\% on the
+        286 automated tests, branch coverage above 95\% on the
         domain logic, strict static typing, continuous integration
         gates, a published image in the GitHub Container Registry
         and a tutorial for the operator. The discipline is itself a
-        deliverable: the future iterations of the project will
-        inherit a code base that is genuinely maintainable.
+        deliverable: the future iterations of the project --- and a
+        possible open-source product beyond the TFG --- inherit a code
+        base that is genuinely maintainable.
 \end{description}
 
 \subsection{Known limitations}
@@ -130,12 +145,12 @@ the assessment of the work is not based on optimistic assumptions.
         tree view, summary counters and per-descriptor detail; write
         operations (deploy, start, stop, undeploy, load) and the
         workstation/desk view for end users remain on the roadmap.
-  \item \textbf{Teaching application not implemented.} The
-        layer-2 teaching application is fully designed but the
-        implementation is left for a later sprint. The current
-        operator workflow goes through the generic CLI; an
-        operational deployment of a real course is therefore not
-        as smooth as the design intends.
+  \item \textbf{Teaching application is a first version.} The
+        layer-2 teaching application is implemented (load a subject,
+        generate the per-student folders and machines, export the
+        student list) but minimal: deploying a whole subject in one
+        command, removing students who left the roster, and email
+        notifications are designed and left as future work.
   \item \textbf{Authentication not implemented.} The RBAC model is
         fully designed (DEC-011, DEC-021, DEC-026) and only the
         superuser role is realistic in v1. The service assumes it
@@ -231,8 +246,24 @@ it first. A \texttt{--force} flag and a refuse-by-default policy
 on running VMs is part of the future safety work documented in
 \texttt{claude/ideas-pendientes.md}.
 
+\subsection{Beyond a proof of concept}
+
+The need that motivates this work is not exclusive to one school: any
+institution that runs virtual labs for non-expert users --- other
+universities, vocational schools, research groups, corporate training
+--- faces the same operational load and the same vendor lock-in.
+Early interest from outside the school (a research-centre contact and
+a secondary school migrating to Proxmox) suggests the value is real
+beyond the original case. A natural continuation beyond the TFG is to
+turn the proof of concept into an open-source product, with the
+several extension lines above as the road map and with room to explore
+sustainable open-source funding models. The intellectual-property and
+licensing questions that such a step raises are out of scope here and
+left for a later assessment.
+
 %==================================================================
 
 The proof of concept proves the model. The path to a production
-system goes through the items above, in roughly the order listed.
-The engine is ready to receive them.
+system --- and possibly to an open-source product --- goes through the
+items above, in roughly the order listed. The engine is ready to
+receive them.
