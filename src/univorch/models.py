@@ -24,13 +24,26 @@ from pydantic import (
     model_validator,
 )
 
-_SEGMENT = re.compile(r"[A-Za-z0-9_-]+")  # provisional pattern, to be refined later
+# A folder/descriptor name: starts with a letter or digit, then may contain
+# letters, digits and _ - @ . — enough for usernames-as-emails (juan@uma.es).
+# The leading-char restriction keeps '.' and '..' (and dot-files) out, so a
+# segment can never be confused with the current/parent directory.
+_SEGMENT = re.compile(r"[A-Za-z0-9][A-Za-z0-9_@.-]*")
+
+
+def is_valid_segment(name: str) -> bool:
+    """True if ``name`` is a valid tree-segment (folder/descriptor) name.
+
+    The single source of truth for what a name may look like; both the core
+    models and the teaching layer use it instead of duplicating the pattern.
+    """
+    return _SEGMENT.fullmatch(name) is not None
 
 
 def _validate_segment_keys(value: dict[str, Any]) -> dict[str, Any]:
     """Reject dict keys that don't match the tree-segment pattern."""
     for name in value:
-        if not _SEGMENT.fullmatch(name):
+        if not is_valid_segment(name):
             raise ValueError(f"invalid name {name!r}; must match {_SEGMENT.pattern}")
     return value
 
@@ -80,7 +93,7 @@ def _validate_path(path: str) -> str:
     if path == "/":
         return path
     for segment in path[1:].split("/"):
-        if not _SEGMENT.fullmatch(segment):
+        if not is_valid_segment(segment):
             raise ValueError(f"invalid path segment {segment!r} in {path!r}")
     return path
 

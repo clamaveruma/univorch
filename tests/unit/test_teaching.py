@@ -49,6 +49,10 @@ class TestStudentList:
         with pytest.raises(ValidationError):
             StudentList(students=["alumno 01"])  # space not a path segment
 
+    def test_email_username_accepted(self) -> None:
+        sl = StudentList(students=["juan@uma.es", "ana.lopez@uma.es"])
+        assert sl.students == ["juan@uma.es", "ana.lopez@uma.es"]
+
 
 class TestSubjectValidation:
     def test_valid_subject(self) -> None:

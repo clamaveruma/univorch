@@ -59,13 +59,33 @@ class TestDescriptor:
 
 class TestPathValidation:
     @pytest.mark.parametrize(
-        "path", ["/", "/lab", "/lab/networks", "/lab/networks/student01"]
+        "path",
+        [
+            "/",
+            "/lab",
+            "/lab/networks",
+            "/lab/networks/student01",
+            "/redes-2026/juan@uma.es",  # email-as-username segment
+            "/lab/v1.2",  # dot allowed mid-segment
+        ],
     )
     def test_valid_paths(self, path: str) -> None:
         assert Folder(path=path).path == path
 
     @pytest.mark.parametrize(
-        "path", ["", "lab", "/lab/", "/lab//networks", "/lab/with space"]
+        "path",
+        [
+            "",
+            "lab",
+            "/lab/",
+            "/lab//networks",
+            "/lab/with space",
+            "/lab/.",  # segment must not start with a dot
+            "/lab/..",
+            "/lab/.hidden",
+            "/lab/-dash",  # must start with a letter or digit
+            "/lab/_under",
+        ],
     )
     def test_invalid_paths_raise(self, path: str) -> None:
         with pytest.raises(ValidationError):

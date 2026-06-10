@@ -13,6 +13,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
+from univorch.models import is_valid_segment
+
 SUBJECT_KIND = "subject"
 
 
@@ -41,11 +43,9 @@ class StudentList(BaseModel):
     @field_validator("students")
     @classmethod
     def _segment_names(cls, value: list[str]) -> list[str]:
-        # usernames become folder names, so they must be valid path segments
-        import re
-
-        pattern = re.compile(r"^[A-Za-z0-9_-]+$")
-        bad = [n for n in value if not pattern.match(n)]
+        # usernames become folder names, so they must be valid tree segments
+        # (single source of truth: the core's is_valid_segment)
+        bad = [n for n in value if not is_valid_segment(n)]
         if bad:
             raise ValueError(f"invalid student usernames (not a path segment): {bad}")
         return value

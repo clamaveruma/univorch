@@ -1,0 +1,20 @@
+# Teaching demo — a student list for the layer-2 teaching app.
+# Load with:  teach load-students /redes-2026 demo/teaching/students-redes.yml
+#
+# Minimal for the PoC: just usernames. Each becomes a folder under the
+# subject, with one descriptor per desktop template. Usernames may be
+# emails (juan@uma.es) since folder names accept '@' and '.'.
+
+kind: student-list
+version: "1"
+students:
+  - alumno01
+  - alumno02
+  - alumno03
+  - alumno04
+  - alumno05
+  - alumno06
+  - alumno07
+  - alumno08
+  - alumno09
+  - juan.perez@uma.es
