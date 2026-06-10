@@ -2012,3 +2012,155 @@ HTTP puros — esa regla no se rompe.
 - VMware connector (bloqueado por acceso al cluster docente).
 - Pieza 4 Sprint 2 (`based on:`) — aplazada.
 - Apéndices A-D de la memoria.
+
+---
+
+## 2026-06-09 / 2026-06-10
+
+### Sesión de pruebas con el tutor + chatbridge + diseño capa 2
+
+Sesión larga, varios temas. El TFG en pausa esperando V°B° del tutor
+(correo enviado); se aprovecha para infraestructura de comunicación y
+diseño de la aplicación docente.
+
+**Correo al tutor.** Redactado y enviado pidiendo V°B° para la
+convocatoria junio-julio. Tres piezas enlazadas: tutorial de la demo
+(`docs/tutorial-profesor.md`), borrador de memoria (rama
+`pdf-preview`), bocetos de la web (`demo/ui_kits/*-standalone.html`,
+servidos por `raw.githack.com` porque `htmlpreview.github.io` dejaba
+la página en blanco con Vue+Quasar).
+
+**Desinstalador.** Nuevo `uninstall.sh` simétrico a `install.sh`:
+para el contenedor, borra volumen+imagen+directorio. Confirmación
+interactiva; en modo `curl | sudo bash` exige `--yes`. El instalador
+ahora deja el `uninstall.sh` en el directorio local y lo menciona en
+los mensajes de `install.sh` y `univorch.sh start`. El `rm -rf` del
+directorio se hace desde una subshell anclada en `/tmp` para no
+borrar su propio cwd.
+
+**univorch.sh start mejorado.** El mensaje de arranque muestra ahora
+Web GUI + Swagger UI + REST + Health, con dos bloques: URLs `localhost`
+(misma máquina) y URLs con la IP/hostname detectados (otra máquina de
+la red). `sudo` documentado por la dependencia del grupo `docker`.
+
+**chatbridge — utilidad de desarrollo nueva.** Servidor REST en
+`/workspaces/chatbridge/` (FastAPI) que hace de relay entre un agente
+externo (Claude.ai/design en Composer) y esta sesión de Claude Code.
+Dos ficheros JSONL append-only: `inbox.jsonl` (cliente → yo),
+`outbox.jsonl` (yo → cliente). Monitor con `tail -F` sobre el inbox
+me notifica en vivo cada mensaje (mismo patrón que `recterm`). Token
+autogenerado en `data/.token`. Endpoints `/send`, `/recv?since=N`,
+`/log`, `/health`, `/` (página de debug HTML). CORS abierto a `*`
+(el token es el guardián real) para que el sandbox del otro agente
+pueda hacer fetch. Es herramienta de desarrollo, conceptualmente como
+`recterm`; vive fuera del repo univorch.
+
+**Frontend draft con el otro agente.** Vía chatbridge, el agente de
+Composer iteró el diseño de una web NiceGUI de prueba en
+`demo/nicegui_app/app.py` (rama `feature/webgui_draft`). Dos pantallas
+(Admin con árbol+detalle, Desk con tarjetas de workstation), datos mock,
+color brand `#c8451f`. Problema resuelto: el WebSocket de NiceGUI
+fallaba tras el proxy TLS de Codespaces; fix = montar NiceGUI sobre
+FastAPI y arrancar uvicorn con `proxy_headers=True` +
+`forwarded_allow_ips="*"` para que genere URLs `wss://`. Trabajo en
+pausa, sin commitear (queda un único commit al final). Es maqueta
+visual, no código final; la web real sigue siendo la de Sprint 4.
+
+**Reglas de operación del chatbridge (feedback del usuario).** No
+esperar confirmación humana para responder al chat salvo casos
+arriesgados. No narrar acciones rutinarias pre-autorizadas. Solo
+lectura del repo univorch salvo `demo/ui_kits/` y el sandbox de la
+app GUI (`demo/nicegui_app/`). Memoria nueva
+`silence-on-routine-actions.md`.
+
+### Diseño de la capa 2 (aplicación docente) — cerrado
+
+Diálogo de diseño siguiendo el mismo proceso por fases del core. Se
+cierra el modelo completo. Decisiones (pendiente formalizar como
+DEC-037+ al redactar Fase 3):
+
+- **Distribución:** subcomando `teach` dentro de la CLI `univorch`
+  (cmd2). Módulo `src/univorch/teaching/`. Habla con el daemon vía
+  `HttpServiceClient`, igual que el resto de la CLI. Sin servicio
+  propio, sin puerto nuevo, sin cambio en el Dockerfile. La evolución
+  natural post-TFG es exponerlo también en la web (páginas NiceGUI
+  que llaman al mismo service).
+
+- **Modelo de asignatura:** carpeta marcada con `kind: subject`, que
+  define plantillas (`define templates:`, o heredadas por `import:`)
+  y un campo `desktop: [name1, name2]` — lista de plantillas que
+  forman el escritorio del alumno. El `kind` y el `desktop` son
+  metadatos libres que el core almacena e ignora; solo la app docente
+  los interpreta (coherente con DEC-004).
+
+- **Modelo de alumno:** una carpeta por alumno bajo la asignatura;
+  la carpeta ES la identidad en el árbol. Bajo cada alumno, un
+  descriptor por cada plantilla del desktop, con `use template:
+  <name>` (sintaxis que el core ya entiende — no hace falta un
+  `use desktop:` nuevo, porque la app crea los descriptores y les
+  pone directamente el template correcto). Datos de identidad del
+  usuario (email, etc.) → `UserRepository`, separado del árbol
+  (DEC-021); para el TFG, listado mínimo de usernames.
+
+- **Comandos (4 para el TFG):**
+  - `teach load-subject <file> [destino]` — misma sintaxis que `load`;
+    valida que sea asignatura válida antes de cargar.
+  - `teach load-students <path-asignatura> <file>` — exige `kind:
+    subject` en destino; crea carpetas de alumno + descriptores;
+    valida duplicados; solo añade (la baja con aviso es futuro).
+  - `teach save-subject <path>` — exporta YAML portable de la
+    definición de asignatura (sin alumnos, sin estado); inverso de
+    `load-subject`, reusable el curso siguiente.
+  - `teach save-students <path>` — exporta el listado de alumnos.
+  - El `save` del core (futuro) guarda el subárbol completo
+    (backup/migración).
+
+- **Validación de `load-subject`:** (1) `kind: subject` presente;
+  (2) `desktop:` con ≥1 nombre; (3) cada nombre del desktop es una
+  plantilla resoluble desde la carpeta (local o heredada — se apoya
+  en el Resolver del core, que ya valida referencias en el `load`,
+  fail-fast DEC-027); (4) sin carpetas hijas en el YAML; (5) sin
+  duplicados en listas.
+
+- **Vistas por rol:** alumno (`end_user`) ve solo sus mesas; profesor
+  (`manager`) ve árbol + mesas de sus asignaturas. La vista de mesa
+  pertenece conceptualmente a la capa docente. La vista parcial del
+  profesor sobre sus ramas se resolverá con permisos efectivos
+  (futuro, fuera del TFG).
+
+- **Sintaxis YAML de asignatura (ejemplo):**
+  ```yaml
+  redes-2026/:
+    kind: subject
+    import: [linux-base-vm]
+    define templates:
+      workstation: { use template: linux-base-vm, cpu: 2 }
+      servidor:    { use template: linux-base-vm, cpu: 4 }
+    desktop: [workstation, servidor]
+  ```
+
+- **YAML de alumnos (mínimo TFG):**
+  ```yaml
+  kind: student-list
+  version: "1"
+  students:
+    - alumno01
+    - alumno02
+  ```
+
+- **Scope TFG:** los 4 comandos arriba con conector mock. Sin
+  `deploy-subject`, sin web docente, sin emails, sin RBAC efectivo,
+  sin baja de alumnos.
+
+Registrado el diseño completo en `claude/ideas-pendientes.md` §2.0.
+Acordado documentar la capa 2 siguiendo las mismas fases del core
+(plan.md): Fase 1 visión, Fase 2 requisitos, Fase 3 arquitectura
+(+ DEC nuevas); Fases 4-5 heredadas del core sin cambios; Fase 6
+implementación. Entregables en `docs/teaching/`.
+
+### Próximo
+
+- Redactar Fase 1 (`docs/teaching/vision.md`), Fase 2
+  (`docs/teaching/requirements.md`), Fase 3
+  (`docs/teaching/architecture.md` + DEC-037+).
+- Implementar `teach load-subject` + `load-students` (Fase 6).

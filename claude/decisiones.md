@@ -390,3 +390,33 @@ Este fichero recoge las decisiones técnicas importantes del proyecto con refere
 - **Instanciación al vuelo con `cls()` sin argumentos:** funciona para el mock porque su default ya precarga las plantillas demo. Para conectores reales (Pieza posterior) el constructor deberá recibir address/credentials del `HypervisorDef`; firma a decidir entonces
 - **Descubrimiento automático (entry points) fuera de v1:** DEC-029 ya lo dejaba como extensión futura para conectores publicados por terceros; el dict hardcoded es la forma honesta y simple para la PoC
 - **Trazabilidad:** concreta DEC-029 (conectores ABC, registro nombre→clase), coherente con DEC-031 (servicio como facade único), DEC-026 (mismo walker que el Resolver), DEC-021 (no persistir credenciales), refina DEC-005b (referencia inversa / metadatos en el hipervisor — futuro)
+
+## DEC-037 — Aplicación docente como subcomando CLI cliente del core
+
+- **Fecha:** 2026-06-09 → ver `diario.md#2026-06-09`
+- **Decisión:** la aplicación docente (capa 2) se implementa como un grupo de subcomandos `teach` dentro de la CLI `univorch` (cmd2), con la lógica en el módulo `src/univorch/teaching/`. Habla con el daemon a través de la misma API REST (`HttpServiceClient`) que el resto de la CLI. No es un servicio aparte, no abre puerto nuevo, no cambia el Dockerfile
+- **Alternativas descartadas (para el TFG):** módulo integrado con acceso directo al service (acopla el core con vocabulario docente); programa/contenedor separado (añade infraestructura sin necesidad en la PoC); add-in vía entry points (complejidad de empaquetado). Todas quedan como posibles evoluciones; la elegida es la más simple y honesta para la PoC
+- **Comandos (4 en el TFG):** `teach load-subject <file> [destino]`, `teach save-subject <path>`, `teach load-students <path> <file>`, `teach save-students <path>`
+- **Cliente puro:** la capa docente no toca repositorios, resolver ni motor de Jobs; construye documentos de definición del core y los envía por REST. Hereda gratis la validación del core (resolución de referencias fail-fast, DEC-027)
+- **Costura para el futuro:** mover la capa docente a una página web (NiceGUI dentro del daemon) o a un servicio aparte no cambia cómo habla con el core — la frontera es la API REST. Coherente con DEC-004 (dos capas) y DEC-031 (facade)
+- **Trazabilidad:** concreta DEC-004 (arquitectura en dos capas), coherente con DEC-031 (facade único), DEC-018 (CLI cmd2). Entregables: `docs/teaching/{vision,requirements,architecture}.md`
+
+## DEC-038 — Asignatura y desktop como metadatos opacos del árbol
+
+- **Fecha:** 2026-06-09 → ver `diario.md#2026-06-09`
+- **Decisión:** una asignatura es una carpeta del árbol marcada con `kind: subject` y un campo `desktop: [name1, name2]` (lista de plantillas que forman el escritorio del alumno). Ambos campos los **almacena el core como metadatos opacos**; solo la capa docente los interpreta. El core sigue sin saber nada de asignaturas ni escritorios (DEC-004)
+- **Desktop:** lista de plantillas (definidas localmente con `define templates:` o heredadas por `import:`) que componen el conjunto de máquinas de un alumno. Normalmente una asignatura tiene un desktop; el modelo admite varios como extensión natural (futuro)
+- **Validación de asignatura (capa docente, antes de cualquier mutación):** (1) `kind: subject` presente; (2) `desktop` no vacío; (3) cada nombre del desktop es una plantilla resoluble desde la carpeta (apoyándose en el resolver del core); (4) sin carpetas hijas en el documento; (5) sin duplicados en listas. Fail-fast: si algo falla, no se carga nada
+- **Por qué metadatos opacos y no concepto del core:** mantener el core reutilizable para otras capas 2 (CTF, talleres). El `kind` y el `desktop` son al core como `description` — campos libres que guarda sin interpretar
+- **Identidad del alumno:** la carpeta del alumno (nombrada con el username) ES su identidad en el árbol. Datos personales (email, nombre) → `UserRepository`, separado del árbol (DEC-021); en el TFG, listado mínimo de usernames
+- **Trazabilidad:** concreta DEC-004 (dos capas), coherente con DEC-009 (metáfora mesa/ordenador del alumno), DEC-021 (usuarios separados del árbol), DEC-026/027 (validación por capas, fail-fast)
+
+## DEC-039 — Generación de carpetas de alumno y semántica add-only
+
+- **Fecha:** 2026-06-09 → ver `diario.md#2026-06-09`
+- **Decisión:** `teach load-students <asignatura> <file>` toma una asignatura válida y una lista de alumnos, y genera bajo la asignatura una carpeta por alumno (nombrada con el username) y, dentro de cada una, un descriptor por cada plantilla del desktop. Cada descriptor se nombra como su plantilla y lleva `use template: <name>`, que el core ya sabe resolver — **no hace falta un `use desktop:` nuevo**, porque la app crea los descriptores y les pone directamente el template correcto
+- **Estado inicial `provisioned`:** los descriptores se crean provisionados; desplegarlos es una operación del core (por máquina o por rama). El TFG no incluye `deploy-subject`
+- **Semántica add-only:** la operación solo añade. Un alumno ya presente y sin cambios es un no-op. **No se elimina ningún alumno.** La baja de alumno (detectar quién ya no está en la lista, avisar, comprobar máquinas desplegadas, confirmar y borrar) queda como trabajo futuro (UC-TEACH-X2)
+- **YAML de alumnos (mínimo TFG):** `kind: student-list`, `version`, `students:` lista de usernames. Validación: sin duplicados. Sin contraste contra `UserRepository` (futuro, ligado a autenticación)
+- **`save-students`:** inverso a nivel de lista — lee las carpetas de alumno bajo la asignatura y exporta sus nombres en el formato `student-list`
+- **Trazabilidad:** concreta DEC-037 (capa docente cliente), DEC-038 (asignatura/desktop), coherente con DEC-027 (load del core valida las referencias generadas), DEC-005 (descriptor)
