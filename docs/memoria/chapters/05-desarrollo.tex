@@ -628,7 +628,7 @@ the same Uvicorn process as the REST application via
 \texttt{/api/v1/*} and the web pages. This is a deliberate departure
 from the Sprint~3 ``every client is HTTP'' rule: the web is part of
 the daemon, not an external HTTP client of it. The external clients
-(CLI, future teaching application, third-party integrations) keep
+(CLI, the teaching subcommands, third-party integrations) keep
 going through the REST API.
 
 The v1 has three pages. The index page shows a header, four summary
@@ -648,6 +648,64 @@ Write operations (deploy, start, stop, undeploy, load),
 authentication and the workstation/desk view for students remain on
 the roadmap; the read-only v1 is the proof that the boundary with
 the orchestrator service works correctly through a graphical client.
+
+\subsection{Teaching application (layer 2)}
+
+The teaching application is the only layer-2 application implemented,
+and it is the practical demonstration that the two-layer split
+(DEC-004) works: a complete domain workflow built entirely on the
+generic engine, without the engine learning any teaching vocabulary.
+It lives in \texttt{src/univorch/teaching/} and is exposed as a
+\texttt{teach} subcommand group of the CLI; it talks to the core
+through the same \texttt{OrchestratorAPI} as every other client.
+
+The only change it required in the core is a single opaque
+\texttt{metadata} dictionary on the folder model (DEC-038). The core
+stores it and never interprets it; the teaching layer puts
+\texttt{\{kind: subject, desktop: [\dots]\}} there to mark a folder as
+a subject and to record which templates make up a student's set of
+machines. A different layer-2 application would reuse the same field
+for its own markers, so the core stays domain-agnostic.
+
+The workflow has two inputs and a handful of commands:
+
+\begin{description}
+  \item[\texttt{teach load-subject}] validates that a YAML document is
+        a well-formed subject (marked \texttt{kind: subject},
+        non-empty desktop, every desktop template resolvable, no child
+        folders) and, only then, loads it with the core
+        \texttt{load}. A malformed subject, or the wrong file
+        altogether, is rejected with a single actionable message
+        before anything is created.
+  \item[\texttt{teach load-students}] reads the subject's desktop from
+        its metadata and generates, under the subject, one folder per
+        student (named after the username) and one descriptor per
+        desktop template inside each. Each descriptor carries
+        \texttt{use template: <name>} and the student folder carries
+        \texttt{import: *}, so the descriptors resolve the subject's
+        templates by cascade --- the generated tree is a normal core
+        document the resolver already understands. The operation is
+        add-only: existing students are no-ops, none are removed
+        (DEC-039).
+  \item[\texttt{teach save-students}] exports the current roster, the
+        inverse of \texttt{load-students} at the list level.
+\end{description}
+
+Two design choices keep the layer thin. First, there is no new
+\texttt{use desktop:} keyword: because the application creates the
+descriptors, it writes \texttt{use template: <name>} directly, which
+the core already resolves. Second, the operations are decoupled from
+the CLI into a \texttt{teaching/operations.py} module, so they are
+tested against a real in-process service without a daemon. An
+end-to-end demonstration --- load a subject of six machines, load a
+roster of ten students (one of them an email address), and deploy one
+of the resulting machines --- runs against the mock connector and
+produces sixty provisioned descriptors that each resolve their
+template by inheritance.
+
+Deploying a whole subject in one batch command, removing students
+that left the roster, email notifications and a dedicated teaching
+web view are designed and left as future work.
 
 \subsection{Packaging and distribution}
 
@@ -771,7 +829,8 @@ intentionally does not exercise.
     \texttt{interfaces/rest/}     & 95\%  & 90\% \\
     \bottomrule
   \end{tabular}
-  \caption{Coverage at the close of Sprint~3 (244 tests passing).}
+  \caption{Coverage on the core modules (286 tests passing, including
+    the teaching layer).}
   \label{tab:coverage}
 \end{table}
 
@@ -951,7 +1010,7 @@ comparison.
     Test coverage &
     Limited. &
     Limited. &
-    244 tests, $>$95\% coverage on the core. \\
+    286 tests, $>$95\% coverage on the core. \\
     Distribution &
     Internal department use. &
     Internal department use. &
