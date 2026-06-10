@@ -38,6 +38,26 @@ desplegable para ver sus definiciones. Modos:
 Esto es la versión web de `inspect <path>` con sus flags. Se aprovecha
 el método del servicio que ya existe.
 
+#### 1.2b inspect de carpetas: resolver el import (post-TFG)
+
+Hoy `inspect` de una carpeta solo muestra la definición local (p.ej.
+`alumno01` muestra solo `import: *`, sin expandir qué trae). El
+Resolver del core sabe **buscar un recurso por nombre** (`_find_template`,
+`_find_hypervisor`) pero no **enumerar** los accesibles. Falta una
+función `available_resources(folder_path)` que camine ancestros
+acumulando lo que cada nivel define y aplicando el filtro de `import`
+en cascada (la parte con aristas: el filtro es transitivo).
+
+Presentación acordada (2026-06-10): NO usar etiqueta "available".
+Mostrar los recursos heredados como **nota de origen**, igual que el
+descriptor resuelto muestra `(resolved from template: X)`. Algo como
+`(from import: workstation, server, … — inherited from /redes-2026)`.
+Coherente con el estilo del `_render_descriptor` resuelto.
+
+Va junto con el modo `--expanded` (1.2): los dos son el mismo sprint
+de "mejorar inspect". Fuera del TFG — el inspect de descriptores ya
+demuestra la herencia; esto es plus de visualización para carpetas.
+
 ### 1.3 Diálogo de previsualización antes de cargar
 
 Al subir un YAML, en vez de cargarlo directo, mostrar un diálogo con la
@@ -165,6 +185,41 @@ usuario quiera, hay escape (renombrar). Tema para reabrir cuando
 lleguemos a meter datastores e IP pools — ahí evaluamos si el modelo se
 satura.
 
+### 3.1 Registro dinámico de palabras clave de capa 2 (post-TFG)
+
+Decidido en la sesión 2026-06-10. Para el TFG, los marcadores de la
+capa 2 (`kind`, `desktop`) van bajo un campo explícito `metadata:` en
+el YAML de la carpeta (DEC-038): el core guarda ese dict y no lo
+interpreta. Sintaxis:
+
+```yaml
+redes-2026/:
+  metadata: { kind: subject, desktop: [workstation, servidor] }
+  define templates: { ... }
+```
+
+**Idea futura del usuario:** que las aplicaciones de capa 2 puedan
+**registrar sus propias palabras clave** en el core, para escribirlas
+sueltas en el YAML sin el envoltorio `metadata:` y sin que el core las
+rechace por `extra="forbid"`:
+
+```yaml
+redes-2026/:
+  kind: subject                    # clave registrada por la app docente
+  desktop: [workstation, servidor]
+  descripton: "x"                  # SIGUE siendo error (no registrada)
+```
+
+El reto está en mantener la detección de erratas (`extra="forbid"` caza
+`descripton`) mientras se aceptan las claves que una capa 2 ha
+registrado. Mecanismo posible: el core mantiene un conjunto de claves
+reservadas extensible; cada capa 2 registra las suyas al cargarse; el
+split del parser las reconoce y las guarda en el dict `metadata`
+interno. Lo mejor de los dos mundos: sintaxis limpia + core agnóstico
++ erratas cazadas. Más código que el `metadata:` explícito; innecesario
+con una sola capa 2. Se reabre cuando haya varias capas 2 o el
+`metadata:` explícito moleste en la práctica.
+
 ---
 
 ## 4. Memoria del TFG
@@ -233,6 +288,18 @@ Aplazado a Sprint 3.4 (tutorial PDF con `pandoc`).
 `list`/`ls`/`tree` solo muestran el eje del descriptor por coste — N VMs son
 N llamadas al hipervisor. Cuando entre runtime por fila, debe ir por
 streaming (NDJSON / SSE) para no bloquearse en la VM lenta. Sprint posterior.
+
+### 5.6 Destino por defecto de `load` no debe ser la raíz (post-RBAC)
+
+Detectado en la demo 2026-06-10. En modo comando (no REPL), `load` y
+`teach load-students` usan `/` como destino por defecto (el `_cwd`
+arranca en `/` y nunca cambia sin `cd`). Es predecible hoy, pero **no
+vale cuando exista RBAC**: un profesor no tendrá permiso de escritura
+en la raíz (es del admin). Un default que apunta a un sitio donde
+probablemente no puedes escribir es un mal default. Futuro: el destino
+por defecto debería ser la carpeta de trabajo / rama asignada del
+usuario, no la raíz global. Ligado a permisos efectivos (DEC-011/021),
+fuera del TFG.
 
 ### 5.5 `undeploy` permisivo sobre VM en `running` — diseño correcto fuera del TFG
 
