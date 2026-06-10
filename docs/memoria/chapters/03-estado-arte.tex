@@ -54,21 +54,18 @@ continuous reconciliation is mentioned in the closing chapter as a
 natural extension.
 
 The case that justifies a dedicated orchestrator is well documented
-in the academic literature on virtual labs. The most directly
-comparable academic precedent is the Virtual Computing Laboratory
-(VCL) of North Carolina State University, presented in IEEE
-Computer~\cite{vouk2009ncsu} and described in detail
-in~\cite{averitt2007vcl, vouk2008cloud}. The VCL is an open-source
-cloud orchestrator built explicitly for teaching and research, used
-by tens of thousands of students. It demonstrates that a single
-service that lets professors define VM environments and that lets
-students access their own machines is feasible. UnivOrch differs from
-the VCL in three concrete aspects: it is built as a
-hypervisor-agnostic engine instead of a tightly integrated stack, it
-uses a declarative YAML model with cascade inheritance instead of an
-imperative reservation system, and it separates the domain layer
-(teaching, CTF, research) from the engine through a clean public
-boundary.
+in the academic literature on virtual labs: systems that let
+professors define VM environments and let students access their own
+machines on demand have been built and operated at scale, from early
+remote labs such as Tele-Lab~\cite{willems2012telelab} to cyber
+ranges like KYPO~\cite{vykopal2017kypo}. What these systems share with
+UnivOrch is the goal --- delegated, reproducible VM environments for
+education --- and what UnivOrch adds is a different engineering
+stance: a hypervisor-agnostic engine instead of a stack tied to one
+platform, a declarative YAML model with cascade inheritance instead of
+an imperative reservation system, and a strict separation of the
+domain layer (teaching, CTF, research) from the engine through a clean
+public boundary.
 
 %==================================================================
 \section{Multi-hypervisor abstraction layers}
@@ -115,7 +112,7 @@ The declarative model has become the standard in the
 infrastructure-as-code field. Rahman, Mahdavi-Hezaveh and Williams
 present a systematic mapping study~\cite{rahman2019mapping} that
 identifies the main research themes in this area, and their companion
-work on defective IaC scripts~\cite{rahman2019defective} gives
+work on defective IaC scripts gives
 empirical grounding to the discussion of correctness. The dominant
 industrial tool, Terraform, organizes infrastructure in
 \emph{modules} that can be composed through inputs and outputs, but
@@ -151,8 +148,7 @@ the door open to the same workflow.
 
 Role-Based Access Control with role hierarchy is a classical topic,
 formalized by Sandhu et al.\ in~\cite{sandhu1996rbac} and later
-standardized as the NIST RBAC model~\cite{ferraiolo2001nist} and the
-\mbox{ANSI INCITS}~359-2004 standard~\cite{ansi2004rbac}. The RBAC1
+standardized by NIST and ANSI. The RBAC1
 model directly maps to what UnivOrch implements at the design level:
 a hierarchy of roles in which the assignment at a higher level
 cascades to descendants, with the possibility of overriding at any
@@ -192,15 +188,12 @@ the folder where it is used --- the behaviour of a \emph{lexical
 closure}, where the environment in which a function was defined
 accompanies the function wherever it travels.
 
-The notion of lexical scoping was introduced by Sussman and Steele in
-the seminal Scheme paper~\cite{sussman1975scheme} and is treated
-pedagogically in SICP~\cite{abelson1996sicp}; in the
-configuration-language space it is alive in
-Jsonnet~\cite{jsonnet-lang} and similar languages such as CUE and
-Dhall. Applying it to a concrete model of infrastructure resources is
-a minor but, as far as we found, uncommon touch; it is a detail of the
-inheritance machinery (\Cref{sec:positioning}), not a headline
-contribution.
+Lexical scoping is a classic idea from programming languages, treated
+pedagogically in SICP~\cite{abelson1996sicp} and alive today in
+configuration languages such as Jsonnet, CUE and Dhall. Applying it to
+a concrete model of infrastructure resources is a minor but, as far as
+we found, uncommon touch; it is a detail of the inheritance machinery
+(\Cref{sec:positioning}), not a headline contribution.
 
 %==================================================================
 \section{Containers and virtual machines in educational labs}
@@ -213,12 +206,10 @@ computer science education. Several recent works are explicit on the
 matter. The KYPO cyber range~\cite{vykopal2017kypo} argues that
 hands-on training in network security and operating-system
 internals demands access to a privileged kernel and to arbitrary
-networking, neither of which a non-privileged container can offer.
-The CyTrONE framework~\cite{beuran2018cytrone} compares both
-substrates and reaches the same practical conclusion: containers
-suffice for many introductory scenarios, but full VMs remain
-necessary for kernel-level and complex-networking exercises. The
-Tele-Lab project~\cite{willems2012telelab} of HPI Potsdam is an
+networking, neither of which a non-privileged container can offer:
+containers suffice for many introductory scenarios, but full VMs
+remain necessary for kernel-level and complex-networking exercises.
+The Tele-Lab project~\cite{willems2012telelab} of HPI Potsdam is an
 earlier example of a VM-based learning environment with a long
 operational history.
 
@@ -330,11 +321,13 @@ hypervisor. Concretely, the defensible points, in order of value:
         rather than the headline.
 \end{enumerate}
 
-The closest single point of reference among all the systems
-surveyed is the NCSU VCL~\cite{vouk2009ncsu}; the largest unfair
-fight, in terms of maturity and engineering depth, is Crossplane.
-UnivOrch is neither at the scale of the former nor at the maturity
-of the latter; it occupies a defensible niche between them.
+In terms of maturity and engineering depth, the most demanding point
+of comparison among the systems surveyed is Crossplane: it solves the
+engine/domain separation elegantly, but on top of a full Kubernetes
+cluster. UnivOrch is far from that maturity; its claim is the opposite
+trade-off --- the same kind of decoupling, plus hypervisor
+independence and delegation to non-technical users, in a tool light
+enough for one person to install and run.
 
 %==================================================================
 \section{Selected technologies}
@@ -362,7 +355,7 @@ design-decision DEC-033; we restate the rationale here.
     Generates an OpenAPI specification automatically; strict typing
     integrates with Pydantic; ASGI test client is standard. \\
     Domain modelling &
-    Pydantic v2~\cite{pydantic-docs} &
+    Pydantic v2 &
     Declarative model, validation at the boundary, JSON
     serialization for free, used by FastAPI internally. \\
     HTTP client (CLI) &
@@ -371,7 +364,7 @@ design-decision DEC-033; we restate the rationale here.
     test transport; replaceable through dependency injection in
     tests. \\
     Persistence &
-    TinyDB~\cite{tinydb-docs} (PoC) &
+    TinyDB (PoC) &
     A single JSON file as the database keeps the proof of concept
     self-contained. A MongoDB-backed repository is the natural
     successor for production. \\
@@ -380,13 +373,13 @@ design-decision DEC-033; we restate the rationale here.
     Bash-style and REPL modes from the same command set; argparse
     integration; well-tested behaviour for tab completion and help. \\
     Quality &
-    Ruff~\cite{ruff-docs}, mypy --strict,
-    pytest, Hypothesis~\cite{hypothesis-docs} &
+    Ruff, mypy --strict,
+    pytest, Hypothesis &
     Fast linter and formatter; strict static typing; full unit and
     integration test coverage; property-based testing on the pure
     Resolver. \\
     Tooling &
-    uv~\cite{uv-docs} + Docker &
+    uv + Docker &
     \texttt{uv} for reproducible Python environments; multi-stage
     Docker for a minimal runtime image; image hosted in GitHub
     Container Registry. \\

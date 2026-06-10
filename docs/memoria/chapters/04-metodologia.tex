@@ -116,7 +116,7 @@ same file produces an identical environment in three setups:
 \end{itemize}
 
 The base image of the devcontainer is the official Microsoft Python
-3.12 image. The container installs \texttt{uv}~\cite{uv-docs} as the
+3.12 image. The container installs \texttt{uv} as the
 package manager and synchronizes all development dependencies
 declared in \texttt{pyproject.toml} with the \texttt{dev} extra.
 Editor configuration, linter settings and useful VSCode extensions
@@ -160,7 +160,7 @@ Every public function has at least one test, every Command is tested
 with both an accepting and a rejecting case, and every Repository is
 tested against an in-memory TinyDB. The pure Resolver, being a
 function over plain data, is also exercised by property-based tests
-written with Hypothesis~\cite{hypothesis-docs}, which automatically
+written with Hypothesis, which automatically
 generates trees of folders and descriptors and checks invariants
 such as ``a child folder cannot shadow a hypervisor that was never
 imported.''
@@ -169,7 +169,7 @@ The four quality gates run on every commit. They are also enforced
 in continuous integration; a failed check blocks the build.
 
 \begin{description}
-  \item[Ruff~\cite{ruff-docs}] -- linter and formatter in a single
+  \item[Ruff] -- linter and formatter in a single
         tool. Replaces \texttt{flake8}, \texttt{isort} and
         \texttt{black}. Configured in strict mode for the application
         source code.

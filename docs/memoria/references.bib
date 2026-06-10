@@ -1,48 +1,5 @@
-% ----------------------------------------------------------------------
 % References for the UnivOrch TFG report.
-% Curated 2026-06-07 from the state-of-the-art research notes
-% (docs/memoria/_notes/state-of-the-art-research.md).
-% Style: biblatex/numeric, sort by name-year-title.
-% ----------------------------------------------------------------------
-
-% ====== Teaching virtualization, virtual labs =======================
-
-@article{vouk2009ncsu,
-  author    = {Vouk, Mladen A. and Averitt, Sam and Bugaev, Mladen
-               and Kurth, Andy and Peeler, Aaron and Schaffer, Henry
-               and Sills, Eric and Stein, Sarah and Thompson, Josh},
-  title     = {{NCSU's Virtual Computing Lab: A Cloud Computing Solution}},
-  journal   = {Computer},
-  volume    = {42},
-  number    = {7},
-  pages     = {94--97},
-  year      = {2009},
-  doi       = {10.1109/MC.2009.230},
-  publisher = {IEEE}
-}
-
-@article{vouk2008cloud,
-  author  = {Vouk, Mladen A.},
-  title   = {Cloud Computing -- Issues, Research and Implementations},
-  journal = {Journal of Computing and Information Technology},
-  volume  = {16},
-  number  = {4},
-  pages   = {235--246},
-  year    = {2008},
-  url     = {http://cit.fer.hr/index.php/CIT/article/view/1674}
-}
-
-@inproceedings{averitt2007vcl,
-  author    = {Averitt, Sam and Bugaev, Mladen and Peeler, Aaron and
-               Schaffer, Henry and Sills, Eric and Stein, Sarah and
-               Thompson, Josh and Vouk, Mladen},
-  title     = {The Virtual Computing Laboratory},
-  booktitle = {Proc.\ International Conference on Virtual Computing
-               Initiative},
-  publisher = {IBM Corporation},
-  year      = {2007},
-  url       = {https://vcl.ncsu.edu/}
-}
+% Style: biblatex/numeric, sorted by name-year-title.
 
 @article{willems2012telelab,
   author    = {Willems, Christian and Meinel, Christoph},
@@ -64,8 +21,6 @@
   url       = {https://www.usenix.org/system/files/conference/ase17/ase17_paper_irvine.pdf}
 }
 
-% ====== Cyber ranges and VM-vs-container in education ===============
-
 @inproceedings{vykopal2017kypo,
   author    = {Vykopal, Jan and O\v{s}lej\v{s}ek, Radek and
                \v{C}eleda, Pavel and Vizv\'{a}ry, Martin and
@@ -76,20 +31,6 @@
   year      = {2017},
   doi       = {10.5220/0006428203100321}
 }
-
-@article{beuran2018cytrone,
-  author  = {Beuran, Razvan and Tang, Dat and Pham, Cuong and
-             Chinen, Ken-ichi and Tan, Yasuo and Shinoda, Yoichi},
-  title   = {Integrated framework for hands-on cybersecurity
-             training: {CyTrONE}},
-  journal = {Computers \& Security},
-  volume  = {78},
-  pages   = {43--59},
-  year    = {2018},
-  doi     = {10.1016/j.cose.2018.06.001}
-}
-
-% ====== Declarative infrastructure and configuration ================
 
 @article{burgess2003theory,
   author  = {Burgess, Mark},
@@ -114,19 +55,6 @@
   doi     = {10.1016/j.infsof.2018.12.004}
 }
 
-@article{rahman2019defective,
-  author  = {Rahman, Akond and Williams, Laurie},
-  title   = {Source code properties of defective infrastructure as
-             code scripts},
-  journal = {Information and Software Technology},
-  volume  = {112},
-  pages   = {148--163},
-  year    = {2019},
-  doi     = {10.1016/j.infsof.2019.04.013}
-}
-
-% ====== Hypervisor abstraction ======================================
-
 @inproceedings{bolte2010libvirt,
   author    = {Bolte, Matthias and Sievers, Michael and
                Birkenheuer, Georg and Nieh\"orster, Oliver and
@@ -146,8 +74,6 @@
   url    = {https://www.dmtf.org/standards/ovf}
 }
 
-% ====== RBAC and tenant delegation ==================================
-
 @article{sandhu1996rbac,
   author    = {Sandhu, Ravi S. and Coyne, Edward J. and
                Feinstein, Hal L. and Youman, Charles E.},
@@ -161,37 +87,6 @@
   publisher = {IEEE}
 }
 
-@article{ferraiolo2001nist,
-  author  = {Ferraiolo, David F. and Sandhu, Ravi and
-             Gavrila, Serban and Kuhn, D. Richard and
-             Chandramouli, Ramaswamy},
-  title   = {Proposed {NIST} standard for role-based access control},
-  journal = {ACM Transactions on Information and System Security},
-  volume  = {4},
-  number  = {3},
-  pages   = {224--274},
-  year    = {2001},
-  doi     = {10.1145/501978.501980}
-}
-
-@manual{ansi2004rbac,
-  author       = {{American National Standards Institute}},
-  title        = {{ANSI INCITS 359-2004, Role-Based Access Control}},
-  organization = {ANSI},
-  year         = {2004}
-}
-
-% ====== Lexical scoping (analogy) ===================================
-
-@techreport{sussman1975scheme,
-  author      = {Sussman, Gerald J. and Steele, Guy L.},
-  title       = {Scheme: An Interpreter for Extended Lambda Calculus},
-  institution = {MIT Artificial Intelligence Laboratory},
-  number      = {AI Memo 349},
-  year        = {1975},
-  url         = {https://dspace.mit.edu/handle/1721.1/5794}
-}
-
 @book{abelson1996sicp,
   author    = {Abelson, Harold and Sussman, Gerald J. and
                Sussman, Julie},
@@ -201,8 +96,6 @@
   year      = {1996},
   isbn      = {0-262-01153-0}
 }
-
-% ====== Comparable systems (documentation) ==========================
 
 @online{opennebula-docs,
   author = {{OpenNebula Systems}},
@@ -218,22 +111,6 @@
              Accounts, Users, and Domains}},
   year   = {2026},
   url    = {https://docs.cloudstack.apache.org/en/latest/adminguide/accounts.html}
-}
-
-@online{proxmox-docs,
-  author = {{Proxmox Server Solutions GmbH}},
-  title  = {{Proxmox VE Administration Guide: User Management and
-             Pools}},
-  year   = {2026},
-  url    = {https://pve.proxmox.com/wiki/User_Management}
-}
-
-@online{vcd-docs,
-  author = {{VMware (Broadcom)}},
-  title  = {{VMware Cloud Director 10.6 Service Provider
-             Administration Guide}},
-  year   = {2024},
-  url    = {https://docs.vmware.com/en/VMware-Cloud-Director/}
 }
 
 @online{k8s-hnc-blog,
@@ -267,54 +144,9 @@
   url    = {https://www.ovirt.org/documentation/administration_guide/}
 }
 
-@online{jsonnet-lang,
-  author = {{Google}},
-  title  = {{Jsonnet Language Reference: Lexical Scoping and Object
-             Inheritance}},
-  year   = {2020},
-  url    = {https://jsonnet.org/ref/language.html}
-}
-
-% ====== Implementation technology references ========================
-
 @online{fastapi-docs,
   author = {Ram\'irez, Sebasti\'an},
   title  = {{FastAPI documentation}},
   year   = {2026},
   url    = {https://fastapi.tiangolo.com/}
-}
-
-@online{pydantic-docs,
-  author = {{Pydantic developers}},
-  title  = {{Pydantic v2 documentation}},
-  year   = {2026},
-  url    = {https://docs.pydantic.dev/latest/}
-}
-
-@online{tinydb-docs,
-  author = {Siemens, Markus},
-  title  = {{TinyDB documentation}},
-  year   = {2025},
-  url    = {https://tinydb.readthedocs.io/en/latest/}
-}
-
-@online{ruff-docs,
-  author = {{Astral}},
-  title  = {{Ruff: an extremely fast Python linter and formatter}},
-  year   = {2026},
-  url    = {https://docs.astral.sh/ruff/}
-}
-
-@online{uv-docs,
-  author = {{Astral}},
-  title  = {{uv: a fast Python package and project manager}},
-  year   = {2026},
-  url    = {https://docs.astral.sh/uv/}
-}
-
-@online{hypothesis-docs,
-  author = {MacIver, David R.},
-  title  = {{Hypothesis: property-based testing for Python}},
-  year   = {2025},
-  url    = {https://hypothesis.readthedocs.io/en/latest/}
 }
