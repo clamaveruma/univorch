@@ -117,6 +117,26 @@ def test_load_students_on_non_subject_rejected(
         ops.load_students(service, "/plain", _write(tmp_path, "st.yml", _STUDENTS_YAML))
 
 
+def test_load_students_on_root_gives_clear_message(
+    service: OrchestratorService, tmp_path: Path
+) -> None:
+    # the implicit root is not a subject: a clear message, not "not found: /"
+    with pytest.raises(ops.TeachingError) as exc:
+        ops.load_students(service, "/", _write(tmp_path, "st.yml", _STUDENTS_YAML))
+    assert "is not a subject" in "; ".join(exc.value.errors)
+
+
+def test_load_students_with_subject_file_gives_clear_message(
+    service: OrchestratorService, tmp_path: Path
+) -> None:
+    # passing the subject file where a student list is expected
+    ops.load_subject(service, _write(tmp_path, "s.yml", _SUBJECT_YAML), "/")
+    wrong = _write(tmp_path, "wrong.yml", _SUBJECT_YAML)  # a subject, not a list
+    with pytest.raises(ops.TeachingError) as exc:
+        ops.load_students(service, "/redes-2026", wrong)
+    assert "not a student list" in "; ".join(exc.value.errors)
+
+
 def test_save_students_roundtrip(service: OrchestratorService, tmp_path: Path) -> None:
     ops.load_subject(service, _write(tmp_path, "s.yml", _SUBJECT_YAML), "/")
     ops.load_students(

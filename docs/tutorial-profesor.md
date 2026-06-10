@@ -490,33 +490,28 @@ navegador.
 
 ## 11. Alcance del TFG
 
-Lo que has probado hoy es el PoC con un conector simulado. Ya incluye
-el motor de orquestación (secciones 5-6), una interfaz web de lectura
-(sección 3) y una primera versión de la aplicación de docencia
-(sección 7). El TFG, que sigue siendo una prueba de concepto, lo
-completa con:
-
-1. **Conectores reales** — VMware (vSphere) y Proxmox sobre el mismo
-   contrato abstracto que ya cumple el mock. Pendiente de acceso a los
-   hipervisores del aulario.
-
-2. **Interfaz web con operaciones de escritura** — sobre la base de
-   lectura que ya tienes. Crear y editar nodos por diálogo, desplegar
-   desde la web, y la vista de "mesa" para el alumno.
-
-3. **Más de la aplicación docente** — la base ya está (cargar
-   asignatura y alumnos, sección 7). Faltan el despliegue de la
-   asignatura entera en un comando, la baja de alumnos y los avisos por
-   correo.
+Lo que has probado hoy **es** el TFG, una prueba de concepto: el motor
+de orquestación agnóstico del hipervisor (secciones 5-6), una interfaz
+web de lectura (sección 3) y la aplicación de docencia (sección 7),
+todo sobre un conector simulado (mock) y con la disciplina de
+ingeniería que lo acompaña (tests, tipado estricto, CI/CD, contenedor
+descargable). El modelo queda demostrado de extremo a extremo.
 
 ### Después del TFG
 
-El proyecto queda planteado como una prueba de concepto. Muchas piezas
-quedan diseñadas pero no implementadas, para iteraciones posteriores
-del trabajo:
+El proyecto se plantea como una prueba de concepto pensada para crecer.
+Las siguientes piezas quedan **diseñadas pero fuera del alcance del
+TFG**, para iteraciones posteriores:
 
+- **Conectores reales** — VMware (vSphere) y Proxmox sobre el mismo
+  contrato abstracto que ya cumple el mock. Pendiente de acceso a los
+  hipervisores del aulario.
+- **Interfaz web con operaciones de escritura** — sobre la base de
+  lectura actual: crear y editar nodos por diálogo, desplegar desde la
+  web, y la vista de "mesa" para el alumno.
+- **Más de la aplicación docente** — despliegue de la asignatura entera
+  en un comando, baja de alumnos y avisos por correo.
 - Control de usuarios, autenticación y permisos (RBAC).
-- Web más completa y cuidada (acciones, edición avanzada, dashboards).
 - Integración con sistemas de gestión de direcciones IP (IPAM).
 - Gestión de snapshots de VMs.
 - Modelado de datastores como recurso heredable.
